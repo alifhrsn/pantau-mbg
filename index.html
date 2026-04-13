@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="theme-color" content="#2563eb"/>
+<title>PantauBelanjaMBG</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet"/>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; }
+.line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.animate-spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useCallback } = React;
+
+const fmt = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
+const fmtShort = n => { if(n>=1e9) return "Rp"+(n/1e9).toFixed(1)+"M"; if(n>=1e6) return "Rp"+(n/1e6).toFixed(1)+"jt"; return "Rp"+(n/1e3).toFixed(0)+"rb"; };
+const todayStr = () => new Date().toISOString().split("T")[0];
+const uid = () => Math.random().toString(36).slice(2,10);
+
+const KATEGORI = ["Beras","Ayam Potong","Ayam Fillet Dada","Ayam Giling Dada","Telur Ayam","Minyak Goreng","Wortel","Sawi Putih","Buncis","Kentang","Brokoli","Tomat","Bawang Putih Kupas","Bawang Merah","Bawang Bombay","Cabai Merah Besar","Tahu Putih","Tempe","Jeruk Santang","Pisang Ambon","Kelengkeng","Susu UHT 1L","Susu FF 110ml","Jagung Pipil","Gula Pasir","Lainnya"];
+
+const INIT_HARGA = [
+  {id:"ih1",komoditas:"Beras",satuan:"kg",harga:14700,tanggal:"2026-03-30",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih2",komoditas:"Ayam Potong",satuan:"pcs",harga:43000,tanggal:"2026-04-05",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih3",komoditas:"Ayam Fillet Dada",satuan:"kg",harga:54000,tanggal:"2026-04-01",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih4",komoditas:"Telur Ayam",satuan:"kg",harga:30000,tanggal:"2026-04-07",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih5",komoditas:"Minyak Goreng",satuan:"jeriken",harga:400000,tanggal:"2026-04-05",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih6",komoditas:"Wortel",satuan:"kg",harga:13000,tanggal:"2026-04-06",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih7",komoditas:"Sawi Putih",satuan:"kg",harga:10000,tanggal:"2026-04-07",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih8",komoditas:"Buncis",satuan:"kg",harga:22000,tanggal:"2026-04-09",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih9",komoditas:"Kentang",satuan:"kg",harga:22000,tanggal:"2026-04-06",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih10",komoditas:"Brokoli",satuan:"kg",harga:42000,tanggal:"2026-04-06",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih11",komoditas:"Tomat",satuan:"kg",harga:21000,tanggal:"2026-04-08",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih12",komoditas:"Bawang Putih Kupas",satuan:"kg",harga:40000,tanggal:"2026-04-05",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih13",komoditas:"Bawang Merah",satuan:"kg",harga:45000,tanggal:"2026-04-05",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih14",komoditas:"Bawang Bombay",satuan:"kg",harga:33000,tanggal:"2026-04-01",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih15",komoditas:"Cabai Merah Besar",satuan:"kg",harga:42000,tanggal:"2026-04-08",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih16",komoditas:"Tahu Putih",satuan:"pcs",harga:800,tanggal:"2026-04-08",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih17",komoditas:"Tempe",satuan:"pcs",harga:9000,tanggal:"2026-04-09",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih18",komoditas:"Jeruk Santang",satuan:"peti",harga:240000,tanggal:"2026-04-07",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih19",komoditas:"Pisang Ambon",satuan:"pcs",harga:1700,tanggal:"2026-04-09",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih20",komoditas:"Kelengkeng",satuan:"peti",harga:420000,tanggal:"2026-04-06",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih21",komoditas:"Susu UHT 1L",satuan:"dus",harga:276000,tanggal:"2026-03-30",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih22",komoditas:"Susu FF 110ml",satuan:"dus",harga:127000,tanggal:"2026-04-07",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih23",komoditas:"Jagung Pipil",satuan:"kg",harga:16000,tanggal:"2026-04-01",pasar:"Pasar Citeureup",sumber:"referensi"},
+  {id:"ih24",komoditas:"Gula Pasir",satuan:"kg",harga:22000,tanggal:"2026-04-06",pasar:"Pasar Citeureup",sumber:"referensi"},
+];
+
+const Badge = ({color,children}) => {
+  const c={green:"bg-green-100 text-green-700",red:"bg-red-100 text-red-700",yellow:"bg-yellow-100 text-yellow-700",blue:"bg-blue-100 text-blue-700",gray:"bg-gray-100 text-gray-600",orange:"bg-orange-100 text-orange-700",purple:"bg-purple-100 text-purple-700"};
+  return <span className={"text-xs px-2 py-0.5 rounded-full font-medium "+(c[color]||c.gray)}>{children}</span>;
+};
+const Card = ({children,className=""}) => <div className={"bg-white rounded-xl shadow-sm border border-gray-100 p-4 "+className}>{children}</div>;
+const StatCard = ({label,value,sub,color="blue",icon}) => {
+  const bg={blue:"from-blue-500 to-blue-600",green:"from-green-500 to-green-600",orange:"from-orange-500 to-orange-600",purple:"from-purple-500 to-purple-600"};
+  return (
+    <div className={"bg-gradient-to-br "+(bg[color]||bg.blue)+" rounded-xl p-4 text-white"}>
+      <div className="flex justify-between items-start">
+        <div><p className="text-xs opacity-80 mb-1">{label}</p><p className="text-xl font-bold">{value}</p>{sub&&<p className="text-xs opacity-70 mt-1">{sub}</p>}</div>
+        {icon&&<span className="text-2xl opacity-80">{icon}</span>}
+      </div>
+    </div>
+  );
+};
+
+function estimasiPagu(s) {
+  if(!s) return {bahanBakuPerHari:0,opPerHari:0,insentifPerHari:6000000,totalPerHari:0,totalPeriode:0,hari:0,totalPM:0};
+  const hari=s.hariOperasional||26;
+  const bb=(s.pmPaud||0)*8000+(s.pmSd13||0)*8000+(s.pmSd46||0)*10000+(s.pmSmp||0)*10000+(s.pmSma||0)*10000+(s.pmLainnya||0)*10000+(s.pmIbuHamil||0)*10000+(s.pmIbuMenyusui||0)*10000+(s.pmBalita||0)*8000;
+  const totalPM=(s.pmPaud||0)+(s.pmSd13||0)+(s.pmSd46||0)+(s.pmSmp||0)+(s.pmSma||0)+(s.pmLainnya||0)+(s.pmIbuHamil||0)+(s.pmIbuMenyusui||0)+(s.pmBalita||0);
+  const op=totalPM*3000,ins=6000000;
+  return {bahanBakuPerHari:bb,opPerHari:op,insentifPerHari:ins,totalPerHari:bb+op+ins,totalPeriode:(bb+op+ins)*hari,hari,totalPM};
+}
+
+function ModalSPPG({onSave,onClose}) {
+  const [f,setF]=useState({nama:"",kecamatan:"",kabupaten:"",provinsi:"Jawa Barat",pmPaud:0,pmSd13:0,pmSd46:0,pmSmp:0,pmSma:0,pmLainnya:0,pmIbuHamil:0,pmIbuMenyusui:0,pmBalita:0,hariOperasional:26});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const pmF=[{k:"pmPaud",l:"PAUD/TK/RA"},{k:"pmSd13",l:"SD Kls 1-3"},{k:"pmSd46",l:"SD Kls 4-6"},{k:"pmSmp",l:"SMP/MTs"},{k:"pmSma",l:"SMA/SMK"},{k:"pmLainnya",l:"Pendidik+TK"},{k:"pmIbuHamil",l:"Ibu Hamil"},{k:"pmIbuMenyusui",l:"Ibu Menyusui"},{k:"pmBalita",l:"Balita"}];
+  return (
+    <div className="fixed inset-0 bg-black" style={{backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
+      <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"32rem",maxHeight:"90vh",overflowY:"auto"}}>
+        <div className="p-5 border-b flex justify-between items-center" style={{position:"sticky",top:0,background:"white"}}>
+          <h3 className="font-bold text-gray-800">Tambah SPPG</h3>
+          <button onClick={onClose} className="text-gray-400 text-xl">x</button>
+        </div>
+        <div className="p-5" style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+          <div><label className="text-xs text-gray-500 font-medium">Nama SPPG</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.nama} onChange={e=>set("nama",e.target.value)} placeholder="SPPG ..."/></div>
+          <div className="grid grid-cols-3 gap-2">
+            <div><label className="text-xs text-gray-500">Kecamatan</label><input className="w-full mt-1 border rounded-lg px-2 py-1 text-xs" value={f.kecamatan} onChange={e=>set("kecamatan",e.target.value)}/></div>
+            <div><label className="text-xs text-gray-500">Kab/Kota</label><input className="w-full mt-1 border rounded-lg px-2 py-1 text-xs" value={f.kabupaten} onChange={e=>set("kabupaten",e.target.value)}/></div>
+            <div><label className="text-xs text-gray-500">Hari Ops</label><input type="number" className="w-full mt-1 border rounded-lg px-2 py-1 text-xs" value={f.hariOperasional} onChange={e=>set("hariOperasional",parseInt(e.target.value)||26)}/></div>
+          </div>
+          <p className="text-xs font-semibold text-gray-600">Jumlah Penerima Manfaat</p>
+          <div className="grid grid-cols-3 gap-2">
+            {pmF.map(x=>(
+              <div key={x.k}><label className="text-xs text-gray-500">{x.l}</label><input type="number" className="w-full mt-0.5 border rounded-lg px-2 py-1 text-xs" value={f[x.k]} onChange={e=>set(x.k,parseInt(e.target.value)||0)}/></div>
+            ))}
+          </div>
+        </div>
+        <div className="p-5 pt-0 flex gap-2">
+          <button onClick={onClose} className="flex-1 border rounded-lg py-2 text-sm text-gray-600">Batal</button>
+          <button onClick={()=>{if(!f.nama)return alert("Nama SPPG wajib!");onSave({...f,id:"sppg-"+uid(),aktif:true});onClose();}} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium">Simpan</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalTransaksi({sppgList,onSave,onClose}) {
+  const [f,setF]=useState({sppgId:sppgList[0]?.id||"",tanggal:todayStr(),komponen:"bahan_baku",uraian:"",jumlah:""});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  return (
+    <div className="fixed inset-0" style={{backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
+      <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"28rem"}}>
+        <div className="p-5 border-b flex justify-between items-center">
+          <h3 className="font-bold text-gray-800">Input Belanja Harian</h3>
+          <button onClick={onClose} className="text-gray-400 text-xl">x</button>
+        </div>
+        <div className="p-5" style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+          <div><label className="text-xs text-gray-500">SPPG</label>
+            <select className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.sppgId} onChange={e=>set("sppgId",e.target.value)}>
+              {sppgList.map(s=><option key={s.id} value={s.id}>{s.nama}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs text-gray-500">Tanggal</label><input type="date" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.tanggal} onChange={e=>set("tanggal",e.target.value)}/></div>
+            <div><label className="text-xs text-gray-500">Komponen</label>
+              <select className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.komponen} onChange={e=>set("komponen",e.target.value)}>
+                <option value="bahan_baku">Bahan Baku</option>
+                <option value="operasional">Operasional</option>
+                <option value="insentif">Insentif Fasilitas</option>
+              </select>
+            </div>
+          </div>
+          <div><label className="text-xs text-gray-500">Uraian Belanja</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="Beras 200kg..." value={f.uraian} onChange={e=>set("uraian",e.target.value)}/></div>
+          <div><label className="text-xs text-gray-500">Total Jumlah (Rp)</label><input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0" value={f.jumlah} onChange={e=>set("jumlah",e.target.value)}/></div>
+        </div>
+        <div className="p-5 pt-0 flex gap-2">
+          <button onClick={onClose} className="flex-1 border rounded-lg py-2 text-sm text-gray-600">Batal</button>
+          <button onClick={()=>{if(!f.uraian||!f.jumlah)return alert("Lengkapi semua!");onSave({...f,id:uid(),jumlah:parseInt(f.jumlah),sumber:"manual"});onClose();}} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium">Simpan</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalHarga({onSave,onClose}) {
+  const [f,setF]=useState({komoditas:"Beras",komoditasCustom:"",satuan:"kg",harga:"",tanggal:todayStr(),pasar:"Pasar Citeureup"});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const nama=f.komoditas==="Lainnya"?f.komoditasCustom:f.komoditas;
+  return (
+    <div className="fixed inset-0" style={{backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
+      <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"24rem"}}>
+        <div className="p-5 border-b flex justify-between items-center">
+          <h3 className="font-bold text-gray-800">Input Survei Harga</h3>
+          <button onClick={onClose} className="text-gray-400 text-xl">x</button>
+        </div>
+        <div className="p-5" style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+          <div><label className="text-xs text-gray-500">Komoditas</label>
+            <select className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.komoditas} onChange={e=>set("komoditas",e.target.value)}>
+              {KATEGORI.map(k=><option key={k}>{k}</option>)}
+            </select>
+          </div>
+          {f.komoditas==="Lainnya"&&<div><label className="text-xs text-gray-500">Nama</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.komoditasCustom} onChange={e=>set("komoditasCustom",e.target.value)}/></div>}
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs text-gray-500">Satuan</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.satuan} onChange={e=>set("satuan",e.target.value)}/></div>
+            <div><label className="text-xs text-gray-500">Harga (Rp)</label><input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.harga} onChange={e=>set("harga",e.target.value)}/></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs text-gray-500">Tanggal</label><input type="date" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.tanggal} onChange={e=>set("tanggal",e.target.value)}/></div>
+            <div><label className="text-xs text-gray-500">Pasar</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.pasar} onChange={e=>set("pasar",e.target.value)}/></div>
+          </div>
+        </div>
+        <div className="p-5 pt-0 flex gap-2">
+          <button onClick={onClose} className="flex-1 border rounded-lg py-2 text-sm text-gray-600">Batal</button>
+          <button onClick={()=>{if(!f.harga||!nama)return alert("Lengkapi data!");onSave({id:uid(),komoditas:nama,satuan:f.satuan,harga:parseInt(f.harga),tanggal:f.tanggal,pasar:f.pasar,sumber:"survei"});onClose();}} className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm font-medium">Simpan</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HalamanDashboard({sppgList,transaksi,setModal}) {
+  const total=transaksi.reduce((a,t)=>a+t.jumlah,0);
+  const bln=new Date().toISOString().slice(0,7);
+  const blnIni=transaksi.filter(t=>t.tanggal.startsWith(bln)).reduce((a,t)=>a+t.jumlah,0);
+  const totalPagu=sppgList.reduce((a,s)=>a+estimasiPagu(s).totalPeriode,0);
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"1.25rem"}}>
+      <div className="flex justify-between items-start">
+        <div><h1 className="text-xl font-bold text-gray-800">Dashboard MBG</h1><p className="text-sm text-gray-500">{sppgList.filter(s=>s.aktif).length} SPPG Aktif</p></div>
+        <button onClick={()=>setModal("transaksi")} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium shadow">+ Belanja</button>
+      </div>
+      {sppgList.length===0&&<div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center"><p className="text-2xl mb-2">🍽️</p><p className="text-sm font-semibold text-blue-700">Belum ada SPPG</p><p className="text-xs text-blue-500 mt-1">Tambah SPPG di tab Estimasi</p></div>}
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Total Belanja" value={fmtShort(total)} sub="Semua periode" color="blue" icon="💰"/>
+        <StatCard label="Bulan Ini" value={fmtShort(blnIni)} sub={new Date().toLocaleDateString("id-ID",{month:"long"})} color="purple" icon="📅"/>
+        <StatCard label="Est. Pagu Total" value={fmtShort(totalPagu)} sub={sppgList.length+" SPPG"} color="green" icon="📋"/>
+        <StatCard label="SPPG Aktif" value={sppgList.filter(s=>s.aktif).length} sub={"dari "+sppgList.length+" terdaftar"} color="orange" icon="🍽️"/>
+      </div>
+      {sppgList.length>0&&<Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">Realisasi vs Pagu per SPPG</h3><div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>{sppgList.map(s=>{const real=transaksi.filter(t=>t.sppgId===s.id).reduce((a,t)=>a+t.jumlah,0);const pagu=estimasiPagu(s).totalPeriode;const pct=pagu>0?Math.min(100,(real/pagu)*100):0;const over=real>pagu&&pagu>0;return(<div key={s.id}><div className="flex justify-between items-center mb-1"><span className="text-xs font-medium text-gray-700">{s.nama}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500">{fmtShort(real)} / {fmtShort(pagu)}</span><Badge color={over?"red":pct>80?"yellow":"green"}>{pct.toFixed(0)}%</Badge></div></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className={"h-full rounded-full "+(over?"bg-red-500":pct>80?"bg-yellow-400":"bg-green-500")} style={{width:pct+"%"}}/></div></div>);})}</div></Card>}
+      {transaksi.length>0&&<Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">5 Transaksi Terakhir</h3><div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>{[...transaksi].sort((a,b)=>b.tanggal.localeCompare(a.tanggal)).slice(0,5).map(t=>{const s=sppgList.find(x=>x.id===t.sppgId);const icon=t.komponen==="bahan_baku"?"🛒":t.komponen==="operasional"?"⚙️":"🏢";return(<div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-50"><div className="flex items-center gap-2"><span>{icon}</span><div><p className="text-xs font-medium text-gray-700 line-clamp-1">{t.uraian}</p><p className="text-xs text-gray-400">{s?.nama} · {new Date(t.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"})}</p></div></div><span className="text-xs font-semibold text-gray-700 ml-2">{fmtShort(t.jumlah)}</span></div>);})}</div></Card>}
+    </div>
+  );
+}
+
+function HalamanBelanja({sppgList,transaksi,setModal,setTransaksi}) {
+  const [filter,setFilter]=useState("semua");
+  const [sf,setSf]=useState("semua");
+  const filtered=[...transaksi].sort((a,b)=>b.tanggal.localeCompare(a.tanggal)).filter(t=>(filter==="semua"||t.komponen===filter)&&(sf==="semua"||t.sppgId===sf));
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
+      <div className="flex justify-between items-center"><h1 className="text-xl font-bold text-gray-800">Data Belanja</h1><button onClick={()=>setModal("transaksi")} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium">+ Input</button></div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {[{v:"semua",l:"Semua"},{v:"bahan_baku",l:"🛒 Bahan Baku"},{v:"operasional",l:"⚙️ Operasional"},{v:"insentif",l:"🏢 Insentif"}].map(f=>(
+          <button key={f.v} onClick={()=>setFilter(f.v)} className={"text-xs px-3 py-1 rounded-lg whitespace-nowrap "+(filter===f.v?"bg-blue-600 text-white":"bg-gray-100 text-gray-600")}>{f.l}</button>
+        ))}
+      </div>
+      <select className="w-full border rounded-lg px-3 py-2 text-xs" value={sf} onChange={e=>setSf(e.target.value)}>
+        <option value="semua">Semua SPPG</option>
+        {sppgList.map(s=><option key={s.id} value={s.id}>{s.nama}</option>)}
+      </select>
+      <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
+        {filtered.map(t=>{
+          const s=sppgList.find(x=>x.id===t.sppgId);
+          const icon=t.komponen==="bahan_baku"?"🛒":t.komponen==="operasional"?"⚙️":"🏢";
+          const bc=t.komponen==="bahan_baku"?"blue":t.komponen==="operasional"?"orange":"purple";
+          return (
+            <Card key={t.id} className="p-3">
+              <div className="flex justify-between items-start">
+                <div className="flex gap-2 items-start flex-1 min-w-0">
+                  <span className="text-base mt-0.5">{icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-800 line-clamp-1">{t.uraian}</p>
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                      <Badge color={bc}>{t.komponen==="bahan_baku"?"Bahan Baku":t.komponen==="operasional"?"Operasional":"Insentif"}</Badge>
+                      <span className="text-xs text-gray-400">{s?.nama}</span>
+                      <span className="text-xs text-gray-400">{new Date(t.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"2-digit"})}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-2">
+                  <span className="text-sm font-bold text-gray-800 whitespace-nowrap">{fmtShort(t.jumlah)}</span>
+                  <button onClick={()=>setTransaksi(p=>p.filter(x=>x.id!==t.id))} className="text-red-300 text-xs">x</button>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+        {filtered.length===0&&<div className="text-center text-gray-400 text-sm py-10">Belum ada data belanja</div>}
+      </div>
+    </div>
+  );
+}
+
+function HalamanHarga({hargaList,setHargaList}) {
+  const [view,setView]=useState("terkini");
+  const [search,setSearch]=useState("");
+  const [selKom,setSelKom]=useState("");
+  const [showModal,setShowModal]=useState(false);
+  const terkini=useMemo(()=>{const map={};hargaList.forEach(h=>{if(!map[h.komoditas]||h.tanggal>map[h.komoditas].tanggal)map[h.komoditas]=h;});return Object.values(map).sort((a,b)=>a.komoditas.localeCompare(b.komoditas));},[hargaList]);
+  const history=useMemo(()=>!selKom?[]:hargaList.filter(h=>h.komoditas===selKom).sort((a,b)=>b.tanggal.localeCompare(a.tanggal)),[hargaList,selKom]);
+  const daftarKom=[...new Set(hargaList.map(h=>h.komoditas))].sort();
+  const getTren=kom=>{const d=hargaList.filter(h=>h.komoditas===kom).sort((a,b)=>b.tanggal.localeCompare(a.tanggal));if(d.length<2)return"stable";return d[0].harga>d[1].harga?"up":d[0].harga<d[1].harga?"down":"stable";};
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
+      <div className="flex justify-between items-center">
+        <div><h1 className="text-xl font-bold text-gray-800">Harga Pasar</h1><p className="text-xs text-gray-400">Kab. Bogor — Citeureup</p></div>
+        <button onClick={()=>setShowModal(true)} className="bg-green-600 text-white text-sm px-3 py-2 rounded-lg font-medium">+ Survei</button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <a href="https://www.bi.go.id/hargapangan/TabelHarga/PasarTradisionalDaerah" target="_blank" rel="noreferrer" className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <p className="text-xs font-semibold text-blue-700">PIHPS Bank Indonesia</p>
+          <p className="text-xs text-blue-500">Pasar Tradisional Kab. Bogor</p>
+          <p className="text-xs text-blue-600 font-medium mt-1">Buka →</p>
+        </a>
+        <a href="https://dirga.bogorkab.go.id" target="_blank" rel="noreferrer" className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+          <p className="text-xs font-semibold text-orange-700">DIRGA Kab. Bogor</p>
+          <p className="text-xs text-orange-500">Data Harga Pangan Resmi</p>
+          <p className="text-xs text-orange-600 font-medium mt-1">Buka →</p>
+        </a>
+      </div>
+      <div className="flex gap-2">
+        {[{v:"terkini",l:"Harga Terkini"},{v:"history",l:"Riwayat"},{v:"grafik",l:"Grafik"}].map(t=>(
+          <button key={t.v} onClick={()=>setView(t.v)} className={"text-xs px-3 py-1 rounded-lg "+(view===t.v?"bg-gray-800 text-white":"bg-gray-100 text-gray-600")}>{t.l}</button>
+        ))}
+      </div>
+      {view==="terkini"&&<div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+        <input className="w-full border rounded-xl px-4 py-2 text-sm" placeholder="Cari komoditas..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
+          {terkini.filter(h=>h.komoditas.toLowerCase().includes(search.toLowerCase())).map(h=>{
+            const tren=getTren(h.komoditas);
+            return (
+              <div key={h.komoditas} className={"bg-white border rounded-xl p-3 shadow-sm flex items-center justify-between cursor-pointer "+(h.sumber==="referensi"?"border-gray-100":"border-green-200")} onClick={()=>{setSelKom(h.komoditas);setView("history");}}>
+                <div>
+                  <div className="flex items-center gap-1"><p className="text-sm font-semibold text-gray-800">{h.komoditas}</p>{h.sumber==="referensi"&&<Badge color="gray">Ref</Badge>}</div>
+                  <p className="text-xs text-gray-400">{h.pasar} · {new Date(h.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"})}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-gray-800">{fmt(h.harga)}</p>
+                  <p className="text-xs text-gray-400">/{h.satuan}</p>
+                  <span className={"text-xs "+(tren==="up"?"text-red-500":tren==="down"?"text-green-500":"text-gray-400")}>{tren==="up"?"▲ naik":tren==="down"?"▼ turun":"— stabil"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>}
+      {view==="history"&&<div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+        <select className="w-full border rounded-xl px-3 py-2 text-sm" value={selKom} onChange={e=>setSelKom(e.target.value)}>
+          <option value="">-- Pilih Komoditas --</option>
+          {daftarKom.map(k=><option key={k}>{k}</option>)}
+        </select>
+        {selKom&&history.length>0&&<>
+          <div className="bg-gray-50 rounded-xl p-3 grid grid-cols-3 gap-2 text-center text-xs">
+            <div><p className="text-gray-400">Terendah</p><p className="font-bold text-green-600">{fmt(Math.min(...history.map(h=>h.harga)))}</p></div>
+            <div><p className="text-gray-400">Rata-rata</p><p className="font-bold text-blue-600">{fmt(Math.round(history.reduce((a,h)=>a+h.harga,0)/history.length))}</p></div>
+            <div><p className="text-gray-400">Tertinggi</p><p className="font-bold text-red-600">{fmt(Math.max(...history.map(h=>h.harga)))}</p></div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
+            {history.map(h=>(
+              <div key={h.id} className="bg-white border border-gray-100 rounded-xl p-3 flex justify-between items-center">
+                <div>
+                  <p className="text-xs font-medium text-gray-700">{new Date(h.tanggal).toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</p>
+                  <p className="text-xs text-gray-400">{h.pasar} · <span className={h.sumber==="referensi"?"text-gray-400":"text-green-600"}>{h.sumber}</span></p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-right"><p className="text-sm font-bold text-gray-800">{fmt(h.harga)}</p><p className="text-xs text-gray-400">/{h.satuan}</p></div>
+                  {h.sumber!=="referensi"&&<button onClick={()=>setHargaList(p=>p.filter(x=>x.id!==h.id))} className="text-red-200 text-xs">x</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>}
+        {!selKom&&<p className="text-center text-gray-400 text-sm py-6">Pilih komoditas untuk lihat riwayat</p>}
+      </div>}
+      {view==="grafik"&&<div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+        <select className="w-full border rounded-xl px-3 py-2 text-sm" value={selKom} onChange={e=>setSelKom(e.target.value)}>
+          <option value="">-- Pilih Komoditas --</option>
+          {daftarKom.map(k=><option key={k}>{k}</option>)}
+        </select>
+        {selKom&&(()=>{
+          const pts=hargaList.filter(h=>h.komoditas===selKom).sort((a,b)=>a.tanggal.localeCompare(b.tanggal));
+          if(pts.length<2)return <p className="text-xs text-gray-400 text-center py-6">Minimal 2 data untuk grafik</p>;
+          const mn=Math.min(...pts.map(h=>h.harga)),mx=Math.max(...pts.map(h=>h.harga)),rng=mx-mn||1,W=280,H=80;
+          const poly=pts.map((h,i)=>((i/(pts.length-1))*W)+","+(H-((h.harga-mn)/rng)*H)).join(" ");
+          return (
+            <div className="bg-white border border-gray-100 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-700 mb-3">{selKom} — Tren Harga</p>
+              <svg viewBox={"0 0 "+W+" "+(H+20)} className="w-full" style={{height:"6rem"}}>
+                <polyline fill="none" stroke="#3b82f6" strokeWidth="2" points={poly}/>
+                {pts.map((h,i)=>{const x=(i/(pts.length-1))*W,y=H-((h.harga-mn)/rng)*H;return <g key={i}><circle cx={x} cy={y} r="3" fill="#3b82f6"/><text x={x} y={H+15} textAnchor="middle" fontSize="7" fill="#9ca3af">{h.tanggal.slice(5)}</text></g>;})}
+              </svg>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="bg-green-50 rounded-lg p-1"><p className="text-gray-400">Min</p><p className="font-bold text-green-600">{fmtShort(mn)}</p></div>
+                <div className="bg-blue-50 rounded-lg p-1"><p className="text-gray-400">Rata-rata</p><p className="font-bold text-blue-600">{fmtShort(Math.round(pts.reduce((a,h)=>a+h.harga,0)/pts.length))}</p></div>
+                <div className="bg-red-50 rounded-lg p-1"><p className="text-gray-400">Maks</p><p className="font-bold text-red-600">{fmtShort(mx)}</p></div>
+              </div>
+            </div>
+          );
+        })()}
+        {!selKom&&<p className="text-center text-gray-400 text-sm py-6">Pilih komoditas untuk grafik</p>}
+      </div>}
+      {showModal&&<ModalHarga onSave={h=>{setHargaList(p=>[...p,h]);setShowModal(false);}} onClose={()=>setShowModal(false)}/>}
+    </div>
+  );
+}
+
+function HalamanLaporan({sppgList,transaksi}) {
+  const [sel,setSel]=useState("");
+  const [tipe,setTipe]=useState("ringkasan");
+  const [bulan,setBulan]=useState(new Date().toISOString().slice(0,7));
+  const sppgId=sel||sppgList[0]?.id||"";
+  const sppg=sppgList.find(s=>s.id===sppgId);
+  const byDate=useMemo(()=>{const map={};transaksi.filter(t=>t.sppgId===sppgId).forEach(t=>{if(!map[t.tanggal])map[t.tanggal]={bahan_baku:0,operasional:0,insentif:0,items:[]};map[t.tanggal][t.komponen]+=t.jumlah;map[t.tanggal].items.push(t);});return map;},[transaksi,sppgId]);
+  const filtered=Object.entries(byDate).filter(([d])=>d.startsWith(bulan)).sort((a,b)=>a[0].localeCompare(b[0]));
+  const pagu=sppg?estimasiPagu(sppg):null;
+  const totalBB=filtered.reduce((a,e)=>a+e[1].bahan_baku,0);
+  const totalOp=filtered.reduce((a,e)=>a+e[1].operasional,0);
+  const totalIn=filtered.reduce((a,e)=>a+e[1].insentif,0);
+  const grand=totalBB+totalOp+totalIn,maxPagu=pagu?pagu.totalPeriode:0,sisa=maxPagu-grand;
+  if(sppgList.length===0)return <div className="text-center py-10 text-gray-400"><p className="text-2xl mb-2">📊</p><p className="text-sm">Belum ada SPPG.</p></div>;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <h1 className="text-xl font-bold text-gray-800">Laporan</h1>
+        <div className="flex gap-2">
+          <select className="border rounded-lg px-2 py-1 text-xs" value={sppgId} onChange={e=>setSel(e.target.value)}>{sppgList.map(s=><option key={s.id} value={s.id}>{s.nama}</option>)}</select>
+          <input type="month" className="border rounded-lg px-2 py-1 text-xs" value={bulan} onChange={e=>setBulan(e.target.value)}/>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {[{v:"ringkasan",l:"Ringkasan"},{v:"harian",l:"Rincian Harian"}].map(t=>(
+          <button key={t.v} onClick={()=>setTipe(t.v)} className={"text-xs px-3 py-1 rounded-lg "+(tipe===t.v?"bg-blue-600 text-white":"bg-gray-100 text-gray-600")}>{t.l}</button>
+        ))}
+      </div>
+      {tipe==="ringkasan"&&<div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+        <Card>
+          <h3 className="font-semibold text-sm text-gray-700 mb-3">Rekapitulasi {new Date(bulan+"-01").toLocaleDateString("id-ID",{month:"long",year:"numeric"})}</h3>
+          {[{l:"Bahan Baku",v:totalBB,c:"blue"},{l:"Operasional",v:totalOp,c:"orange"},{l:"Insentif Fasilitas",v:totalIn,c:"purple"},{l:"TOTAL REALISASI",v:grand,bold:true},{l:"Estimasi Pagu",v:maxPagu,c:"green"},{l:"Sisa / (Kelebihan)",v:sisa,c:sisa<0?"red":"green"}].map(r=>(
+            <div key={r.l} className={"flex justify-between py-1 text-xs "+(r.bold?"border-t font-bold text-sm mt-1":"")}>
+              <span className="text-gray-600">{r.l}</span>
+              <span className={r.c==="red"?"text-red-600":r.c==="green"?"text-green-600":r.c==="blue"?"text-blue-600":r.c==="orange"?"text-orange-600":r.c==="purple"?"text-purple-600":"text-gray-800"}>{sisa<0&&r.l.includes("Sisa")?"("+fmt(Math.abs(r.v))+")":fmt(r.v)}</span>
+            </div>
+          ))}
+        </Card>
+        {sisa<0&&<div className="bg-red-50 border border-red-200 rounded-xl p-3"><p className="text-xs text-red-700 font-medium">Melebihi estimasi pagu sebesar {fmt(Math.abs(sisa))}</p></div>}
+        <button className="w-full bg-green-600 text-white text-xs py-2 rounded-xl font-medium" onClick={()=>{
+          const lines=["LAPORAN PENGGUNAAN DANA MBG","SPPG: "+(sppg?.nama||""),"Periode: "+bulan,"==========================================","","BAHAN BAKU    : "+fmt(totalBB),"OPERASIONAL   : "+fmt(totalOp),"INSENTIF      : "+fmt(totalIn),"TOTAL         : "+fmt(grand),"EST. PAGU     : "+fmt(maxPagu),"SISA/(LEBIH)  : "+fmt(sisa),"","--- RINCIAN HARIAN ---",...filtered.map(([d,v])=>d+" | BB:"+fmtShort(v.bahan_baku)+" Op:"+fmtShort(v.operasional)+" | Total:"+fmtShort(v.bahan_baku+v.operasional+v.insentif))];
+          const el=document.createElement("a");el.href="data:text/plain;charset=utf-8,"+encodeURIComponent(lines.join("\n"));el.download="Laporan_MBG_"+(sppg?.nama||"")+"_"+bulan+".txt";el.click();
+        }}>Ekspor Laporan (.txt)</button>
+      </div>}
+      {tipe==="harian"&&<Card>
+        <h3 className="font-semibold text-sm text-gray-700 mb-3">Rincian Harian</h3>
+        {filtered.length===0&&<p className="text-xs text-gray-400 text-center py-4">Belum ada data bulan ini</p>}
+        <div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+          {filtered.map(([tgl,v])=>{
+            const total=v.bahan_baku+v.operasional+v.insentif,over=pagu&&pagu.totalPerHari>0&&total>pagu.totalPerHari;
+            return (
+              <div key={tgl} className={"border rounded-lg p-3 "+(over?"border-red-200 bg-red-50":"")}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-semibold text-gray-700">{new Date(tgl).toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})}</span>
+                  <div className="flex items-center gap-1">{over&&<Badge color="red">Melebihi</Badge>}<span className="text-xs font-bold text-gray-800">{fmt(total)}</span></div>
+                </div>
+                <div className="grid grid-cols-3 gap-1 text-xs text-gray-500"><span>🛒 {fmtShort(v.bahan_baku)}</span><span>⚙️ {fmtShort(v.operasional)}</span><span>🏢 {fmtShort(v.insentif)}</span></div>
+                {v.items.map(i=><p key={i.id} className="text-xs text-gray-400 mt-1 pl-2 border-l-2 border-gray-200">{i.uraian}</p>)}
+              </div>
+            );
+          })}
+        </div>
+      </Card>}
+    </div>
+  );
+}
+
+function HalamanEstimasi({sppgList,onAddSppg}) {
+  const [sel,setSel]=useState("");
+  const sppgId=sel||sppgList[0]?.id||"";
+  const sppg=sppgList.find(s=>s.id===sppgId);
+  const e=sppg?estimasiPagu(sppg):null;
+  const rows=sppg?[{l:"PAUD/TK/RA",pm:sppg.pmPaud,rate:8000},{l:"SD Kelas 1-3",pm:sppg.pmSd13,rate:8000},{l:"SD Kelas 4-6",pm:sppg.pmSd46,rate:10000},{l:"SMP/MTs",pm:sppg.pmSmp,rate:10000},{l:"SMA/SMK",pm:sppg.pmSma,rate:10000},{l:"Pendidik+TK",pm:sppg.pmLainnya,rate:10000},{l:"Ibu Hamil",pm:sppg.pmIbuHamil,rate:10000},{l:"Ibu Menyusui",pm:sppg.pmIbuMenyusui,rate:10000},{l:"Balita",pm:sppg.pmBalita,rate:8000}]:[];
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
+      <div className="flex justify-between items-center"><h1 className="text-xl font-bold text-gray-800">Estimasi Anggaran</h1><button onClick={onAddSppg} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium">+ SPPG</button></div>
+      {sppgList.length===0?<div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center"><p className="text-2xl mb-2">🧮</p><p className="text-sm font-semibold text-blue-700">Belum ada SPPG</p><p className="text-xs text-blue-500 mt-1 mb-3">Tambah SPPG untuk menghitung estimasi</p><button onClick={onAddSppg} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg">Tambah SPPG</button></div>:<>
+        <select className="w-full border rounded-lg px-3 py-2 text-sm" value={sppgId} onChange={ev=>setSel(ev.target.value)}>{sppgList.map(s=><option key={s.id} value={s.id}>{s.nama}</option>)}</select>
+        <Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">Bahan Baku per Hari</h3><div style={{display:"flex",flexDirection:"column",gap:"0.375rem"}}>{rows.map(r=><div key={r.l} className="flex justify-between text-xs"><span className="text-gray-500">{r.l} ({r.pm} org x {fmt(r.rate)})</span><span className="font-medium">{fmt((r.pm||0)*r.rate)}</span></div>)}<div className="border-t pt-2 flex justify-between text-sm font-semibold"><span>Total BB/Hari</span><span className="text-blue-600">{e&&fmt(e.bahanBakuPerHari)}</span></div></div></Card>
+        <Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">Rekap Estimasi</h3><div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>{[{l:"Bahan Baku/Hari",v:e?.bahanBakuPerHari},{l:"Operasional/Hari",v:e?.opPerHari},{l:"Insentif Fasilitas/Hari",v:e?.insentifPerHari},{l:"TOTAL PER HARI",v:e?.totalPerHari,bold:true,c:"blue"},{l:"TOTAL PER PERIODE ("+e?.hari+" hari)",v:e?.totalPeriode,bold:true,c:"green"}].map(r=><div key={r.l} className={"flex justify-between py-1 text-xs "+(r.bold?"border-t font-bold text-sm":"")}><span className={r.bold?"":"text-gray-500"}>{r.l}</span><span className={r.c==="blue"?"text-blue-600":r.c==="green"?"text-green-600":"text-gray-700"}>{e&&fmt(r.v||0)}</span></div>)}</div></Card>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3"><p className="text-xs font-semibold text-blue-700 mb-1">Catatan Juknis BGN</p><ul className="text-xs text-blue-600 list-disc ml-4" style={{display:"flex",flexDirection:"column",gap:"0.125rem"}}><li>Bahan baku at cost — acuan Rp8rb/Rp10rb/org</li><li>Operasional acuan Rp3.000/org (at cost)</li><li>Insentif fasilitas Rp6.000.000/hari (flat)</li><li>Pagu: Rp15.000/org (umum), Rp13.000/org (PAUD/SD1-3/Balita)</li></ul></div>
+      </>}
+    </div>
+  );
+}
+
+function useLocalState(key, defaultVal) {
+  const [val, setVal] = useState(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : defaultVal;
+    } catch { return defaultVal; }
+  });
+  const setAndSave = useCallback(updater => {
+    setVal(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, [key]);
+  return [val, setAndSave];
+}
+
+function App() {
+  const [tab,setTab]=useState("dashboard");
+  const [sppgList,setSppgList]=useLocalState("mbg_sppg",[]);
+  const [transaksi,setTransaksi]=useLocalState("mbg_transaksi",[]);
+  const [hargaList,setHargaList]=useLocalState("mbg_harga",INIT_HARGA);
+  const [modal,setModal]=useState(null);
+  const addSppg=useCallback(s=>setSppgList(p=>[...p,s]),[]);
+  const addTransaksi=useCallback(t=>setTransaksi(p=>[...p,t]),[]);
+  const navItems=[{id:"dashboard",icon:"🏠",label:"Home"},{id:"belanja",icon:"🛒",label:"Belanja"},{id:"harga",icon:"💹",label:"Harga"},{id:"laporan",icon:"📊",label:"Laporan"},{id:"estimasi",icon:"🧮",label:"Estimasi"}];
+  return (
+    <div style={{minHeight:"100vh",background:"#f9fafb",display:"flex",flexDirection:"column",maxWidth:"448px",margin:"0 auto",position:"relative"}}>
+      <div style={{background:"linear-gradient(to right,#2563eb,#1d4ed8)",color:"white",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:40,boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
+          <div style={{width:"2rem",height:"2rem",background:"rgba(255,255,255,0.2)",borderRadius:"0.5rem",display:"flex",alignItems:"center",justifyContent:"center"}}>🍱</div>
+          <div><p style={{fontWeight:"bold",fontSize:"0.875rem",margin:0}}>PantauBelanjaMBG</p><p style={{fontSize:"0.75rem",opacity:0.7,margin:0}}>Sistem Pemantauan Belanja Dapur SPPG</p></div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:"0.375rem"}}>
+          <div style={{width:"0.5rem",height:"0.5rem",borderRadius:"9999px",background:"#facc15"}}/>
+          <span style={{fontSize:"0.75rem",opacity:0.8}}>Lokal</span>
+        </div>
+      </div>
+      <div style={{background:"#fefce8",borderBottom:"1px solid #fde68a",padding:"0.375rem 1rem"}}>
+        <p style={{fontSize:"0.75rem",color:"#92400e",margin:0}}>Mode lokal — data tersimpan sementara. Hubungkan Supabase untuk data permanen.</p>
+      </div>
+      <div style={{flex:1,padding:"1rem",paddingBottom:"6rem",overflowY:"auto"}}>
+        {tab==="dashboard"&&<HalamanDashboard sppgList={sppgList} transaksi={transaksi} setModal={setModal}/>}
+        {tab==="belanja"&&<HalamanBelanja sppgList={sppgList} transaksi={transaksi} setModal={setModal} setTransaksi={setTransaksi}/>}
+        {tab==="harga"&&<HalamanHarga hargaList={hargaList} setHargaList={setHargaList}/>}
+        {tab==="laporan"&&<HalamanLaporan sppgList={sppgList} transaksi={transaksi}/>}
+        {tab==="estimasi"&&<HalamanEstimasi sppgList={sppgList} onAddSppg={()=>setModal("sppg")}/>}
+      </div>
+      <nav style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"448px",background:"white",borderTop:"1px solid #f3f4f6",display:"flex",zIndex:40,boxShadow:"0 -1px 3px rgba(0,0,0,0.1)"}}>
+        {navItems.map(n=>(
+          <button key={n.id} onClick={()=>setTab(n.id)} style={{flex:1,padding:"0.75rem 0",display:"flex",flexDirection:"column",alignItems:"center",gap:"0.125rem",border:"none",background:"none",cursor:"pointer",color:tab===n.id?"#2563eb":"#9ca3af"}}>
+            <span style={{fontSize:"1.125rem",lineHeight:1}}>{n.icon}</span>
+            <span style={{fontSize:"0.75rem",fontWeight:500}}>{n.label}</span>
+          </button>
+        ))}
+      </nav>
+      {modal==="transaksi"&&<ModalTransaksi sppgList={sppgList} onSave={t=>{addTransaksi(t);setModal(null);}} onClose={()=>setModal(null)}/>}
+      {modal==="sppg"&&<ModalSPPG onSave={s=>{addSppg(s);setModal(null);}} onClose={()=>setModal(null)}/>}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
