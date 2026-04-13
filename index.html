@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
 <meta name="theme-color" content="#2563eb"/>
 <title>PantauBelanjaMBG</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -10,82 +10,56 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet"/>
 <style>
-* { box-sizing: border-box; }
-body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; }
-@media (min-width: 640px) {
-  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-  .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-  .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
-  .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
-  .text-xl { font-size: 1.5rem !important; }
-  .content-pad { padding: 1.5rem !important; }
-  .nav-item span.label { font-size: 0.8rem !important; }
-}
-@media (min-width: 768px) {
-  body { background: #e5e7eb; }
-  .app-shell { box-shadow: 0 0 40px rgba(0,0,0,0.15) !important; border-radius: 0 !important; }
-}
-.line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
-.animate-spin { animation: spin 1s linear infinite; }
-@keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
-.animate-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
-@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.lc1{overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useMemo, useEffect, useCallback } = React;
+const {useState,useMemo,useEffect,useCallback} = React;
 
-// ── GANTI DUA BARIS INI DENGAN CREDENTIALS SUPABASE KAMU ──
-const SUPABASE_URL = "https://ozxuvjhotrzwhmjivwgm.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96eHV2amhvdHJ6d2htaml2d2dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNjc0NTQsImV4cCI6MjA5MTY0MzQ1NH0.-G1mzblvOTrOHHYeBiSWcyOK9VtYBJ0gJS59ezxupBI";
-// ──────────────────────────────────────────────────────────
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const SB_URL = "https://ozxuvjhotrzwhmjivwgm.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96eHV2amhvdHJ6d2htaml2d2dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNjc0NTQsImV4cCI6MjA5MTY0MzQ1NH0.-G1mzblvOTrOHHYeBiSWcyOK9VtYBJ0gJS59ezxupBI";
+const SBH = {apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json",Prefer:"return=representation"};
 
-const SB_ON = SUPABASE_URL !== "MASUKKAN_PROJECT_URL";
-const SB_HEADERS = {
-  apikey: SUPABASE_KEY,
-  Authorization: "Bearer " + SUPABASE_KEY,
-  "Content-Type": "application/json",
-  Prefer: "return=representation",
-};
+async function sbGet(t){const r=await fetch(SB_URL+"/rest/v1/"+t+"?select=*&order=created_at.asc",{headers:SBH});return r.json();}
+async function sbPost(t,d){const r=await fetch(SB_URL+"/rest/v1/"+t,{method:"POST",headers:SBH,body:JSON.stringify(Array.isArray(d)?d:[d])});return r.json();}
+async function sbDel(t,id){await fetch(SB_URL+"/rest/v1/"+t+"?id=eq."+id,{method:"DELETE",headers:SBH});}
 
-async function sbGet(table) {
-  const r = await fetch(SUPABASE_URL+"/rest/v1/"+table+"?select=*&order=created_at.asc", {headers:SB_HEADERS});
-  return r.json();
-}
-async function sbPost(table, data) {
-  const r = await fetch(SUPABASE_URL+"/rest/v1/"+table, {
-    method:"POST", headers:SB_HEADERS,
-    body: JSON.stringify(Array.isArray(data)?data:[data])
+const mSppg=r=>({id:r.id,nama:r.nama,kecamatan:r.kecamatan,kabupaten:r.kabupaten,provinsi:r.provinsi,hariOperasional:r.hari_operasional||26,aktif:r.aktif});
+const mTrx=r=>({id:r.id,sppgId:r.sppg_id,tanggal:r.tanggal,komponen:r.komponen,uraian:r.uraian,jumlah:r.jumlah,porsiKecil:r.porsi_kecil||0,porsiBesar:r.porsi_besar||0});
+const mHarga=r=>({id:r.id,komoditas:r.komoditas,satuan:r.satuan,harga:r.harga,tanggal:r.tanggal,pasar:r.pasar,sumber:r.sumber});
+const toSppg=s=>({id:s.id,nama:s.nama,kecamatan:s.kecamatan,kabupaten:s.kabupaten,provinsi:s.provinsi,hari_operasional:s.hariOperasional||26,aktif:s.aktif!==false,pm_paud:0,pm_sd13:0,pm_sd46:0,pm_smp:0,pm_sma:0,pm_lainnya:0,pm_ibu_hamil:0,pm_ibu_menyusui:0,pm_balita:0});
+const toTrx=t=>({id:t.id,sppg_id:t.sppgId,tanggal:t.tanggal,komponen:t.komponen,uraian:t.uraian,jumlah:t.jumlah,kategori:t.kategori||"",sumber:t.sumber||"manual",porsi_kecil:t.porsiKecil||0,porsi_besar:t.porsiBesar||0});
+const toHarga=h=>({id:h.id,komoditas:h.komoditas,satuan:h.satuan,harga:h.harga,tanggal:h.tanggal,pasar:h.pasar,sumber:h.sumber||"survei"});
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+const fmt=n=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
+const fmtS=n=>{if(n>=1e9)return"Rp"+(n/1e9).toFixed(1)+"M";if(n>=1e6)return"Rp"+(n/1e6).toFixed(1)+"jt";return"Rp"+(n/1e3).toFixed(0)+"rb";};
+const today=()=>new Date().toISOString().split("T")[0];
+const uid=()=>Math.random().toString(36).slice(2,10);
+
+function useLS(key,def){
+  const [val,setVal]=useState(function(){
+    try{var s=localStorage.getItem(key);return s?JSON.parse(s):def;}catch(e){return def;}
   });
-  return r.json();
-}
-async function sbDel(table, id) {
-  await fetch(SUPABASE_URL+"/rest/v1/"+table+"?id=eq."+id, {method:"DELETE", headers:SB_HEADERS});
-}
-
-const mapSppg = r => ({id:r.id,nama:r.nama,kecamatan:r.kecamatan,kabupaten:r.kabupaten,provinsi:r.provinsi,pmPaud:r.pm_paud,pmSd13:r.pm_sd13,pmSd46:r.pm_sd46,pmSmp:r.pm_smp,pmSma:r.pm_sma,pmLainnya:r.pm_lainnya,pmIbuHamil:r.pm_ibu_hamil,pmIbuMenyusui:r.pm_ibu_menyusui,pmBalita:r.pm_balita,hariOperasional:r.hari_operasional,aktif:r.aktif});
-const mapTrx = r => ({id:r.id,sppgId:r.sppg_id,tanggal:r.tanggal,komponen:r.komponen,uraian:r.uraian,jumlah:r.jumlah,sumber:r.sumber});
-const mapHarga = r => ({id:r.id,komoditas:r.komoditas,satuan:r.satuan,harga:r.harga,tanggal:r.tanggal,pasar:r.pasar,sumber:r.sumber});
-const toSppg = s => ({id:s.id,nama:s.nama,kecamatan:s.kecamatan,kabupaten:s.kabupaten,provinsi:s.provinsi,pm_paud:s.pmPaud||0,pm_sd13:s.pmSd13||0,pm_sd46:s.pmSd46||0,pm_smp:s.pmSmp||0,pm_sma:s.pmSma||0,pm_lainnya:s.pmLainnya||0,pm_ibu_hamil:s.pmIbuHamil||0,pm_ibu_menyusui:s.pmIbuMenyusui||0,pm_balita:s.pmBalita||0,hari_operasional:s.hariOperasional||26,aktif:s.aktif!==false});
-const toTrx = t => ({id:t.id,sppg_id:t.sppgId,tanggal:t.tanggal,komponen:t.komponen,uraian:t.uraian,jumlah:t.jumlah,kategori:t.kategori,sumber:t.sumber||"manual"});
-const toHarga = h => ({id:h.id,komoditas:h.komoditas,satuan:h.satuan,harga:h.harga,tanggal:h.tanggal,pasar:h.pasar,sumber:h.sumber||"survei"});
-
-const fmt = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
-const fmtShort = n => {if(n>=1e9)return"Rp"+(n/1e9).toFixed(1)+"M";if(n>=1e6)return"Rp"+(n/1e6).toFixed(1)+"jt";return"Rp"+(n/1e3).toFixed(0)+"rb";};
-const todayStr = () => new Date().toISOString().split("T")[0];
-const uid = () => Math.random().toString(36).slice(2,10);
-
-function useLS(key, def) {
-  const [val,setVal] = useState(()=>{try{const s=localStorage.getItem(key);return s?JSON.parse(s):def;}catch{return def;}});
-  const set = useCallback(upd=>{setVal(prev=>{const next=typeof upd==="function"?upd(prev):upd;try{localStorage.setItem(key,JSON.stringify(next));}catch{}return next;});},[key]);
+  const set=useCallback(function(upd){
+    setVal(function(prev){
+      var next=typeof upd==="function"?upd(prev):upd;
+      try{localStorage.setItem(key,JSON.stringify(next));}catch(e){}
+      return next;
+    });
+  },[key]);
   return [val,set];
 }
 
-const KATEGORI = ["Beras","Ayam Potong","Ayam Fillet Dada","Ayam Giling Dada","Telur Ayam","Minyak Goreng","Wortel","Sawi Putih","Buncis","Kentang","Brokoli","Tomat","Bawang Putih Kupas","Bawang Merah","Bawang Bombay","Cabai Merah Besar","Tahu Putih","Tempe","Jeruk Santang","Pisang Ambon","Kelengkeng","Susu UHT 1L","Susu FF 110ml","Jagung Pipil","Gula Pasir","Lainnya"];
-
-const INIT_HARGA = [
+// ─── DATA AWAL ────────────────────────────────────────────────────────────────
+const HARGA0=[
   {id:"ih1",komoditas:"Beras",satuan:"kg",harga:14700,tanggal:"2026-03-30",pasar:"Pasar Citeureup",sumber:"referensi"},
   {id:"ih2",komoditas:"Ayam Potong",satuan:"pcs",harga:43000,tanggal:"2026-04-05",pasar:"Pasar Citeureup",sumber:"referensi"},
   {id:"ih3",komoditas:"Ayam Fillet Dada",satuan:"kg",harga:54000,tanggal:"2026-04-01",pasar:"Pasar Citeureup",sumber:"referensi"},
@@ -112,582 +86,1071 @@ const INIT_HARGA = [
   {id:"ih24",komoditas:"Gula Pasir",satuan:"kg",harga:22000,tanggal:"2026-04-06",pasar:"Pasar Citeureup",sumber:"referensi"},
 ];
 
-const Badge = ({color,children}) => {
-  const c={green:"bg-green-100 text-green-700",red:"bg-red-100 text-red-700",yellow:"bg-yellow-100 text-yellow-700",blue:"bg-blue-100 text-blue-700",gray:"bg-gray-100 text-gray-600",orange:"bg-orange-100 text-orange-700",purple:"bg-purple-100 text-purple-700"};
-  return <span className={"text-xs px-2 py-0.5 rounded-full font-medium "+(c[color]||c.gray)}>{children}</span>;
-};
-const Card = ({children,className=""}) => <div className={"bg-white rounded-xl shadow-sm border border-gray-100 p-4 "+className}>{children}</div>;
-const StatCard = ({label,value,sub,color="blue",icon}) => {
-  const bg={blue:"from-blue-500 to-blue-600",green:"from-green-500 to-green-600",orange:"from-orange-500 to-orange-600",purple:"from-purple-500 to-purple-600"};
-  return (
-    <div className={"bg-gradient-to-br "+(bg[color]||bg.blue)+" rounded-xl p-4 text-white"} style={{minWidth:0}}>
-      <div className="flex justify-between items-start">
-        <div style={{minWidth:0}}><p className="text-xs opacity-80 mb-1" style={{whiteSpace:"nowrap"}}>{label}</p><p style={{fontSize:"clamp(1rem,3vw,1.5rem)",fontWeight:"bold"}}>{value}</p>{sub&&<p className="text-xs opacity-70 mt-1">{sub}</p>}</div>
-        {icon&&<span style={{fontSize:"clamp(1.25rem,3vw,2rem)",opacity:0.8,flexShrink:0}}>{icon}</span>}
-      </div>
-    </div>
-  );
-};
+const MENU0=[
+  {id:"mt1",nama:"Ayam Goreng + Capcay + Nasi",kategori:"Lauk Utama",bahan:[
+    {nama:"Beras",gK:150,gB:180,sat:"g"},{nama:"Ayam Potong",gK:80,gB:110,sat:"g"},
+    {nama:"Wortel",gK:40,gB:50,sat:"g"},{nama:"Bawang Putih Kupas",gK:5,gB:7,sat:"g"},
+    {nama:"Minyak Goreng",gK:10,gB:12,sat:"ml"}
+  ]},
+  {id:"mt2",nama:"Tempe Orek + Sayur Bening + Nasi",kategori:"Lauk Nabati",bahan:[
+    {nama:"Beras",gK:150,gB:180,sat:"g"},{nama:"Tempe",gK:60,gB:80,sat:"g"},
+    {nama:"Wortel",gK:40,gB:50,sat:"g"},{nama:"Bawang Merah",gK:5,gB:7,sat:"g"}
+  ]},
+  {id:"mt3",nama:"Telur Dadar + Tumis Sawi + Nasi",kategori:"Lauk Telur",bahan:[
+    {nama:"Beras",gK:150,gB:180,sat:"g"},{nama:"Telur Ayam",gK:55,gB:65,sat:"g"},
+    {nama:"Sawi Putih",gK:60,gB:80,sat:"g"},{nama:"Bawang Putih Kupas",gK:5,gB:7,sat:"g"}
+  ]},
+  {id:"mt4",nama:"Ayam Fillet Saus Tiram + Brokoli + Nasi",kategori:"Lauk Utama",bahan:[
+    {nama:"Beras",gK:150,gB:180,sat:"g"},{nama:"Ayam Fillet Dada",gK:80,gB:110,sat:"g"},
+    {nama:"Brokoli",gK:50,gB:60,sat:"g"},{nama:"Bawang Putih Kupas",gK:5,gB:7,sat:"g"}
+  ]},
+  {id:"mt5",nama:"Tahu Goreng + Sup Wortel + Nasi",kategori:"Lauk Nabati",bahan:[
+    {nama:"Beras",gK:150,gB:180,sat:"g"},{nama:"Tahu Putih",gK:60,gB:80,sat:"g"},
+    {nama:"Wortel",gK:50,gB:60,sat:"g"},{nama:"Bawang Putih Kupas",gK:5,gB:7,sat:"g"}
+  ]},
+];
 
-function estimasiPagu(porsiKecil, porsiBesar, hari) {
-  const h = hari || 26;
-  const bb = (porsiKecil||0)*8000 + (porsiBesar||0)*10000;
-  const totalPM = (porsiKecil||0) + (porsiBesar||0);
-  const op = totalPM * 3000;
-  const ins = 6000000;
-  return { bb, op, ins, total: bb+op+ins, periode: (bb+op+ins)*h, totalPM, hari:h };
+// ─── UI ATOMS ─────────────────────────────────────────────────────────────────
+function Badge({color,children}){
+  var c={green:"bg-green-100 text-green-700",red:"bg-red-100 text-red-700",yellow:"bg-yellow-100 text-yellow-700",blue:"bg-blue-100 text-blue-700",gray:"bg-gray-100 text-gray-600",orange:"bg-orange-100 text-orange-700",purple:"bg-purple-100 text-purple-700"};
+  return React.createElement("span",{className:"text-xs px-2 py-0.5 rounded-full font-medium "+(c[color]||c.gray)},children);
 }
-
-function ModalSPPG({onSave,onClose}) {
-  const [f,setF]=useState({nama:"",kecamatan:"",kabupaten:"",provinsi:"Jawa Barat",hariOperasional:26});
-  const set=(k,v)=>setF(p=>({...p,[k]:v}));
-  return (
-    <div style={{position:"fixed",inset:0,backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
-      <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"28rem"}}>
-        <div className="p-5 border-b flex justify-between items-center">
-          <h3 className="font-bold text-gray-800">Tambah SPPG</h3>
-          <button onClick={onClose} className="text-gray-400 text-xl">x</button>
-        </div>
-        <div className="p-5" style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-          <div><label className="text-xs text-gray-500 font-medium">Nama SPPG</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.nama} onChange={e=>set("nama",e.target.value)} placeholder="SPPG ..."/></div>
-          <div className="grid grid-cols-2 gap-2">
-            <div><label className="text-xs text-gray-500">Kecamatan</label><input className="w-full mt-1 border rounded-lg px-2 py-1 text-xs" value={f.kecamatan} onChange={e=>set("kecamatan",e.target.value)}/></div>
-            <div><label className="text-xs text-gray-500">Kab/Kota</label><input className="w-full mt-1 border rounded-lg px-2 py-1 text-xs" value={f.kabupaten} onChange={e=>set("kabupaten",e.target.value)}/></div>
-          </div>
-          <div><label className="text-xs text-gray-500">Provinsi</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.provinsi} onChange={e=>set("provinsi",e.target.value)}/></div>
-          <div><label className="text-xs text-gray-500">Hari Operasional per Periode</label><input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.hariOperasional} onChange={e=>set("hariOperasional",parseInt(e.target.value)||26)}/></div>
-          <p className="text-xs text-gray-400">Jumlah porsi diinput setiap hari saat input belanja</p>
-        </div>
-        <div className="p-5 pt-0 flex gap-2">
-          <button onClick={onClose} className="flex-1 border rounded-lg py-2 text-sm text-gray-600">Batal</button>
-          <button onClick={()=>{if(!f.nama)return alert("Nama SPPG wajib!");onSave({...f,id:"sppg-"+uid(),aktif:true});onClose();}} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium">Simpan</button>
-        </div>
-      </div>
-    </div>
+function Card({children,className}){
+  return React.createElement("div",{className:"bg-white rounded-xl shadow-sm border border-gray-100 p-4 "+(className||"")},children);
+}
+function StatCard({label,value,sub,color,icon}){
+  var bg={blue:"from-blue-500 to-blue-600",green:"from-green-500 to-green-600",orange:"from-orange-500 to-orange-600",purple:"from-purple-500 to-purple-600"};
+  return React.createElement("div",{className:"bg-gradient-to-br "+(bg[color||"blue"])+" rounded-xl p-4 text-white"},
+    React.createElement("div",{className:"flex justify-between items-start"},
+      React.createElement("div",null,
+        React.createElement("p",{className:"text-xs opacity-80 mb-1"},label),
+        React.createElement("p",{style:{fontSize:"clamp(1rem,3vw,1.5rem)",fontWeight:"bold"}},value),
+        sub&&React.createElement("p",{className:"text-xs opacity-70 mt-1"},sub)
+      ),
+      icon&&React.createElement("span",{style:{fontSize:"clamp(1.25rem,3vw,2rem)",opacity:0.8}},icon)
+    )
   );
 }
 
-function ModalTransaksi({sppgList,onSave,onClose}) {
-  const [f,setF]=useState({sppgId:sppgList[0]?.id||"",tanggal:todayStr(),komponen:"bahan_baku",uraian:"",jumlah:""});
-  const set=(k,v)=>setF(p=>({...p,[k]:v}));
-  return (
-    <div style={{position:"fixed",inset:0,backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
-      <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"28rem"}}>
-        <div className="p-5 border-b flex justify-between items-center">
-          <h3 className="font-bold text-gray-800">Input Belanja Harian</h3>
-          <button onClick={onClose} className="text-gray-400 text-xl">x</button>
-        </div>
-        <div className="p-5" style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-          <div><label className="text-xs text-gray-500">SPPG</label>
-            <select className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.sppgId} onChange={e=>set("sppgId",e.target.value)}>
-              {sppgList.map(s=><option key={s.id} value={s.id}>{s.nama}</option>)}
-            </select>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"0.75rem"}}>
-            <div><label className="text-xs text-gray-500">Tanggal</label><input type="date" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.tanggal} onChange={e=>set("tanggal",e.target.value)}/></div>
-            <div><label className="text-xs text-gray-500">Komponen</label>
-              <select className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.komponen} onChange={e=>set("komponen",e.target.value)}>
-                <option value="bahan_baku">Bahan Baku</option>
-                <option value="operasional">Operasional</option>
-                <option value="insentif">Insentif Fasilitas</option>
-              </select>
-            </div>
-          </div>
-          <div><label className="text-xs text-gray-500">Uraian Belanja</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="Beras 200kg..." value={f.uraian} onChange={e=>set("uraian",e.target.value)}/></div>
-          <div><label className="text-xs text-gray-500">Total Jumlah (Rp)</label><input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0" value={f.jumlah} onChange={e=>set("jumlah",e.target.value)}/></div>
-        </div>
-        <div className="p-5 pt-0 flex gap-2">
-          <button onClick={onClose} className="flex-1 border rounded-lg py-2 text-sm text-gray-600">Batal</button>
-          <button onClick={()=>{if(!f.uraian||!f.jumlah)return alert("Lengkapi semua!");onSave({...f,id:uid(),jumlah:parseInt(f.jumlah),sumber:"manual"});onClose();}} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium">Simpan</button>
-        </div>
-      </div>
-    </div>
+// ─── ESTIMASI PAGU ────────────────────────────────────────────────────────────
+function calcPagu(pk,pb,hari){
+  var h=hari||26;
+  var bb=(pk||0)*8000+(pb||0)*10000;
+  var pm=(pk||0)+(pb||0);
+  var op=pm*3000;
+  var ins=6000000;
+  return {bb:bb,op:op,ins:ins,total:bb+op+ins,periode:(bb+op+ins)*h,pm:pm,hari:h};
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function Overlay({children}){
+  return React.createElement("div",{style:{position:"fixed",inset:0,backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}},children);
+}
+
+function ModalSPPG({onSave,onClose}){
+  var [f,setF]=useState({nama:"",kecamatan:"",kabupaten:"",provinsi:"Jawa Barat",hariOperasional:26});
+  function set(k,v){setF(function(p){return Object.assign({},p,{[k]:v});});}
+  return React.createElement(Overlay,null,
+    React.createElement("div",{className:"bg-white rounded-2xl w-full shadow-2xl",style:{maxWidth:"28rem"}},
+      React.createElement("div",{className:"p-5 border-b flex justify-between items-center"},
+        React.createElement("h3",{className:"font-bold text-gray-800"},"Tambah SPPG"),
+        React.createElement("button",{onClick:onClose,className:"text-gray-400 text-xl"},"x")
+      ),
+      React.createElement("div",{className:"p-5",style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+        React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500 font-medium"},"Nama SPPG"),React.createElement("input",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.nama,onChange:function(e){set("nama",e.target.value)},placeholder:"SPPG ..."})),
+        React.createElement("div",{className:"grid grid-cols-2 gap-2"},
+          React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Kecamatan"),React.createElement("input",{className:"w-full mt-1 border rounded-lg px-2 py-1 text-xs",value:f.kecamatan,onChange:function(e){set("kecamatan",e.target.value)}})),
+          React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Kab/Kota"),React.createElement("input",{className:"w-full mt-1 border rounded-lg px-2 py-1 text-xs",value:f.kabupaten,onChange:function(e){set("kabupaten",e.target.value)}}))
+        ),
+        React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Hari Operasional"),React.createElement("input",{type:"number",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.hariOperasional,onChange:function(e){set("hariOperasional",parseInt(e.target.value)||26)}}))
+      ),
+      React.createElement("div",{className:"p-5 pt-0 flex gap-2"},
+        React.createElement("button",{onClick:onClose,className:"flex-1 border rounded-lg py-2 text-sm text-gray-600"},"Batal"),
+        React.createElement("button",{onClick:function(){if(!f.nama)return alert("Nama wajib!");onSave(Object.assign({},f,{id:"sppg-"+uid(),aktif:true}));onClose();},className:"flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium"},"Simpan")
+      )
+    )
   );
 }
 
-function ModalHarga({onSave,onClose}) {
-  const [f,setF]=useState({komoditas:"Beras",komoditasCustom:"",satuan:"kg",harga:"",tanggal:todayStr(),pasar:"Pasar Citeureup"});
-  const set=(k,v)=>setF(p=>({...p,[k]:v}));
-  const nama=f.komoditas==="Lainnya"?f.komoditasCustom:f.komoditas;
-  return (
-    <div style={{position:"fixed",inset:0,backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
-      <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"24rem"}}>
-        <div className="p-5 border-b flex justify-between items-center">
-          <h3 className="font-bold text-gray-800">Input Survei Harga</h3>
-          <button onClick={onClose} className="text-gray-400 text-xl">x</button>
-        </div>
-        <div className="p-5" style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-          <div><label className="text-xs text-gray-500">Komoditas</label>
-            <select className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.komoditas} onChange={e=>set("komoditas",e.target.value)}>
-              {KATEGORI.map(k=><option key={k}>{k}</option>)}
-            </select>
-          </div>
-          {f.komoditas==="Lainnya"&&<div><label className="text-xs text-gray-500">Nama</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.komoditasCustom} onChange={e=>set("komoditasCustom",e.target.value)}/></div>}
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs text-gray-500">Satuan</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.satuan} onChange={e=>set("satuan",e.target.value)}/></div>
-            <div><label className="text-xs text-gray-500">Harga (Rp)</label><input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.harga} onChange={e=>set("harga",e.target.value)}/></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs text-gray-500">Tanggal</label><input type="date" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.tanggal} onChange={e=>set("tanggal",e.target.value)}/></div>
-            <div><label className="text-xs text-gray-500">Pasar</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.pasar} onChange={e=>set("pasar",e.target.value)}/></div>
-          </div>
-        </div>
-        <div className="p-5 pt-0 flex gap-2">
-          <button onClick={onClose} className="flex-1 border rounded-lg py-2 text-sm text-gray-600">Batal</button>
-          <button onClick={()=>{if(!f.harga||!nama)return alert("Lengkapi data!");onSave({id:uid(),komoditas:nama,satuan:f.satuan,harga:parseInt(f.harga),tanggal:f.tanggal,pasar:f.pasar,sumber:"survei"});onClose();}} className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm font-medium">Simpan</button>
-        </div>
-      </div>
-    </div>
+function ModalBelanja({sppgList,onSave,onClose}){
+  var [f,setF]=useState({sppgId:sppgList[0]&&sppgList[0].id||"",tanggal:today(),komponen:"bahan_baku",uraian:"",jumlah:"",porsiKecil:"",porsiBesar:""});
+  function set(k,v){setF(function(p){return Object.assign({},p,{[k]:v});});}
+  var pk=parseInt(f.porsiKecil)||0;
+  var pb=parseInt(f.porsiBesar)||0;
+  var est=calcPagu(pk,pb,1);
+  var isBB=f.komponen==="bahan_baku";
+  var showEst=isBB&&(pk>0||pb>0);
+  return React.createElement(Overlay,null,
+    React.createElement("div",{className:"bg-white rounded-2xl w-full shadow-2xl",style:{maxWidth:"28rem",maxHeight:"90vh",overflowY:"auto"}},
+      React.createElement("div",{className:"p-5 border-b flex justify-between items-center"},
+        React.createElement("h3",{className:"font-bold text-gray-800"},"Input Belanja Harian"),
+        React.createElement("button",{onClick:onClose,className:"text-gray-400 text-xl"},"x")
+      ),
+      React.createElement("div",{className:"p-5",style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+        React.createElement("div",null,
+          React.createElement("label",{className:"text-xs text-gray-500"},"SPPG"),
+          React.createElement("select",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.sppgId,onChange:function(e){set("sppgId",e.target.value)}},
+            sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})
+          )
+        ),
+        React.createElement("div",{className:"grid grid-cols-2 gap-3"},
+          React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Tanggal"),React.createElement("input",{type:"date",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.tanggal,onChange:function(e){set("tanggal",e.target.value)}})),
+          React.createElement("div",null,
+            React.createElement("label",{className:"text-xs text-gray-500"},"Komponen"),
+            React.createElement("select",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.komponen,onChange:function(e){set("komponen",e.target.value)}},
+              React.createElement("option",{value:"bahan_baku"},"Bahan Baku"),
+              React.createElement("option",{value:"operasional"},"Operasional"),
+              React.createElement("option",{value:"insentif"},"Insentif Fasilitas")
+            )
+          )
+        ),
+        isBB&&React.createElement("div",{style:{background:"#f0f9ff",borderRadius:"0.75rem",padding:"0.75rem"}},
+          React.createElement("p",{className:"text-xs font-semibold text-blue-700 mb-2"},"Jumlah Porsi Hari Ini"),
+          React.createElement("div",{className:"grid grid-cols-2 gap-3"},
+            React.createElement("div",null,
+              React.createElement("label",{className:"text-xs text-gray-600"},"Porsi Kecil"),
+              React.createElement("p",{className:"text-xs text-gray-400 mb-1"},"PAUD/SD 1-3/Balita (Rp8.000)"),
+              React.createElement("input",{type:"number",className:"w-full border rounded-lg px-3 py-2 text-sm",placeholder:"0",value:f.porsiKecil,onChange:function(e){set("porsiKecil",e.target.value)}})
+            ),
+            React.createElement("div",null,
+              React.createElement("label",{className:"text-xs text-gray-600"},"Porsi Besar"),
+              React.createElement("p",{className:"text-xs text-gray-400 mb-1"},"SD 4-6/SMP/SMA (Rp10.000)"),
+              React.createElement("input",{type:"number",className:"w-full border rounded-lg px-3 py-2 text-sm",placeholder:"0",value:f.porsiBesar,onChange:function(e){set("porsiBesar",e.target.value)}})
+            )
+          ),
+          showEst&&React.createElement("div",{style:{marginTop:"0.5rem",background:"white",borderRadius:"0.5rem",padding:"0.5rem"}},
+            React.createElement("p",{className:"text-xs text-gray-500"},"Est. bahan baku: ",React.createElement("span",{className:"font-bold text-blue-600"},fmt(est.bb))),
+            React.createElement("p",{className:"text-xs text-gray-500"},"Est. total hari ini: ",React.createElement("span",{className:"font-bold text-green-600"},fmt(est.total)))
+          )
+        ),
+        React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Uraian Belanja"),React.createElement("input",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",placeholder:"Beras 200kg, Ayam 150kg...",value:f.uraian,onChange:function(e){set("uraian",e.target.value)}})),
+        React.createElement("div",null,
+          React.createElement("label",{className:"text-xs text-gray-500"},"Total Jumlah Aktual (Rp)"),
+          React.createElement("input",{type:"number",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",placeholder:showEst?String(est.bb):"0",value:f.jumlah,onChange:function(e){set("jumlah",e.target.value)}}),
+          showEst&&!f.jumlah&&React.createElement("p",{className:"text-xs text-gray-400 mt-0.5"},"Kosongkan untuk pakai estimasi otomatis")
+        )
+      ),
+      React.createElement("div",{className:"p-5 pt-0 flex gap-2"},
+        React.createElement("button",{onClick:onClose,className:"flex-1 border rounded-lg py-2 text-sm text-gray-600"},"Batal"),
+        React.createElement("button",{onClick:function(){
+          if(!f.uraian)return alert("Isi uraian!");
+          var jml=f.jumlah?parseInt(f.jumlah):(showEst?est.bb:0);
+          if(!jml)return alert("Isi jumlah atau porsi!");
+          onSave(Object.assign({},f,{id:uid(),jumlah:jml,porsiKecil:pk,porsiBesar:pb,sumber:"manual"}));
+          onClose();
+        },className:"flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium"},"Simpan")
+      )
+    )
   );
 }
 
-function HalamanDashboard({sppgList,transaksi,setModal}) {
-  const total=transaksi.reduce((a,t)=>a+t.jumlah,0);
-  const bln=new Date().toISOString().slice(0,7);
-  const blnIni=transaksi.filter(t=>t.tanggal.startsWith(bln)).reduce((a,t)=>a+t.jumlah,0);
-  const totalPagu=sppgList.reduce((a,s)=>{
-    const trxS=transaksi.filter(t=>t.sppgId===s.id);
-    const pk=trxS.reduce((x,t)=>x+(t.porsiKecil||0),0);
-    const pb=trxS.reduce((x,t)=>x+(t.porsiBesar||0),0);
-    return a+estimasiPagu(pk,pb,s.hariOperasional||26).periode;
+function ModalHarga({onSave,onClose}){
+  var KAT=["Beras","Ayam Potong","Ayam Fillet Dada","Telur Ayam","Minyak Goreng","Wortel","Sawi Putih","Buncis","Kentang","Brokoli","Tomat","Bawang Putih Kupas","Bawang Merah","Bawang Bombay","Cabai Merah Besar","Tahu Putih","Tempe","Jeruk Santang","Pisang Ambon","Kelengkeng","Susu UHT 1L","Susu FF 110ml","Jagung Pipil","Gula Pasir","Lainnya"];
+  var [f,setF]=useState({komoditas:"Beras",nama2:"",satuan:"kg",harga:"",tanggal:today(),pasar:"Pasar Citeureup"});
+  function set(k,v){setF(function(p){return Object.assign({},p,{[k]:v});});}
+  var nama=f.komoditas==="Lainnya"?f.nama2:f.komoditas;
+  return React.createElement(Overlay,null,
+    React.createElement("div",{className:"bg-white rounded-2xl w-full shadow-2xl",style:{maxWidth:"24rem"}},
+      React.createElement("div",{className:"p-5 border-b flex justify-between items-center"},
+        React.createElement("h3",{className:"font-bold text-gray-800"},"Input Survei Harga"),
+        React.createElement("button",{onClick:onClose,className:"text-gray-400 text-xl"},"x")
+      ),
+      React.createElement("div",{className:"p-5",style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+        React.createElement("div",null,
+          React.createElement("label",{className:"text-xs text-gray-500"},"Komoditas"),
+          React.createElement("select",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.komoditas,onChange:function(e){set("komoditas",e.target.value)}},
+            KAT.map(function(k){return React.createElement("option",{key:k},k);})
+          )
+        ),
+        f.komoditas==="Lainnya"&&React.createElement("div",null,React.createElement("input",{className:"w-full border rounded-lg px-3 py-2 text-sm",value:f.nama2,onChange:function(e){set("nama2",e.target.value)},placeholder:"Nama komoditas..."})),
+        React.createElement("div",{className:"grid grid-cols-2 gap-3"},
+          React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Satuan"),React.createElement("input",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.satuan,onChange:function(e){set("satuan",e.target.value)}})),
+          React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Harga (Rp)"),React.createElement("input",{type:"number",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.harga,onChange:function(e){set("harga",e.target.value)}}))
+        ),
+        React.createElement("div",{className:"grid grid-cols-2 gap-3"},
+          React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Tanggal"),React.createElement("input",{type:"date",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.tanggal,onChange:function(e){set("tanggal",e.target.value)}})),
+          React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Pasar"),React.createElement("input",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:f.pasar,onChange:function(e){set("pasar",e.target.value)}}))
+        )
+      ),
+      React.createElement("div",{className:"p-5 pt-0 flex gap-2"},
+        React.createElement("button",{onClick:onClose,className:"flex-1 border rounded-lg py-2 text-sm text-gray-600"},"Batal"),
+        React.createElement("button",{onClick:function(){if(!f.harga||!nama)return alert("Lengkapi data!");onSave({id:uid(),komoditas:nama,satuan:f.satuan,harga:parseInt(f.harga),tanggal:f.tanggal,pasar:f.pasar,sumber:"survei"});onClose();},className:"flex-1 bg-green-600 text-white rounded-lg py-2 text-sm font-medium"},"Simpan")
+      )
+    )
+  );
+}
+
+function ModalTambahMenu({onSave,onClose}){
+  var [nama,setNama]=useState("");
+  var [kat,setKat]=useState("Lauk Utama");
+  var [bahan,setBahan]=useState([{nama:"Beras",gK:150,gB:180,sat:"g"}]);
+  function addB(){setBahan(function(p){return p.concat([{nama:"",gK:0,gB:0,sat:"g"}]);});}
+  function setB(i,k,v){setBahan(function(p){return p.map(function(b,idx){return idx===i?Object.assign({},b,{[k]:v}):b;});});}
+  function delB(i){setBahan(function(p){return p.filter(function(_,idx){return idx!==i;});});}
+  return React.createElement(Overlay,null,
+    React.createElement("div",{className:"bg-white rounded-2xl w-full shadow-2xl",style:{maxWidth:"32rem",maxHeight:"90vh",overflowY:"auto"}},
+      React.createElement("div",{className:"p-4 border-b flex justify-between items-center",style:{position:"sticky",top:0,background:"white"}},
+        React.createElement("h3",{className:"font-bold text-gray-800"},"Tambah Template Menu"),
+        React.createElement("button",{onClick:onClose,className:"text-gray-400 text-xl"},"x")
+      ),
+      React.createElement("div",{className:"p-4",style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+        React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500 font-medium"},"Nama Menu"),React.createElement("input",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:nama,onChange:function(e){setNama(e.target.value)},placeholder:"Ayam Goreng + Nasi + Sayur..."})),
+        React.createElement("div",null,
+          React.createElement("label",{className:"text-xs text-gray-500 font-medium"},"Kategori"),
+          React.createElement("select",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:kat,onChange:function(e){setKat(e.target.value)}},
+            ["Lauk Utama","Lauk Nabati","Lauk Telur","Lauk Ikan","Snack/Roti","Sup/Sayur"].map(function(k){return React.createElement("option",{key:k},k);})
+          )
+        ),
+        React.createElement("div",null,
+          React.createElement("div",{className:"flex justify-between items-center mb-2"},
+            React.createElement("label",{className:"text-xs text-gray-500 font-medium"},"Bahan-bahan"),
+            React.createElement("button",{onClick:addB,className:"text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-lg"},"+ Bahan")
+          ),
+          bahan.map(function(b,i){
+            return React.createElement("div",{key:i,className:"bg-gray-50 rounded-xl p-3 mb-2"},
+              React.createElement("div",{className:"flex justify-between items-center mb-2"},
+                React.createElement("span",{className:"text-xs font-medium text-gray-600"},"Bahan "+(i+1)),
+                i>0&&React.createElement("button",{onClick:function(){delB(i);},className:"text-red-300 text-xs"},"x")
+              ),
+              React.createElement("input",{className:"w-full border rounded-lg px-2 py-1.5 text-xs mb-2",placeholder:"Nama bahan...",value:b.nama,onChange:function(e){setB(i,"nama",e.target.value)}}),
+              React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 60px",gap:"0.375rem"}},
+                React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-400"},"g/porsi kecil"),React.createElement("input",{type:"number",className:"w-full border rounded-lg px-2 py-1 text-xs",value:b.gK,onChange:function(e){setB(i,"gK",parseFloat(e.target.value)||0)}})),
+                React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-400"},"g/porsi besar"),React.createElement("input",{type:"number",className:"w-full border rounded-lg px-2 py-1 text-xs",value:b.gB,onChange:function(e){setB(i,"gB",parseFloat(e.target.value)||0)}})),
+                React.createElement("div",null,
+                  React.createElement("label",{className:"text-xs text-gray-400"},"Sat."),
+                  React.createElement("select",{className:"w-full border rounded-lg px-1 py-1 text-xs",value:b.sat,onChange:function(e){setB(i,"sat",e.target.value)}},
+                    ["g","ml","pcs"].map(function(s){return React.createElement("option",{key:s},s);})
+                  )
+                )
+              )
+            );
+          })
+        )
+      ),
+      React.createElement("div",{className:"p-4 pt-0 flex gap-2"},
+        React.createElement("button",{onClick:onClose,className:"flex-1 border rounded-lg py-2 text-sm text-gray-600"},"Batal"),
+        React.createElement("button",{onClick:function(){if(!nama)return alert("Nama menu wajib!");onSave({id:"menu-"+uid(),nama:nama,kategori:kat,bahan:bahan});onClose();},className:"flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm font-medium"},"Simpan")
+      )
+    )
+  );
+}
+
+// ─── PAGES ────────────────────────────────────────────────────────────────────
+function PageDashboard({sppgList,transaksi,setModal}){
+  var total=transaksi.reduce(function(a,t){return a+t.jumlah;},0);
+  var bln=new Date().toISOString().slice(0,7);
+  var blnIni=transaksi.filter(function(t){return t.tanggal.startsWith(bln);}).reduce(function(a,t){return a+t.jumlah;},0);
+  var totalPagu=sppgList.reduce(function(a,s){
+    var trxS=transaksi.filter(function(t){return t.sppgId===s.id;});
+    var pk=trxS.reduce(function(x,t){return x+(t.porsiKecil||0);},0);
+    var pb=trxS.reduce(function(x,t){return x+(t.porsiBesar||0);},0);
+    return a+calcPagu(pk,pb,s.hariOperasional).periode;
   },0);
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:"1.25rem"}}>
-      <div className="flex justify-between items-start">
-        <div><h1 className="text-xl font-bold text-gray-800">Dashboard MBG</h1><p className="text-sm text-gray-500">{sppgList.filter(s=>s.aktif).length} SPPG Aktif</p></div>
-        <button onClick={()=>setModal("transaksi")} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium shadow">+ Belanja</button>
-      </div>
-      {sppgList.length===0&&<div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center"><p className="text-2xl mb-2">🍽️</p><p className="text-sm font-semibold text-blue-700">Belum ada SPPG</p><p className="text-xs text-blue-500 mt-1">Tambah SPPG di tab Estimasi</p></div>}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Total Belanja" value={fmtShort(total)} sub="Semua periode" color="blue" icon="💰"/>
-        <StatCard label="Bulan Ini" value={fmtShort(blnIni)} sub={new Date().toLocaleDateString("id-ID",{month:"long"})} color="purple" icon="📅"/>
-        <StatCard label="Est. Pagu Total" value={fmtShort(totalPagu)} sub={sppgList.length+" SPPG"} color="green" icon="📋"/>
-        <StatCard label="SPPG Aktif" value={sppgList.filter(s=>s.aktif).length} sub={"dari "+sppgList.length+" terdaftar"} color="orange" icon="🍽️"/>
-      </div>
-      {sppgList.length>0&&<Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">Realisasi vs Pagu per SPPG</h3><div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>{sppgList.map(s=>{
-        const real=transaksi.filter(t=>t.sppgId===s.id).reduce((a,t)=>a+t.jumlah,0);
-        const trxS=transaksi.filter(t=>t.sppgId===s.id);
-        const pk=trxS.reduce((x,t)=>x+(t.porsiKecil||0),0);
-        const pb=trxS.reduce((x,t)=>x+(t.porsiBesar||0),0);
-        const pagu=estimasiPagu(pk,pb,s.hariOperasional||26).periode;
-        const pct=pagu>0?Math.min(100,(real/pagu)*100):0;
-        const over=real>pagu&&pagu>0;
-        return(<div key={s.id}><div className="flex justify-between items-center mb-1"><span className="text-xs font-medium text-gray-700">{s.nama}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500">{fmtShort(real)} / {fmtShort(pagu)}</span><Badge color={over?"red":pct>80?"yellow":"green"}>{pct.toFixed(0)}%</Badge></div></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className={"h-full rounded-full "+(over?"bg-red-500":pct>80?"bg-yellow-400":"bg-green-500")} style={{width:pct+"%"}}/></div></div>);
-      })}</div></Card>}
-      {transaksi.length>0&&<Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">5 Transaksi Terakhir</h3><div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>{[...transaksi].sort((a,b)=>b.tanggal.localeCompare(a.tanggal)).slice(0,5).map(t=>{const s=sppgList.find(x=>x.id===t.sppgId);const icon=t.komponen==="bahan_baku"?"🛒":t.komponen==="operasional"?"⚙️":"🏢";return(<div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-50"><div className="flex items-center gap-2"><span>{icon}</span><div><p className="text-xs font-medium text-gray-700 line-clamp-1">{t.uraian}</p><p className="text-xs text-gray-400">{s?.nama} · {new Date(t.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"})}</p></div></div><span className="text-xs font-semibold text-gray-700 ml-2">{fmtShort(t.jumlah)}</span></div>);})}</div></Card>}
-    </div>
-  );
-}
-
-function HalamanBelanja({sppgList,transaksi,setModal,setTransaksi}) {
-  const [filter,setFilter]=useState("semua");
-  const [sf,setSf]=useState("semua");
-  const filtered=[...transaksi].sort((a,b)=>b.tanggal.localeCompare(a.tanggal)).filter(t=>(filter==="semua"||t.komponen===filter)&&(sf==="semua"||t.sppgId===sf));
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
-      <div className="flex justify-between items-center"><h1 className="text-xl font-bold text-gray-800">Data Belanja</h1><button onClick={()=>setModal("transaksi")} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium">+ Input</button></div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {[{v:"semua",l:"Semua"},{v:"bahan_baku",l:"🛒 Bahan Baku"},{v:"operasional",l:"⚙️ Operasional"},{v:"insentif",l:"🏢 Insentif"}].map(f=>(
-          <button key={f.v} onClick={()=>setFilter(f.v)} className={"text-xs px-3 py-1 rounded-lg whitespace-nowrap "+(filter===f.v?"bg-blue-600 text-white":"bg-gray-100 text-gray-600")}>{f.l}</button>
-        ))}
-      </div>
-      <select className="w-full border rounded-lg px-3 py-2 text-xs" value={sf} onChange={e=>setSf(e.target.value)}>
-        <option value="semua">Semua SPPG</option>
-        {sppgList.map(s=><option key={s.id} value={s.id}>{s.nama}</option>)}
-      </select>
-      <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-        {filtered.map(t=>{
-          const s=sppgList.find(x=>x.id===t.sppgId);
-          const icon=t.komponen==="bahan_baku"?"🛒":t.komponen==="operasional"?"⚙️":"🏢";
-          const bc=t.komponen==="bahan_baku"?"blue":t.komponen==="operasional"?"orange":"purple";
-          return (
-            <Card key={t.id} className="p-3">
-              <div className="flex justify-between items-start">
-                <div className="flex gap-2 items-start flex-1 min-w-0">
-                  <span className="text-base mt-0.5">{icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-800 line-clamp-1">{t.uraian}</p>
-                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                      <Badge color={bc}>{t.komponen==="bahan_baku"?"Bahan Baku":t.komponen==="operasional"?"Operasional":"Insentif"}</Badge>
-                      <span className="text-xs text-gray-400">{s?.nama}</span>
-                      <span className="text-xs text-gray-400">{new Date(t.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"2-digit"})}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 ml-2">
-                  <span className="text-sm font-bold text-gray-800 whitespace-nowrap">{fmtShort(t.jumlah)}</span>
-                  <button onClick={()=>setTransaksi(p=>p.filter(x=>x.id!==t.id))} className="text-red-300 text-xs">x</button>
-                </div>
-              </div>
-            </Card>
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"1.25rem"}},
+    React.createElement("div",{className:"flex justify-between items-start"},
+      React.createElement("div",null,
+        React.createElement("h1",{className:"text-xl font-bold text-gray-800"},"Dashboard MBG"),
+        React.createElement("p",{className:"text-sm text-gray-500"},sppgList.filter(function(s){return s.aktif;}).length+" SPPG Aktif")
+      ),
+      React.createElement("button",{onClick:function(){setModal("belanja");},className:"bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium shadow"},"+ Belanja")
+    ),
+    sppgList.length===0&&React.createElement("div",{className:"bg-blue-50 border border-blue-200 rounded-xl p-4 text-center"},
+      React.createElement("p",{className:"text-2xl mb-2"},"🍽️"),
+      React.createElement("p",{className:"text-sm font-semibold text-blue-700"},"Belum ada SPPG"),
+      React.createElement("p",{className:"text-xs text-blue-500 mt-1"},"Tambah SPPG di tab Estimasi")
+    ),
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"0.75rem"}},
+      React.createElement(StatCard,{label:"Total Belanja",value:fmtS(total),sub:"Semua periode",color:"blue",icon:"💰"}),
+      React.createElement(StatCard,{label:"Bulan Ini",value:fmtS(blnIni),sub:new Date().toLocaleDateString("id-ID",{month:"long"}),color:"purple",icon:"📅"}),
+      React.createElement(StatCard,{label:"Est. Pagu Total",value:fmtS(totalPagu),sub:sppgList.length+" SPPG",color:"green",icon:"📋"}),
+      React.createElement(StatCard,{label:"SPPG Aktif",value:sppgList.filter(function(s){return s.aktif;}).length,sub:"dari "+sppgList.length+" terdaftar",color:"orange",icon:"🍽️"})
+    ),
+    sppgList.length>0&&React.createElement(Card,null,
+      React.createElement("h3",{className:"font-semibold text-gray-700 mb-3 text-sm"},"Realisasi vs Pagu per SPPG"),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+        sppgList.map(function(s){
+          var real=transaksi.filter(function(t){return t.sppgId===s.id;}).reduce(function(a,t){return a+t.jumlah;},0);
+          var trxS=transaksi.filter(function(t){return t.sppgId===s.id;});
+          var pk=trxS.reduce(function(x,t){return x+(t.porsiKecil||0);},0);
+          var pb=trxS.reduce(function(x,t){return x+(t.porsiBesar||0);},0);
+          var pagu=calcPagu(pk,pb,s.hariOperasional).periode;
+          var pct=pagu>0?Math.min(100,(real/pagu)*100):0;
+          var over=real>pagu&&pagu>0;
+          return React.createElement("div",{key:s.id},
+            React.createElement("div",{className:"flex justify-between items-center mb-1"},
+              React.createElement("span",{className:"text-xs font-medium text-gray-700"},s.nama),
+              React.createElement("div",{className:"flex items-center gap-2"},
+                React.createElement("span",{className:"text-xs text-gray-500"},fmtS(real)+" / "+fmtS(pagu)),
+                React.createElement(Badge,{color:over?"red":pct>80?"yellow":"green"},pct.toFixed(0)+"%")
+              )
+            ),
+            React.createElement("div",{className:"h-2 bg-gray-100 rounded-full overflow-hidden"},
+              React.createElement("div",{className:"h-full rounded-full "+(over?"bg-red-500":pct>80?"bg-yellow-400":"bg-green-500"),style:{width:pct+"%"}})
+            )
           );
-        })}
-        {filtered.length===0&&<div className="text-center text-gray-400 text-sm py-10">Belum ada data belanja</div>}
-      </div>
-    </div>
-  );
-}
-
-function HalamanHarga({hargaList,setHargaList}) {
-  const [view,setView]=useState("terkini");
-  const [search,setSearch]=useState("");
-  const [selKom,setSelKom]=useState("");
-  const [showModal,setShowModal]=useState(false);
-  const terkini=useMemo(()=>{const map={};hargaList.forEach(h=>{if(!map[h.komoditas]||h.tanggal>map[h.komoditas].tanggal)map[h.komoditas]=h;});return Object.values(map).sort((a,b)=>a.komoditas.localeCompare(b.komoditas));},[hargaList]);
-  const history=useMemo(()=>!selKom?[]:hargaList.filter(h=>h.komoditas===selKom).sort((a,b)=>b.tanggal.localeCompare(a.tanggal)),[hargaList,selKom]);
-  const daftarKom=[...new Set(hargaList.map(h=>h.komoditas))].sort();
-  const getTren=kom=>{const d=hargaList.filter(h=>h.komoditas===kom).sort((a,b)=>b.tanggal.localeCompare(a.tanggal));if(d.length<2)return"stable";return d[0].harga>d[1].harga?"up":d[0].harga<d[1].harga?"down":"stable";};
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
-      <div className="flex justify-between items-center">
-        <div><h1 className="text-xl font-bold text-gray-800">Harga Pasar</h1><p className="text-xs text-gray-400">Kab. Bogor — Citeureup</p></div>
-        <button onClick={()=>setShowModal(true)} className="bg-green-600 text-white text-sm px-3 py-2 rounded-lg font-medium">+ Survei</button>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <a href="https://www.bi.go.id/hargapangan/TabelHarga/PasarTradisionalDaerah" target="_blank" rel="noreferrer" className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-          <p className="text-xs font-semibold text-blue-700">PIHPS Bank Indonesia</p>
-          <p className="text-xs text-blue-500">Pasar Tradisional Kab. Bogor</p>
-          <p className="text-xs text-blue-600 font-medium mt-1">Buka →</p>
-        </a>
-        <a href="https://dirga.bogorkab.go.id" target="_blank" rel="noreferrer" className="bg-orange-50 border border-orange-200 rounded-xl p-3">
-          <p className="text-xs font-semibold text-orange-700">DIRGA Kab. Bogor</p>
-          <p className="text-xs text-orange-500">Data Harga Pangan Resmi</p>
-          <p className="text-xs text-orange-600 font-medium mt-1">Buka →</p>
-        </a>
-      </div>
-      <div className="flex gap-2">
-        {[{v:"terkini",l:"Harga Terkini"},{v:"history",l:"Riwayat"},{v:"grafik",l:"Grafik"}].map(t=>(
-          <button key={t.v} onClick={()=>setView(t.v)} className={"text-xs px-3 py-1 rounded-lg "+(view===t.v?"bg-gray-800 text-white":"bg-gray-100 text-gray-600")}>{t.l}</button>
-        ))}
-      </div>
-      {view==="terkini"&&<div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-        <input className="w-full border rounded-xl px-4 py-2 text-sm" placeholder="Cari komoditas..." value={search} onChange={e=>setSearch(e.target.value)}/>
-        <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-          {terkini.filter(h=>h.komoditas.toLowerCase().includes(search.toLowerCase())).map(h=>{
-            const tren=getTren(h.komoditas);
-            return (
-              <div key={h.komoditas} className={"bg-white border rounded-xl p-3 shadow-sm flex items-center justify-between cursor-pointer "+(h.sumber==="referensi"?"border-gray-100":"border-green-200")} onClick={()=>{setSelKom(h.komoditas);setView("history");}}>
-                <div>
-                  <div className="flex items-center gap-1"><p className="text-sm font-semibold text-gray-800">{h.komoditas}</p>{h.sumber==="referensi"&&<Badge color="gray">Ref</Badge>}</div>
-                  <p className="text-xs text-gray-400">{h.pasar} · {new Date(h.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"})}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-gray-800">{fmt(h.harga)}</p>
-                  <p className="text-xs text-gray-400">/{h.satuan}</p>
-                  <span className={"text-xs "+(tren==="up"?"text-red-500":tren==="down"?"text-green-500":"text-gray-400")}>{tren==="up"?"▲ naik":tren==="down"?"▼ turun":"— stabil"}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>}
-      {view==="history"&&<div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-        <select className="w-full border rounded-xl px-3 py-2 text-sm" value={selKom} onChange={e=>setSelKom(e.target.value)}>
-          <option value="">-- Pilih Komoditas --</option>
-          {daftarKom.map(k=><option key={k}>{k}</option>)}
-        </select>
-        {selKom&&history.length>0&&<>
-          <div className="bg-gray-50 rounded-xl p-3 grid grid-cols-3 gap-2 text-center text-xs">
-            <div><p className="text-gray-400">Terendah</p><p className="font-bold text-green-600">{fmt(Math.min(...history.map(h=>h.harga)))}</p></div>
-            <div><p className="text-gray-400">Rata-rata</p><p className="font-bold text-blue-600">{fmt(Math.round(history.reduce((a,h)=>a+h.harga,0)/history.length))}</p></div>
-            <div><p className="text-gray-400">Tertinggi</p><p className="font-bold text-red-600">{fmt(Math.max(...history.map(h=>h.harga)))}</p></div>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-            {history.map(h=>(
-              <div key={h.id} className="bg-white border border-gray-100 rounded-xl p-3 flex justify-between items-center">
-                <div>
-                  <p className="text-xs font-medium text-gray-700">{new Date(h.tanggal).toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</p>
-                  <p className="text-xs text-gray-400">{h.pasar} · <span className={h.sumber==="referensi"?"text-gray-400":"text-green-600"}>{h.sumber}</span></p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-right"><p className="text-sm font-bold text-gray-800">{fmt(h.harga)}</p><p className="text-xs text-gray-400">/{h.satuan}</p></div>
-                  {h.sumber!=="referensi"&&<button onClick={()=>setHargaList(p=>p.filter(x=>x.id!==h.id))} className="text-red-200 text-xs">x</button>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>}
-        {!selKom&&<p className="text-center text-gray-400 text-sm py-6">Pilih komoditas untuk lihat riwayat</p>}
-      </div>}
-      {view==="grafik"&&<div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-        <select className="w-full border rounded-xl px-3 py-2 text-sm" value={selKom} onChange={e=>setSelKom(e.target.value)}>
-          <option value="">-- Pilih Komoditas --</option>
-          {daftarKom.map(k=><option key={k}>{k}</option>)}
-        </select>
-        {selKom&&(()=>{
-          const pts=hargaList.filter(h=>h.komoditas===selKom).sort((a,b)=>a.tanggal.localeCompare(b.tanggal));
-          if(pts.length<2)return <p className="text-xs text-gray-400 text-center py-6">Minimal 2 data untuk grafik</p>;
-          const mn=Math.min(...pts.map(h=>h.harga)),mx=Math.max(...pts.map(h=>h.harga)),rng=mx-mn||1,W=280,H=80;
-          const poly=pts.map((h,i)=>((i/(pts.length-1))*W)+","+(H-((h.harga-mn)/rng)*H)).join(" ");
-          return (
-            <div className="bg-white border border-gray-100 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-700 mb-3">{selKom} — Tren Harga</p>
-              <svg viewBox={"0 0 "+W+" "+(H+20)} className="w-full" style={{height:"6rem"}}>
-                <polyline fill="none" stroke="#3b82f6" strokeWidth="2" points={poly}/>
-                {pts.map((h,i)=>{const x=(i/(pts.length-1))*W,y=H-((h.harga-mn)/rng)*H;return <g key={i}><circle cx={x} cy={y} r="3" fill="#3b82f6"/><text x={x} y={H+15} textAnchor="middle" fontSize="7" fill="#9ca3af">{h.tanggal.slice(5)}</text></g>;})}
-              </svg>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="bg-green-50 rounded-lg p-1"><p className="text-gray-400">Min</p><p className="font-bold text-green-600">{fmtShort(mn)}</p></div>
-                <div className="bg-blue-50 rounded-lg p-1"><p className="text-gray-400">Rata-rata</p><p className="font-bold text-blue-600">{fmtShort(Math.round(pts.reduce((a,h)=>a+h.harga,0)/pts.length))}</p></div>
-                <div className="bg-red-50 rounded-lg p-1"><p className="text-gray-400">Maks</p><p className="font-bold text-red-600">{fmtShort(mx)}</p></div>
-              </div>
-            </div>
+        })
+      )
+    ),
+    transaksi.length>0&&React.createElement(Card,null,
+      React.createElement("h3",{className:"font-semibold text-gray-700 mb-3 text-sm"},"5 Transaksi Terakhir"),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.5rem"}},
+        transaksi.slice().sort(function(a,b){return b.tanggal.localeCompare(a.tanggal);}).slice(0,5).map(function(t){
+          var s=sppgList.find(function(x){return x.id===t.sppgId;});
+          var icon=t.komponen==="bahan_baku"?"🛒":t.komponen==="operasional"?"⚙️":"🏢";
+          return React.createElement("div",{key:t.id,className:"flex items-center justify-between py-2 border-b border-gray-50"},
+            React.createElement("div",{className:"flex items-center gap-2"},
+              React.createElement("span",null,icon),
+              React.createElement("div",null,
+                React.createElement("p",{className:"text-xs font-medium text-gray-700 lc1"},t.uraian),
+                React.createElement("p",{className:"text-xs text-gray-400"},(s&&s.nama||"")+" · "+new Date(t.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"}))
+              )
+            ),
+            React.createElement("span",{className:"text-xs font-semibold text-gray-700 ml-2"},fmtS(t.jumlah))
           );
-        })()}
-        {!selKom&&<p className="text-center text-gray-400 text-sm py-6">Pilih komoditas untuk grafik</p>}
-      </div>}
-      {showModal&&<ModalHarga onSave={h=>{setHargaList(p=>[...p,h]);setShowModal(false);}} onClose={()=>setShowModal(false)}/>}
-    </div>
+        })
+      )
+    )
   );
 }
 
-function HalamanLaporan({sppgList,transaksi}) {
-  const [sel,setSel]=useState("");
-  const [tipe,setTipe]=useState("ringkasan");
-  const [bulan,setBulan]=useState(new Date().toISOString().slice(0,7));
-  const sppgId=sel||sppgList[0]?.id||"";
-  const sppg=sppgList.find(s=>s.id===sppgId);
-  const byDate=useMemo(()=>{const map={};transaksi.filter(t=>t.sppgId===sppgId).forEach(t=>{if(!map[t.tanggal])map[t.tanggal]={bahan_baku:0,operasional:0,insentif:0,items:[]};map[t.tanggal][t.komponen]+=t.jumlah;map[t.tanggal].items.push(t);});return map;},[transaksi,sppgId]);
-  const filtered=Object.entries(byDate).filter(([d])=>d.startsWith(bulan)).sort((a,b)=>a[0].localeCompare(b[0]));
-  const pagu=sppg?estimasiPagu(sppg):null;
-  const totalBB=filtered.reduce((a,e)=>a+e[1].bahan_baku,0);
-  const totalOp=filtered.reduce((a,e)=>a+e[1].operasional,0);
-  const totalIn=filtered.reduce((a,e)=>a+e[1].insentif,0);
-  const grand=totalBB+totalOp+totalIn,maxPagu=pagu?pagu.totalPeriode:0,sisa=maxPagu-grand;
-  if(sppgList.length===0)return <div className="text-center py-10 text-gray-400"><p className="text-2xl mb-2">📊</p><p className="text-sm">Belum ada SPPG.</p></div>;
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
-      <div className="flex justify-between items-center flex-wrap gap-2">
-        <h1 className="text-xl font-bold text-gray-800">Laporan</h1>
-        <div className="flex gap-2">
-          <select className="border rounded-lg px-2 py-1 text-xs" value={sppgId} onChange={e=>setSel(e.target.value)}>{sppgList.map(s=><option key={s.id} value={s.id}>{s.nama}</option>)}</select>
-          <input type="month" className="border rounded-lg px-2 py-1 text-xs" value={bulan} onChange={e=>setBulan(e.target.value)}/>
-        </div>
-      </div>
-      <div className="flex gap-2">
-        {[{v:"ringkasan",l:"Ringkasan"},{v:"harian",l:"Rincian Harian"}].map(t=>(
-          <button key={t.v} onClick={()=>setTipe(t.v)} className={"text-xs px-3 py-1 rounded-lg "+(tipe===t.v?"bg-blue-600 text-white":"bg-gray-100 text-gray-600")}>{t.l}</button>
-        ))}
-      </div>
-      {tipe==="ringkasan"&&<div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-        <Card>
-          <h3 className="font-semibold text-sm text-gray-700 mb-3">Rekapitulasi {new Date(bulan+"-01").toLocaleDateString("id-ID",{month:"long",year:"numeric"})}</h3>
-          {[{l:"Bahan Baku",v:totalBB,c:"blue"},{l:"Operasional",v:totalOp,c:"orange"},{l:"Insentif Fasilitas",v:totalIn,c:"purple"},{l:"TOTAL REALISASI",v:grand,bold:true},{l:"Estimasi Pagu",v:maxPagu,c:"green"},{l:"Sisa / (Kelebihan)",v:sisa,c:sisa<0?"red":"green"}].map(r=>(
-            <div key={r.l} className={"flex justify-between py-1 text-xs "+(r.bold?"border-t font-bold text-sm mt-1":"")}>
-              <span className="text-gray-600">{r.l}</span>
-              <span className={r.c==="red"?"text-red-600":r.c==="green"?"text-green-600":r.c==="blue"?"text-blue-600":r.c==="orange"?"text-orange-600":r.c==="purple"?"text-purple-600":"text-gray-800"}>{sisa<0&&r.l.includes("Sisa")?"("+fmt(Math.abs(r.v))+")":fmt(r.v)}</span>
-            </div>
-          ))}
-        </Card>
-        {sisa<0&&<div className="bg-red-50 border border-red-200 rounded-xl p-3"><p className="text-xs text-red-700 font-medium">Melebihi estimasi pagu sebesar {fmt(Math.abs(sisa))}</p></div>}
-        <button className="w-full bg-green-600 text-white text-xs py-2 rounded-xl font-medium" onClick={()=>{
-          const lines=["LAPORAN PENGGUNAAN DANA MBG","SPPG: "+(sppg?.nama||""),"Periode: "+bulan,"==========================================","","BAHAN BAKU    : "+fmt(totalBB),"OPERASIONAL   : "+fmt(totalOp),"INSENTIF      : "+fmt(totalIn),"TOTAL         : "+fmt(grand),"EST. PAGU     : "+fmt(maxPagu),"SISA/(LEBIH)  : "+fmt(sisa),"","--- RINCIAN HARIAN ---",...filtered.map(([d,v])=>d+" | BB:"+fmtShort(v.bahan_baku)+" Op:"+fmtShort(v.operasional)+" | Total:"+fmtShort(v.bahan_baku+v.operasional+v.insentif))];
-          const el=document.createElement("a");el.href="data:text/plain;charset=utf-8,"+encodeURIComponent(lines.join("\n"));el.download="Laporan_MBG_"+(sppg?.nama||"")+"_"+bulan+".txt";el.click();
-        }}>Ekspor Laporan (.txt)</button>
-      </div>}
-      {tipe==="harian"&&<Card>
-        <h3 className="font-semibold text-sm text-gray-700 mb-3">Rincian Harian</h3>
-        {filtered.length===0&&<p className="text-xs text-gray-400 text-center py-4">Belum ada data bulan ini</p>}
-        <div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-          {filtered.map(([tgl,v])=>{
-            const total=v.bahan_baku+v.operasional+v.insentif,over=pagu&&pagu.totalPerHari>0&&total>pagu.totalPerHari;
-            return (
-              <div key={tgl} className={"border rounded-lg p-3 "+(over?"border-red-200 bg-red-50":"")}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-semibold text-gray-700">{new Date(tgl).toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})}</span>
-                  <div className="flex items-center gap-1">{over&&<Badge color="red">Melebihi</Badge>}<span className="text-xs font-bold text-gray-800">{fmt(total)}</span></div>
-                </div>
-                <div className="grid grid-cols-3 gap-1 text-xs text-gray-500"><span>🛒 {fmtShort(v.bahan_baku)}</span><span>⚙️ {fmtShort(v.operasional)}</span><span>🏢 {fmtShort(v.insentif)}</span></div>
-                {v.items.map(i=><p key={i.id} className="text-xs text-gray-400 mt-1 pl-2 border-l-2 border-gray-200">{i.uraian}</p>)}
-              </div>
-            );
-          })}
-        </div>
-      </Card>}
-    </div>
+function PageBelanja({sppgList,transaksi,setModal,delTrx}){
+  var [fil,setFil]=useState("semua");
+  var [sf,setSf]=useState("semua");
+  var filtered=transaksi.slice().sort(function(a,b){return b.tanggal.localeCompare(a.tanggal);}).filter(function(t){return (fil==="semua"||t.komponen===fil)&&(sf==="semua"||t.sppgId===sf);});
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"1rem"}},
+    React.createElement("div",{className:"flex justify-between items-center"},
+      React.createElement("h1",{className:"text-xl font-bold text-gray-800"},"Data Belanja"),
+      React.createElement("button",{onClick:function(){setModal("belanja");},className:"bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium"},"+ Input")
+    ),
+    React.createElement("div",{className:"flex gap-2 overflow-x-auto pb-1"},
+      [{v:"semua",l:"Semua"},{v:"bahan_baku",l:"🛒 Bahan Baku"},{v:"operasional",l:"⚙️ Operasional"},{v:"insentif",l:"🏢 Insentif"}].map(function(f){
+        return React.createElement("button",{key:f.v,onClick:function(){setFil(f.v);},className:"text-xs px-3 py-1 rounded-lg whitespace-nowrap "+(fil===f.v?"bg-blue-600 text-white":"bg-gray-100 text-gray-600")},f.l);
+      })
+    ),
+    React.createElement("select",{className:"w-full border rounded-lg px-3 py-2 text-xs",value:sf,onChange:function(e){setSf(e.target.value);}},
+      React.createElement("option",{value:"semua"},"Semua SPPG"),
+      sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})
+    ),
+    React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.5rem"}},
+      filtered.length===0&&React.createElement("p",{className:"text-center text-gray-400 text-sm py-10"},"Belum ada data belanja"),
+      filtered.map(function(t){
+        var s=sppgList.find(function(x){return x.id===t.sppgId;});
+        var icon=t.komponen==="bahan_baku"?"🛒":t.komponen==="operasional"?"⚙️":"🏢";
+        var bc=t.komponen==="bahan_baku"?"blue":t.komponen==="operasional"?"orange":"purple";
+        return React.createElement(Card,{key:t.id,className:"p-3"},
+          React.createElement("div",{className:"flex justify-between items-start"},
+            React.createElement("div",{className:"flex gap-2 items-start flex-1 min-w-0"},
+              React.createElement("span",{className:"text-base mt-0.5"},icon),
+              React.createElement("div",{className:"min-w-0"},
+                React.createElement("p",{className:"text-xs font-semibold text-gray-800 lc1"},t.uraian),
+                React.createElement("div",{className:"flex items-center gap-1 mt-0.5 flex-wrap"},
+                  React.createElement(Badge,{color:bc},t.komponen==="bahan_baku"?"Bahan Baku":t.komponen==="operasional"?"Operasional":"Insentif"),
+                  React.createElement("span",{className:"text-xs text-gray-400"},s&&s.nama||""),
+                  React.createElement("span",{className:"text-xs text-gray-400"},new Date(t.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"2-digit"}))
+                )
+              )
+            ),
+            React.createElement("div",{className:"flex items-center gap-2 ml-2"},
+              React.createElement("span",{className:"text-sm font-bold text-gray-800 whitespace-nowrap"},fmtS(t.jumlah)),
+              React.createElement("button",{onClick:function(){delTrx(t.id);},className:"text-red-300 text-xs"},"x")
+            )
+          )
+        );
+      })
+    )
   );
 }
 
-function HalamanEstimasi({sppgList,onAddSppg}) {
-  const [sel,setSel]=useState("");
-  const [porsiKecil,setPorsiKecil]=useState(0);
-  const [porsiBesar,setPorsiBesar]=useState(0);
-  const [hari,setHari]=useState(26);
-  const sppgId=sel||sppgList[0]?.id||"";
-  const e=estimasiPagu(porsiKecil,porsiBesar,hari);
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
-      <div className="flex justify-between items-center">
-        <h1 className="text-xl font-bold text-gray-800">Estimasi Anggaran</h1>
-        <button onClick={onAddSppg} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium">+ SPPG</button>
-      </div>
+function PageMenu({menuTemplates,setMenuTemplates,menuHistory,setMenuHistory,hargaList}){
+  var [sub,setSub]=useState("rekomendasi");
+  var [showAdd,setShowAdd]=useState(false);
+  var [selMenu,setSelMenu]=useState(null);
+  var [pk,setPk]=useState(0);
+  var [pb,setPb]=useState(0);
+  var [bahanFree,setBahanFree]=useState([{nama:"",gK:0,gB:0,sat:"g"}]);
 
-      <Card>
-        <h3 className="font-semibold text-gray-700 mb-3 text-sm">Kalkulator Estimasi Harian</h3>
-        <div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 font-medium">Porsi Kecil</label>
-              <p className="text-xs text-gray-400">PAUD/SD 1-3/Balita</p>
-              <p className="text-xs font-semibold text-blue-600">@ Rp8.000/porsi</p>
-              <input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0" value={porsiKecil||""} onChange={e=>setPorsiKecil(parseInt(e.target.value)||0)}/>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 font-medium">Porsi Besar</label>
-              <p className="text-xs text-gray-400">SD 4-6/SMP/SMA/Bumil/dll</p>
-              <p className="text-xs font-semibold text-blue-600">@ Rp10.000/porsi</p>
-              <input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0" value={porsiBesar||""} onChange={e=>setPorsiBesar(parseInt(e.target.value)||0)}/>
-            </div>
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium">Hari Operasional (untuk hitung periode)</label>
-            <input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={hari} onChange={e=>setHari(parseInt(e.target.value)||26)}/>
-          </div>
-        </div>
-      </Card>
+  function getHarga(nama){
+    var match=hargaList.filter(function(h){
+      return h.komoditas.toLowerCase().indexOf(nama.toLowerCase())>=0||nama.toLowerCase().indexOf(h.komoditas.toLowerCase())>=0;
+    }).sort(function(a,b){return b.tanggal.localeCompare(a.tanggal);});
+    return match[0]||null;
+  }
 
-      {(porsiKecil>0||porsiBesar>0)&&<>
-        <Card>
-          <h3 className="font-semibold text-gray-700 mb-3 text-sm">Hasil Estimasi Per Hari</h3>
-          <div style={{display:"flex",flexDirection:"column",gap:"0.375rem"}}>
-            <div className="flex justify-between text-xs"><span className="text-gray-500">Porsi Kecil ({porsiKecil} × Rp8.000)</span><span className="font-medium">{fmt(porsiKecil*8000)}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-gray-500">Porsi Besar ({porsiBesar} × Rp10.000)</span><span className="font-medium">{fmt(porsiBesar*10000)}</span></div>
-            <div className="flex justify-between text-xs border-t pt-2 font-semibold"><span>Total Bahan Baku/Hari</span><span className="text-blue-600">{fmt(e.bb)}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-gray-500">Operasional ({e.totalPM} org × Rp3.000)</span><span>{fmt(e.op)}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-gray-500">Insentif Fasilitas</span><span>{fmt(e.ins)}</span></div>
-            <div className="flex justify-between text-sm border-t pt-2 font-bold"><span>TOTAL PER HARI</span><span className="text-blue-600">{fmt(e.total)}</span></div>
-            <div className="flex justify-between text-sm font-bold"><span>TOTAL {hari} HARI</span><span className="text-green-600">{fmt(e.periode)}</span></div>
-          </div>
-        </Card>
+  function hitungEst(bahan,pK,pB){
+    var totK=0,totB=0;
+    var detail=bahan.filter(function(b){return b.nama;}).map(function(b){
+      var ref=getHarga(b.nama);
+      var hpg=0;
+      if(ref){hpg=ref.satuan==="kg"?ref.harga/1000:ref.satuan==="pcs"?ref.harga:ref.harga/1000;}
+      var hK=hpg*(b.gK||0);
+      var hB=hpg*(b.gB||0);
+      totK+=hK;totB+=hB;
+      return {nama:b.nama,sat:b.sat||"g",gK:b.gK||0,gB:b.gB||0,ref:ref,hK:hK,hB:hB,tK:hK*pK,tB:hB*pB,wK:(b.gK||0)*pK/1000,wB:(b.gB||0)*pB/1000};
+    });
+    return {detail:detail,totK:totK,totB:totB,grand:totK*pK+totB*pB};
+  }
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"0.75rem"}}>
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
-            <p className="text-xs text-gray-500">Maks Harian</p>
-            <p className="font-bold text-blue-700 text-sm">{fmt(e.total)}</p>
-          </div>
-          <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-            <p className="text-xs text-gray-500">Total {hari} Hari</p>
-            <p className="font-bold text-green-700 text-sm">{fmt(e.periode)}</p>
-          </div>
-        </div>
-      </>}
+  var rekom=useMemo(function(){
+    var cutoff=new Date(Date.now()-7*24*60*60*1000).toISOString().split("T")[0];
+    var recent=menuHistory.filter(function(h){return h.tanggal>=cutoff;}).map(function(h){return h.menuId;});
+    var fresh=menuTemplates.filter(function(m){return recent.indexOf(m.id)<0;});
+    var old=menuTemplates.filter(function(m){return recent.indexOf(m.id)>=0;});
+    return fresh.concat(old);
+  },[menuTemplates,menuHistory]);
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-        <p className="text-xs font-semibold text-blue-700 mb-1">Catatan Juknis BGN</p>
-        <ul className="text-xs text-blue-600 list-disc ml-4" style={{display:"flex",flexDirection:"column",gap:"0.125rem"}}>
-          <li>Porsi kecil: PAUD/TK/RA, SD kls 1-3, Balita → Rp8.000/porsi</li>
-          <li>Porsi besar: SD kls 4-6, SMP, SMA, Pendidik, Ibu Hamil/Menyusui → Rp10.000/porsi</li>
-          <li>Operasional acuan Rp3.000/org (at cost)</li>
-          <li>Insentif fasilitas Rp6.000.000/hari (flat)</li>
-        </ul>
-      </div>
+  function lastUsed(id){
+    var h=menuHistory.filter(function(x){return x.menuId===id;}).sort(function(a,b){return b.tanggal.localeCompare(a.tanggal);});
+    return h[0]?h[0].tanggal:null;
+  }
 
-      {sppgList.length===0&&<div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center">
-        <p className="text-xs text-yellow-700">Tambah SPPG untuk menyimpan data dan memantau realisasi vs estimasi</p>
-        <button onClick={onAddSppg} className="mt-2 bg-blue-600 text-white text-xs px-4 py-1.5 rounded-lg">+ Tambah SPPG</button>
-      </div>}
-    </div>
+  function pakai(m){
+    setMenuHistory(function(p){return p.concat([{id:uid(),menuId:m.id,tanggal:today(),namMenu:m.nama}]);});
+    setSelMenu(m);setSub("kalkulator");
+  }
+
+  var estMenu=selMenu?hitungEst(selMenu.bahan,pk,pb):null;
+  var estFree=hitungEst(bahanFree,pk,pb);
+
+  function addFree(){setBahanFree(function(p){return p.concat([{nama:"",gK:0,gB:0,sat:"g"}]);});}
+  function setFree(i,k,v){setBahanFree(function(p){return p.map(function(b,idx){return idx===i?Object.assign({},b,{[k]:v}):b;});});}
+  function delFree(i){setBahanFree(function(p){return p.filter(function(_,idx){return idx!==i;});});}
+
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"1rem"}},
+    React.createElement("div",{className:"flex justify-between items-center"},
+      React.createElement("h1",{className:"text-xl font-bold text-gray-800"},"Menu & Kalkulator"),
+      React.createElement("button",{onClick:function(){setShowAdd(true);},className:"bg-blue-600 text-white text-sm px-3 py-2 rounded-lg font-medium"},"+ Menu")
+    ),
+    React.createElement("div",{className:"flex gap-2 overflow-x-auto pb-1"},
+      [{v:"rekomendasi",l:"🍽️ Rekomendasi"},{v:"template",l:"📋 Template"},{v:"kalkulator",l:"🧮 Kalkulator"}].map(function(t){
+        return React.createElement("button",{key:t.v,onClick:function(){setSub(t.v);},className:"text-xs px-3 py-1.5 rounded-lg whitespace-nowrap "+(sub===t.v?"bg-blue-600 text-white":"bg-gray-100 text-gray-600")},t.l);
+      })
+    ),
+
+    sub==="rekomendasi"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+      menuHistory.length===0&&React.createElement("div",{className:"bg-yellow-50 border border-yellow-200 rounded-xl p-3"},
+        React.createElement("p",{className:"text-xs font-semibold text-yellow-700"},"Belum ada history menu"),
+        React.createElement("p",{className:"text-xs text-yellow-600 mt-1"},"Gunakan menu dari template, rekomendasi rotasi muncul otomatis setelah ada data penggunaan.")
+      ),
+      rekom.map(function(m){
+        var lu=lastUsed(m.id);
+        var hari=lu?Math.floor((Date.now()-new Date(lu).getTime())/(864e5)):null;
+        var fresh=!lu||hari>7;
+        return React.createElement("div",{key:m.id,className:"bg-white border rounded-xl p-3 shadow-sm "+(fresh?"border-green-200":"border-gray-100")},
+          React.createElement("div",{className:"flex justify-between items-start"},
+            React.createElement("div",{className:"flex-1 min-w-0"},
+              React.createElement("div",{className:"flex items-center gap-1.5 flex-wrap"},
+                React.createElement("p",{className:"text-sm font-semibold text-gray-800"},m.nama),
+                fresh&&React.createElement(Badge,{color:"green"},"Direkomendasikan"),
+                !fresh&&hari!==null&&React.createElement(Badge,{color:"gray"},hari+"h lalu")
+              ),
+              React.createElement("p",{className:"text-xs text-gray-400 mt-0.5"},m.kategori+" · "+m.bahan.length+" bahan"),
+              React.createElement("p",{className:"text-xs text-gray-500 mt-1"},m.bahan.map(function(b){return b.nama;}).join(", "))
+            ),
+            React.createElement("button",{onClick:function(){pakai(m);},className:"ml-2 bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap"},"Pakai →")
+          )
+        );
+      })
+    ),
+
+    sub==="template"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+      menuTemplates.length===0&&React.createElement("p",{className:"text-center text-gray-400 text-sm py-6"},"Belum ada template menu"),
+      menuTemplates.map(function(m){
+        return React.createElement("div",{key:m.id,className:"bg-white border border-gray-100 rounded-xl p-3 shadow-sm"},
+          React.createElement("div",{className:"flex justify-between items-start"},
+            React.createElement("div",{className:"flex-1 min-w-0"},
+              React.createElement("p",{className:"text-sm font-semibold text-gray-800"},m.nama),
+              React.createElement("p",{className:"text-xs text-gray-400"},m.kategori),
+              React.createElement("div",{style:{marginTop:"0.375rem"}},
+                m.bahan.map(function(b,i){return React.createElement("p",{key:i,className:"text-xs text-gray-500"},"• "+b.nama+": "+b.gK+(b.sat||"g")+"/kecil · "+b.gB+(b.sat||"g")+"/besar");})
+              )
+            ),
+            React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.375rem",marginLeft:"0.5rem"}},
+              React.createElement("button",{onClick:function(){pakai(m);},className:"bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap"},"Hitung →"),
+              React.createElement("button",{onClick:function(){setMenuTemplates(function(p){return p.filter(function(x){return x.id!==m.id;});});},className:"text-red-300 text-xs text-center"},"Hapus")
+            )
+          )
+        );
+      })
+    ),
+
+    sub==="kalkulator"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+      React.createElement("div",{className:"bg-gray-50 rounded-xl p-3"},
+        React.createElement("p",{className:"text-xs font-semibold text-gray-600 mb-2"},"Pilih Mode"),
+        React.createElement("div",{style:{display:"flex",gap:"0.5rem",flexWrap:"wrap"}},
+          React.createElement("button",{onClick:function(){setSelMenu(null);},className:"text-xs px-3 py-1.5 rounded-lg "+(selMenu===null?"bg-gray-800 text-white":"bg-white border text-gray-600")},"Input Bebas"),
+          menuTemplates.map(function(m){
+            return React.createElement("button",{key:m.id,onClick:function(){setSelMenu(m);},className:"text-xs px-2 py-1.5 rounded-lg "+(selMenu&&selMenu.id===m.id?"bg-blue-600 text-white":"bg-white border text-gray-600"),style:{maxWidth:"120px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},m.nama.split("+")[0].trim());
+          })
+        )
+      ),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.75rem"}},
+        React.createElement("div",{className:"bg-blue-50 border border-blue-200 rounded-xl p-3"},
+          React.createElement("label",{className:"text-xs font-semibold text-blue-700"},"Porsi Kecil"),
+          React.createElement("p",{className:"text-xs text-blue-500"},"PAUD/SD 1-3/Balita"),
+          React.createElement("input",{type:"number",className:"w-full mt-2 border rounded-lg px-3 py-2 text-sm",placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})
+        ),
+        React.createElement("div",{className:"bg-orange-50 border border-orange-200 rounded-xl p-3"},
+          React.createElement("label",{className:"text-xs font-semibold text-orange-700"},"Porsi Besar"),
+          React.createElement("p",{className:"text-xs text-orange-500"},"SD 4-6/SMP/SMA/dll"),
+          React.createElement("input",{type:"number",className:"w-full mt-2 border rounded-lg px-3 py-2 text-sm",placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}})
+        )
+      ),
+
+      selMenu&&estMenu&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.5rem"}},
+        React.createElement("p",{className:"text-xs font-semibold text-gray-700"},"📋 "+selMenu.nama),
+        estMenu.detail.map(function(b,i){
+          return React.createElement("div",{key:i,className:"bg-white border border-gray-100 rounded-xl p-3"},
+            React.createElement("div",{className:"flex justify-between items-center mb-1"},
+              React.createElement("span",{className:"text-sm font-medium text-gray-800"},b.nama),
+              !b.ref&&React.createElement(Badge,{color:"gray"},"Harga belum ada")
+            ),
+            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr"},gap:"0.5rem",className:"text-xs text-gray-500"},
+              React.createElement("div",null,
+                React.createElement("p",null,"Kecil: "+b.gK+"g × "+pk+" = ",React.createElement("span",{className:"font-medium text-gray-700"},b.wK.toFixed(2)+"kg")),
+                b.ref&&React.createElement("p",{className:"text-blue-600"},fmt(Math.round(b.hK))+"/porsi")
+              ),
+              React.createElement("div",null,
+                React.createElement("p",null,"Besar: "+b.gB+"g × "+pb+" = ",React.createElement("span",{className:"font-medium text-gray-700"},b.wB.toFixed(2)+"kg")),
+                b.ref&&React.createElement("p",{className:"text-orange-600"},fmt(Math.round(b.hB))+"/porsi")
+              )
+            ),
+            b.ref&&(pk>0||pb>0)&&React.createElement("div",{className:"mt-1.5 pt-1.5 border-t flex justify-between text-xs"},
+              React.createElement("span",{className:"text-gray-400"},"Total bahan ini"),
+              React.createElement("span",{className:"font-semibold text-gray-700"},fmt(Math.round(b.tK+b.tB)))
+            )
+          );
+        }),
+        React.createElement(Card,{className:"bg-blue-50 border-blue-200"},
+          React.createElement("div",{className:"flex justify-between text-xs mb-1"},React.createElement("span",{className:"text-gray-600"},"Estimasi/porsi kecil"),React.createElement("span",{className:"font-bold text-blue-600"},fmt(Math.round(estMenu.totK)))),
+          React.createElement("div",{className:"flex justify-between text-xs mb-2"},React.createElement("span",{className:"text-gray-600"},"Estimasi/porsi besar"),React.createElement("span",{className:"font-bold text-orange-600"},fmt(Math.round(estMenu.totB)))),
+          React.createElement("div",{className:"flex justify-between text-sm font-bold border-t pt-2"},React.createElement("span",null,"Total Estimasi Belanja"),React.createElement("span",{className:"text-green-600"},fmt(Math.round(estMenu.grand))))
+        )
+      ),
+
+      !selMenu&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.5rem"}},
+        React.createElement("div",{className:"flex justify-between items-center"},
+          React.createElement("p",{className:"text-xs font-semibold text-gray-700"},"Input Bahan Manual"),
+          React.createElement("button",{onClick:addFree,className:"text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-lg"},"+ Bahan")
+        ),
+        bahanFree.map(function(b,i){
+          var ref=b.nama?getHarga(b.nama):null;
+          var hpg=ref?(ref.satuan==="kg"?ref.harga/1000:ref.harga):0;
+          var hK=hpg*(b.gK||0),hB=hpg*(b.gB||0);
+          return React.createElement("div",{key:i,className:"bg-white border border-gray-100 rounded-xl p-3"},
+            React.createElement("div",{className:"flex justify-between items-center mb-2"},
+              React.createElement("input",{className:"flex-1 border rounded-lg px-2 py-1 text-xs mr-2",placeholder:"Nama bahan...",value:b.nama,onChange:function(e){setFree(i,"nama",e.target.value);}}),
+              i>0&&React.createElement("button",{onClick:function(){delFree(i);},className:"text-red-300 text-xs"},"x")
+            ),
+            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 50px",gap:"0.375rem"}},
+              React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-400"},"g/porsi kecil"),React.createElement("input",{type:"number",className:"w-full border rounded-lg px-2 py-1 text-xs",value:b.gK||"",onChange:function(e){setFree(i,"gK",parseFloat(e.target.value)||0);}})),
+              React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-400"},"g/porsi besar"),React.createElement("input",{type:"number",className:"w-full border rounded-lg px-2 py-1 text-xs",value:b.gB||"",onChange:function(e){setFree(i,"gB",parseFloat(e.target.value)||0);}})),
+              React.createElement("div",null,
+                React.createElement("label",{className:"text-xs text-gray-400"},"Sat."),
+                React.createElement("select",{className:"w-full border rounded-lg px-1 py-1 text-xs",value:b.sat,onChange:function(e){setFree(i,"sat",e.target.value);}},
+                  ["g","ml","pcs"].map(function(s){return React.createElement("option",{key:s},s);})
+                )
+              )
+            ),
+            b.nama&&(ref?React.createElement("p",{className:"text-xs text-gray-400 mt-1.5"},"Ref: "+fmt(ref.harga)+"/"+ref.satuan+" → ",React.createElement("span",{className:"text-blue-600"},fmt(Math.round(hK))+"/kecil")," · ",React.createElement("span",{className:"text-orange-600"},fmt(Math.round(hB))+"/besar")):React.createElement("p",{className:"text-xs text-gray-300 mt-1"},"Harga belum tersedia di survei"))
+          );
+        }),
+        (pk>0||pb>0)&&estFree.detail.length>0&&React.createElement(Card,{className:"bg-blue-50 border-blue-200"},
+          estFree.detail.map(function(b,i){return React.createElement("div",{key:i,className:"flex justify-between text-xs mb-1"},React.createElement("span",{className:"text-gray-600"},b.nama),React.createElement("span",{className:"font-medium"},((b.gK*pk+b.gB*pb)/1000).toFixed(2)+"kg · "+fmt(Math.round(b.tK+b.tB))));;}),
+          React.createElement("div",{className:"border-t pt-2 mt-1"},
+            React.createElement("div",{className:"flex justify-between text-xs mb-1"},React.createElement("span",null,"Estimasi/porsi kecil"),React.createElement("span",{className:"font-bold text-blue-600"},fmt(Math.round(estFree.totK)))),
+            React.createElement("div",{className:"flex justify-between text-xs mb-2"},React.createElement("span",null,"Estimasi/porsi besar"),React.createElement("span",{className:"font-bold text-orange-600"},fmt(Math.round(estFree.totB)))),
+            React.createElement("div",{className:"flex justify-between text-sm font-bold"},React.createElement("span",null,"Total Estimasi Belanja"),React.createElement("span",{className:"text-green-600"},fmt(Math.round(estFree.grand))))
+          )
+        )
+      )
+    ),
+    showAdd&&React.createElement(ModalTambahMenu,{onSave:function(m){setMenuTemplates(function(p){return p.concat([m]);});setShowAdd(false);},onClose:function(){setShowAdd(false);}})
   );
 }
 
-function App() {
-  const [tab,setTab]=useState("dashboard");
-  const [sppgList,setSppgList]=useLS("mbg_sppg",[]);
-  const [transaksi,setTransaksi]=useLS("mbg_transaksi",[]);
-  const [hargaList,setHargaList]=useLS("mbg_harga",INIT_HARGA);
-  const [modal,setModal]=useState(null);
-  const [dbStatus,setDbStatus]=useState("connecting");
-  const [loading,setLoading]=useState(true);
+function PageBKU({bkuList,setBkuList,sppgList}){
+  var [selSppg,setSelSppg]=useState((sppgList[0]&&sppgList[0].id)||"");
+  var [periode,setPeriode]=useState(new Date().toISOString().slice(0,7));
+  var [saldoAwal,setSaldoAwal]=useState(0);
+  var [showForm,setShowForm]=useState(false);
+  var [f,setF]=useState({tanggal:today(),uraian:"",komponen:"Biaya Bahan",jumlah:""});
+  function set(k,v){setF(function(p){return Object.assign({},p,{[k]:v});});}
 
-  useEffect(()=>{
-    const ctrl=new AbortController();
-    const timer=setTimeout(()=>ctrl.abort(),8000);
-    const load=async()=>{
-      try{
-        const r=await fetch(SUPABASE_URL+"/rest/v1/sppg?select=*&limit=1",{headers:SB_HEADERS,signal:ctrl.signal});
-        clearTimeout(timer);
-        if(!r.ok) throw new Error("HTTP "+r.status);
-        const [s,t,h]=await Promise.all([sbGet("sppg"),sbGet("transaksi"),sbGet("harga_survei")]);
-        if(Array.isArray(s)&&s.length>0) setSppgList(s.map(mapSppg));
-        if(Array.isArray(t)&&t.length>0) setTransaksi(t.map(mapTrx));
-        if(Array.isArray(h)&&h.length>0) setHargaList(h.map(mapHarga));
-        setDbStatus("online");
-      }catch(err){
-        clearTimeout(timer);
-        setDbStatus("local");
-      }finally{ setLoading(false); }
-    };
-    load();
-    return()=>{ clearTimeout(timer); ctrl.abort(); };
+  var entries=bkuList.filter(function(b){return b.sppgId===selSppg&&b.periode===periode;}).sort(function(a,b){return a.tanggal.localeCompare(b.tanggal);});
+  var withSaldo=entries.reduce(function(acc,e,i){
+    var prev=i===0?saldoAwal:acc[i-1].saldo;
+    var saldo=e.komponen==="Penerimaan"?prev+e.jumlah:prev-e.jumlah;
+    return acc.concat([Object.assign({},e,{saldo:saldo})]);
   },[]);
 
-  const addSppg=useCallback(async s=>{
-    setSppgList(p=>[...p,s]);
-    if(SB_ON&&dbStatus==="online")try{await sbPost("sppg",toSppg(s));}catch(e){console.error(e);}
-  },[dbStatus]);
-  const addTransaksi=useCallback(async t=>{
-    setTransaksi(p=>[...p,t]);
-    if(SB_ON&&dbStatus==="online")try{await sbPost("transaksi",toTrx(t));}catch(e){console.error(e);}
-  },[dbStatus]);
-  const delTransaksi=useCallback(async id=>{
-    setTransaksi(p=>p.filter(x=>x.id!==id));
-    if(SB_ON&&dbStatus==="online")try{await sbDel("transaksi",id);}catch(e){console.error(e);}
-  },[dbStatus]);
-  const addHarga=useCallback(async h=>{
-    setHargaList(p=>[...p,h]);
-    if(SB_ON&&dbStatus==="online")try{await sbPost("harga_survei",toHarga(h));}catch(e){console.error(e);}
-  },[dbStatus]);
-  const delHarga=useCallback(async id=>{
-    setHargaList(p=>p.filter(x=>x.id!==id));
-    if(SB_ON&&dbStatus==="online")try{await sbDel("harga_survei",id);}catch(e){console.error(e);}
-  },[dbStatus]);
+  var totBB=entries.filter(function(e){return e.komponen==="Biaya Bahan";}).reduce(function(a,e){return a+e.jumlah;},0);
+  var totOp=entries.filter(function(e){return e.komponen==="Operasional";}).reduce(function(a,e){return a+e.jumlah;},0);
+  var totSewa=entries.filter(function(e){return e.komponen==="Biaya Sewa";}).reduce(function(a,e){return a+e.jumlah;},0);
+  var saldoAkhir=withSaldo.length>0?withSaldo[withSaldo.length-1].saldo:saldoAwal;
 
-  const navItems=[{id:"dashboard",icon:"🏠",label:"Home"},{id:"belanja",icon:"🛒",label:"Belanja"},{id:"harga",icon:"💹",label:"Harga"},{id:"laporan",icon:"📊",label:"Laporan"},{id:"estimasi",icon:"🧮",label:"Estimasi"}];
-  const stColor={online:"#4ade80",local:"#facc15",connecting:"#60a5fa"};
-  const stLabel={online:"Live",local:"Lokal",connecting:"..."};
+  function exportCSV(){
+    var sppg=sppgList.find(function(s){return s.id===selSppg;});
+    var rows=[
+      ["BUKU KAS UMUM"],["SPPG: "+(sppg&&sppg.nama||"")],["Periode: "+periode],[],
+      ["Tanggal","Uraian","Penerimaan","Biaya Bahan","Operasional","Biaya Sewa","Saldo"],
+      ["","Saldo Awal","","","","",saldoAwal],
+    ];
+    withSaldo.forEach(function(e){
+      rows.push([e.tanggal,e.uraian,e.komponen==="Penerimaan"?e.jumlah:"",e.komponen==="Biaya Bahan"?e.jumlah:"",e.komponen==="Operasional"?e.jumlah:"",e.komponen==="Biaya Sewa"?e.jumlah:"",e.saldo]);
+    });
+    rows.push([]);rows.push(["TOTAL","",0,totBB,totOp,totSewa,saldoAkhir]);
+    var csv=rows.map(function(r){return r.map(function(c){return '"'+c+'"';}).join(",");}).join("\n");
+    var el=document.createElement("a");el.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);el.download="BKU_"+(sppg&&sppg.nama||"")+"_"+periode+".csv";el.click();
+  }
 
-  return (
-    <div style={{minHeight:"100vh",background:"#f9fafb",display:"flex",flexDirection:"column",maxWidth:"768px",margin:"0 auto",width:"100%",position:"relative"}}>
-      <div style={{background:"linear-gradient(to right,#2563eb,#1d4ed8)",color:"white",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:40,boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
-          <div style={{width:"2rem",height:"2rem",background:"rgba(255,255,255,0.2)",borderRadius:"0.5rem",display:"flex",alignItems:"center",justifyContent:"center"}}>🍱</div>
-          <div><p style={{fontWeight:"bold",fontSize:"0.875rem",margin:0}}>PantauBelanjaMBG</p><p style={{fontSize:"0.75rem",opacity:0.7,margin:0}}>Sistem Pemantauan Belanja Dapur SPPG</p></div>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:"0.375rem"}}>
-          <div style={{width:"0.5rem",height:"0.5rem",borderRadius:"9999px",background:stColor[dbStatus]||"#9ca3af"}}/>
-          <span style={{fontSize:"0.75rem",opacity:0.8}}>{stLabel[dbStatus]||"?"}</span>
-        </div>
-      </div>
-      {loading&&<div style={{position:"fixed",inset:0,background:"rgba(255,255,255,0.9)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}>
-        <div style={{textAlign:"center"}}>
-          <div className="animate-spin" style={{width:"2.5rem",height:"2.5rem",border:"4px solid #3b82f6",borderTopColor:"transparent",borderRadius:"9999px",margin:"0 auto 0.75rem"}}/>
-          <p style={{fontSize:"0.875rem",color:"#4b5563",fontWeight:500,margin:0}}>Memuat data...</p>
-          <p style={{fontSize:"0.75rem",color:"#9ca3af",marginTop:"0.25rem"}}>Menghubungkan ke Supabase</p>
-        </div>
-      </div>}
-      <div style={{flex:1,padding:"clamp(0.75rem,3vw,1.5rem)",paddingBottom:"5rem",overflowY:"auto"}}>
-        {tab==="dashboard"&&<HalamanDashboard sppgList={sppgList} transaksi={transaksi} setModal={setModal}/>}
-        {tab==="belanja"&&<HalamanBelanja sppgList={sppgList} transaksi={transaksi} setModal={setModal} setTransaksi={delTransaksi}/>}
-        {tab==="harga"&&<HalamanHarga hargaList={hargaList} setHargaList={setHargaList}/>}
-        {tab==="laporan"&&<HalamanLaporan sppgList={sppgList} transaksi={transaksi}/>}
-        {tab==="estimasi"&&<HalamanEstimasi sppgList={sppgList} onAddSppg={()=>setModal("sppg")}/>}
-      </div>
-      <nav style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"768px",background:"white",borderTop:"1px solid #f3f4f6",display:"flex",zIndex:40,boxShadow:"0 -1px 3px rgba(0,0,0,0.1)"}}>
-        {navItems.map(n=>(
-          <button key={n.id} onClick={()=>setTab(n.id)} style={{flex:1,padding:"0.6rem 0",display:"flex",flexDirection:"column",alignItems:"center",gap:"0.125rem",border:"none",background:"none",cursor:"pointer",color:tab===n.id?"#2563eb":"#9ca3af",minWidth:0}}>
-            <span style={{fontSize:"clamp(1rem,3vw,1.25rem)",lineHeight:1}}>{n.icon}</span>
-            <span style={{fontSize:"clamp(0.6rem,2vw,0.75rem)",fontWeight:500,whiteSpace:"nowrap"}}>{n.label}</span>
-          </button>
-        ))}
-      </nav>
-      {modal==="transaksi"&&<ModalTransaksi sppgList={sppgList} onSave={t=>{addTransaksi(t);setModal(null);}} onClose={()=>setModal(null)}/>}
-      {modal==="sppg"&&<ModalSPPG onSave={s=>{addSppg(s);setModal(null);}} onClose={()=>setModal(null)}/>}
-    </div>
+  var KOMP=["Biaya Bahan","Operasional","Biaya Sewa","Penerimaan"];
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"1rem"}},
+    React.createElement("div",{className:"flex justify-between items-center"},
+      React.createElement("h1",{className:"text-xl font-bold text-gray-800"},"BKU & Dana"),
+      React.createElement("button",{onClick:exportCSV,className:"bg-green-600 text-white text-xs px-3 py-2 rounded-lg font-medium"},"⬇ Export CSV")
+    ),
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem"}},
+      React.createElement("div",null,
+        React.createElement("label",{className:"text-xs text-gray-500"},"SPPG"),
+        React.createElement("select",{className:"w-full mt-1 border rounded-lg px-2 py-1.5 text-xs",value:selSppg,onChange:function(e){setSelSppg(e.target.value);}},
+          sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})
+        )
+      ),
+      React.createElement("div",null,
+        React.createElement("label",{className:"text-xs text-gray-500"},"Periode"),
+        React.createElement("input",{type:"month",className:"w-full mt-1 border rounded-lg px-2 py-1.5 text-xs",value:periode,onChange:function(e){setPeriode(e.target.value);}})
+      )
+    ),
+    React.createElement("div",{className:"bg-blue-50 border border-blue-200 rounded-xl p-3"},
+      React.createElement("label",{className:"text-xs font-semibold text-blue-700"},"Saldo Awal Periode (Rp)"),
+      React.createElement("input",{type:"number",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:saldoAwal||"",placeholder:"0",onChange:function(e){setSaldoAwal(parseInt(e.target.value)||0);}}),
+      React.createElement("p",{className:"text-xs text-blue-500 mt-1"},"Input manual sesuai dana yang diterima dari VA BGN")
+    ),
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"0.5rem"}},
+      [{l:"Bahan Baku",v:totBB,c:"#3b82f6"},{l:"Operasional",v:totOp,c:"#f97316"},{l:"Biaya Sewa",v:totSewa,c:"#8b5cf6"},{l:"Saldo Akhir",v:saldoAkhir,c:saldoAkhir<0?"#ef4444":"#22c55e"}].map(function(x){
+        return React.createElement("div",{key:x.l,className:"bg-white border border-gray-100 rounded-xl p-3 text-center"},
+          React.createElement("p",{className:"text-xs text-gray-400"},x.l),
+          React.createElement("p",{className:"font-bold text-sm",style:{color:x.c}},fmtS(x.v))
+        );
+      })
+    ),
+    saldoAkhir>0&&saldoAkhir<50000000&&React.createElement("div",{className:"bg-red-50 border border-red-200 rounded-xl p-3"},
+      React.createElement("p",{className:"text-xs font-semibold text-red-700"},"⚠️ Saldo mendekati habis!"),
+      React.createElement("p",{className:"text-xs text-red-600 mt-0.5"},"Sisa "+fmt(saldoAkhir)+" — segera ajukan top-up ke BGN")
+    ),
+    React.createElement("button",{onClick:function(){setShowForm(function(p){return !p;});},className:"w-full border-2 border-dashed border-blue-300 text-blue-600 text-sm py-2 rounded-xl font-medium"},showForm?"— Tutup Form":"+ Tambah Transaksi BKU"),
+    showForm&&React.createElement("div",{className:"bg-white border border-gray-200 rounded-xl p-4",style:{display:"flex",flexDirection:"column",gap:"0.625rem"}},
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem"}},
+        React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Tanggal"),React.createElement("input",{type:"date",className:"w-full mt-1 border rounded-lg px-2 py-1.5 text-xs",value:f.tanggal,onChange:function(e){set("tanggal",e.target.value);}})),
+        React.createElement("div",null,
+          React.createElement("label",{className:"text-xs text-gray-500"},"Komponen"),
+          React.createElement("select",{className:"w-full mt-1 border rounded-lg px-2 py-1.5 text-xs",value:f.komponen,onChange:function(e){set("komponen",e.target.value);}},
+            KOMP.map(function(k){return React.createElement("option",{key:k},k);})
+          )
+        )
+      ),
+      React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Uraian"),React.createElement("input",{className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",placeholder:"Beras 200kg...",value:f.uraian,onChange:function(e){set("uraian",e.target.value);}})),
+      React.createElement("div",null,React.createElement("label",{className:"text-xs text-gray-500"},"Jumlah (Rp)"),React.createElement("input",{type:"number",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",placeholder:"0",value:f.jumlah,onChange:function(e){set("jumlah",e.target.value);}})),
+      React.createElement("button",{onClick:function(){
+        if(!f.uraian||!f.jumlah)return alert("Lengkapi semua!");
+        setBkuList(function(p){return p.concat([Object.assign({},f,{id:uid(),sppgId:selSppg,periode:periode,jumlah:parseInt(f.jumlah)})]);});
+        setF({tanggal:today(),uraian:"",komponen:"Biaya Bahan",jumlah:""});
+        setShowForm(false);
+      },className:"w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-medium"},"Simpan Transaksi")
+    ),
+    withSaldo.length===0?React.createElement("p",{className:"text-center text-gray-400 text-sm py-6"},"Belum ada transaksi periode ini"):
+    React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.375rem"}},
+      React.createElement("p",{className:"text-xs font-semibold text-gray-600"},"Rincian Transaksi"),
+      withSaldo.map(function(e){
+        var isIn=e.komponen==="Penerimaan";
+        var kc=e.komponen==="Biaya Bahan"?"blue":e.komponen==="Operasional"?"orange":e.komponen==="Biaya Sewa"?"purple":"green";
+        return React.createElement("div",{key:e.id,className:"bg-white border border-gray-100 rounded-xl p-3"},
+          React.createElement("div",{className:"flex justify-between items-start"},
+            React.createElement("div",{className:"flex-1 min-w-0"},
+              React.createElement("p",{className:"text-xs font-medium text-gray-700 lc1"},e.uraian),
+              React.createElement("div",{className:"flex items-center gap-1 mt-0.5 flex-wrap"},
+                React.createElement(Badge,{color:kc},e.komponen),
+                React.createElement("span",{className:"text-xs text-gray-400"},new Date(e.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"}))
+              )
+            ),
+            React.createElement("div",{className:"text-right ml-2"},
+              React.createElement("p",{className:"text-sm font-bold "+(isIn?"text-green-600":"text-red-500")},(isIn?"+":"-")+fmtS(e.jumlah)),
+              React.createElement("p",{className:"text-xs text-gray-400"},"Saldo: "+fmtS(e.saldo))
+            )
+          ),
+          React.createElement("button",{onClick:function(){setBkuList(function(p){return p.filter(function(x){return x.id!==e.id;});});},className:"text-red-200 text-xs mt-1"},"Hapus")
+        );
+      })
+    )
   );
 }
 
-const root=ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App/>);
+function PageHarga({hargaList,setHargaList}){
+  var [view,setView]=useState("terkini");
+  var [search,setSearch]=useState("");
+  var [selKom,setSelKom]=useState("");
+  var [showModal,setShowModal]=useState(false);
+
+  var terkini=useMemo(function(){
+    var map={};
+    hargaList.forEach(function(h){if(!map[h.komoditas]||h.tanggal>map[h.komoditas].tanggal)map[h.komoditas]=h;});
+    return Object.values(map).sort(function(a,b){return a.komoditas.localeCompare(b.komoditas);});
+  },[hargaList]);
+
+  var history=useMemo(function(){
+    if(!selKom)return[];
+    return hargaList.filter(function(h){return h.komoditas===selKom;}).sort(function(a,b){return b.tanggal.localeCompare(a.tanggal);});
+  },[hargaList,selKom]);
+
+  var daftarKom=useMemo(function(){return Array.from(new Set(hargaList.map(function(h){return h.komoditas;}))).sort();},[hargaList]);
+
+  function getTren(kom){
+    var d=hargaList.filter(function(h){return h.komoditas===kom;}).sort(function(a,b){return b.tanggal.localeCompare(a.tanggal);});
+    if(d.length<2)return"stable";
+    return d[0].harga>d[1].harga?"up":d[0].harga<d[1].harga?"down":"stable";
+  }
+
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"1rem"}},
+    React.createElement("div",{className:"flex justify-between items-center"},
+      React.createElement("div",null,React.createElement("h1",{className:"text-xl font-bold text-gray-800"},"Harga Pasar"),React.createElement("p",{className:"text-xs text-gray-400"},"Kab. Bogor — Citeureup")),
+      React.createElement("button",{onClick:function(){setShowModal(true);},className:"bg-green-600 text-white text-sm px-3 py-2 rounded-lg font-medium"},"+ Survei")
+    ),
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem"}},
+      React.createElement("a",{href:"https://www.bi.go.id/hargapangan/TabelHarga/PasarTradisionalDaerah",target:"_blank",rel:"noreferrer",className:"bg-blue-50 border border-blue-200 rounded-xl p-3"},
+        React.createElement("p",{className:"text-xs font-semibold text-blue-700"},"PIHPS Bank Indonesia"),
+        React.createElement("p",{className:"text-xs text-blue-500"},"Pasar Tradisional Kab. Bogor"),
+        React.createElement("p",{className:"text-xs text-blue-600 font-medium mt-1"},"Buka →")
+      ),
+      React.createElement("a",{href:"https://dirga.bogorkab.go.id",target:"_blank",rel:"noreferrer",className:"bg-orange-50 border border-orange-200 rounded-xl p-3"},
+        React.createElement("p",{className:"text-xs font-semibold text-orange-700"},"DIRGA Kab. Bogor"),
+        React.createElement("p",{className:"text-xs text-orange-500"},"Data Harga Pangan Resmi"),
+        React.createElement("p",{className:"text-xs text-orange-600 font-medium mt-1"},"Buka →")
+      )
+    ),
+    React.createElement("div",{className:"flex gap-2"},
+      [{v:"terkini",l:"Harga Terkini"},{v:"history",l:"Riwayat"},{v:"grafik",l:"Grafik"}].map(function(t){
+        return React.createElement("button",{key:t.v,onClick:function(){setView(t.v);},className:"text-xs px-3 py-1 rounded-lg "+(view===t.v?"bg-gray-800 text-white":"bg-gray-100 text-gray-600")},t.l);
+      })
+    ),
+    view==="terkini"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+      React.createElement("input",{className:"w-full border rounded-xl px-4 py-2 text-sm",placeholder:"Cari komoditas...",value:search,onChange:function(e){setSearch(e.target.value);}}),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.5rem"}},
+        terkini.filter(function(h){return h.komoditas.toLowerCase().indexOf(search.toLowerCase())>=0;}).map(function(h){
+          var tren=getTren(h.komoditas);
+          var isRef=h.sumber==="referensi";
+          return React.createElement("div",{key:h.komoditas,className:"bg-white border rounded-xl p-3 shadow-sm flex items-center justify-between cursor-pointer "+(isRef?"border-gray-100":"border-green-200"),onClick:function(){setSelKom(h.komoditas);setView("history");}},
+            React.createElement("div",null,
+              React.createElement("div",{className:"flex items-center gap-1.5"},React.createElement("p",{className:"text-sm font-semibold text-gray-800"},h.komoditas),isRef&&React.createElement(Badge,{color:"gray"},"Ref")),
+              React.createElement("p",{className:"text-xs text-gray-400"},h.pasar+" · "+new Date(h.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"}))
+            ),
+            React.createElement("div",{className:"text-right"},
+              React.createElement("p",{className:"text-sm font-bold text-gray-800"},fmt(h.harga)),
+              React.createElement("p",{className:"text-xs text-gray-400"},"/"+h.satuan),
+              React.createElement("span",{className:"text-xs "+(tren==="up"?"text-red-500":tren==="down"?"text-green-500":"text-gray-400")},tren==="up"?"▲ naik":tren==="down"?"▼ turun":"— stabil")
+            )
+          );
+        })
+      )
+    ),
+    view==="history"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+      React.createElement("select",{className:"w-full border rounded-xl px-3 py-2 text-sm",value:selKom,onChange:function(e){setSelKom(e.target.value);}},
+        React.createElement("option",{value:""},"-- Pilih Komoditas --"),
+        daftarKom.map(function(k){return React.createElement("option",{key:k},k);})
+      ),
+      selKom&&history.length>0&&React.createElement("div",null,
+        React.createElement("div",{className:"bg-gray-50 rounded-xl p-3 grid grid-cols-3 gap-2 text-center text-xs mb-3"},
+          React.createElement("div",null,React.createElement("p",{className:"text-gray-400"},"Terendah"),React.createElement("p",{className:"font-bold text-green-600"},fmt(Math.min.apply(null,history.map(function(h){return h.harga;}))))),
+          React.createElement("div",null,React.createElement("p",{className:"text-gray-400"},"Rata-rata"),React.createElement("p",{className:"font-bold text-blue-600"},fmt(Math.round(history.reduce(function(a,h){return a+h.harga;},0)/history.length)))),
+          React.createElement("div",null,React.createElement("p",{className:"text-gray-400"},"Tertinggi"),React.createElement("p",{className:"font-bold text-red-600"},fmt(Math.max.apply(null,history.map(function(h){return h.harga;})))))
+        ),
+        React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.5rem"}},
+          history.map(function(h){
+            return React.createElement("div",{key:h.id,className:"bg-white border border-gray-100 rounded-xl p-3 flex justify-between items-center"},
+              React.createElement("div",null,
+                React.createElement("p",{className:"text-xs font-medium text-gray-700"},new Date(h.tanggal).toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})),
+                React.createElement("p",{className:"text-xs text-gray-400"},h.pasar+" · ",React.createElement("span",{className:h.sumber==="referensi"?"text-gray-400":"text-green-600"},h.sumber))
+              ),
+              React.createElement("div",{className:"flex items-center gap-2"},
+                React.createElement("div",{className:"text-right"},React.createElement("p",{className:"text-sm font-bold text-gray-800"},fmt(h.harga)),React.createElement("p",{className:"text-xs text-gray-400"},"/"+h.satuan)),
+                h.sumber!=="referensi"&&React.createElement("button",{onClick:function(){setHargaList(function(p){return p.filter(function(x){return x.id!==h.id;});});},className:"text-red-200 text-xs"},"x")
+              )
+            );
+          })
+        )
+      ),
+      !selKom&&React.createElement("p",{className:"text-center text-gray-400 text-sm py-6"},"Pilih komoditas untuk lihat riwayat")
+    ),
+    view==="grafik"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+      React.createElement("select",{className:"w-full border rounded-xl px-3 py-2 text-sm",value:selKom,onChange:function(e){setSelKom(e.target.value);}},
+        React.createElement("option",{value:""},"-- Pilih Komoditas --"),
+        daftarKom.map(function(k){return React.createElement("option",{key:k},k);})
+      ),
+      selKom&&(function(){
+        var pts=hargaList.filter(function(h){return h.komoditas===selKom;}).sort(function(a,b){return a.tanggal.localeCompare(b.tanggal);});
+        if(pts.length<2)return React.createElement("p",{className:"text-xs text-gray-400 text-center py-6"},"Minimal 2 data untuk grafik");
+        var mn=Math.min.apply(null,pts.map(function(h){return h.harga;}));
+        var mx=Math.max.apply(null,pts.map(function(h){return h.harga;}));
+        var rng=mx-mn||1,W=280,H=80;
+        var poly=pts.map(function(h,i){return((i/(pts.length-1))*W)+","+(H-((h.harga-mn)/rng)*H);}).join(" ");
+        return React.createElement("div",{className:"bg-white border border-gray-100 rounded-xl p-4"},
+          React.createElement("p",{className:"text-xs font-semibold text-gray-700 mb-3"},selKom+" — Tren Harga"),
+          React.createElement("svg",{viewBox:"0 0 "+W+" "+(H+20),style:{width:"100%",height:"6rem"}},
+            React.createElement("polyline",{fill:"none",stroke:"#3b82f6",strokeWidth:"2",points:poly}),
+            pts.map(function(h,i){var x=(i/(pts.length-1))*W,y=H-((h.harga-mn)/rng)*H;return React.createElement("g",{key:i},React.createElement("circle",{cx:x,cy:y,r:"3",fill:"#3b82f6"}),React.createElement("text",{x:x,y:H+15,textAnchor:"middle",fontSize:"7",fill:"#9ca3af"},h.tanggal.slice(5)));})
+          ),
+          React.createElement("div",{className:"mt-2 grid grid-cols-3 gap-2 text-center text-xs"},
+            React.createElement("div",{className:"bg-green-50 rounded-lg p-1"},React.createElement("p",{className:"text-gray-400"},"Min"),React.createElement("p",{className:"font-bold text-green-600"},fmtS(mn))),
+            React.createElement("div",{className:"bg-blue-50 rounded-lg p-1"},React.createElement("p",{className:"text-gray-400"},"Rata²"),React.createElement("p",{className:"font-bold text-blue-600"},fmtS(Math.round(pts.reduce(function(a,h){return a+h.harga;},0)/pts.length)))),
+            React.createElement("div",{className:"bg-red-50 rounded-lg p-1"},React.createElement("p",{className:"text-gray-400"},"Maks"),React.createElement("p",{className:"font-bold text-red-600"},fmtS(mx)))
+          )
+        );
+      })(),
+      !selKom&&React.createElement("p",{className:"text-center text-gray-400 text-sm py-6"},"Pilih komoditas untuk grafik")
+    ),
+    showModal&&React.createElement(ModalHarga,{onSave:function(h){setHargaList(function(p){return p.concat([h]);});setShowModal(false);},onClose:function(){setShowModal(false);}})
+  );
+}
+
+function PageLaporan({sppgList,transaksi}){
+  var [sel,setSel]=useState("");
+  var [tipe,setTipe]=useState("ringkasan");
+  var [bulan,setBulan]=useState(new Date().toISOString().slice(0,7));
+  var sppgId=sel||(sppgList[0]&&sppgList[0].id)||"";
+  var sppg=sppgList.find(function(s){return s.id===sppgId;});
+  var trxS=transaksi.filter(function(t){return t.sppgId===sppgId;});
+  var byDate=useMemo(function(){
+    var map={};
+    trxS.forEach(function(t){
+      if(!map[t.tanggal])map[t.tanggal]={bahan_baku:0,operasional:0,insentif:0,items:[]};
+      map[t.tanggal][t.komponen]+=t.jumlah;
+      map[t.tanggal].items.push(t);
+    });
+    return map;
+  },[trxS]);
+  var filtered=Object.entries(byDate).filter(function(e){return e[0].startsWith(bulan);}).sort(function(a,b){return a[0].localeCompare(b[0]);});
+  var totBB=filtered.reduce(function(a,e){return a+e[1].bahan_baku;},0);
+  var totOp=filtered.reduce(function(a,e){return a+e[1].operasional;},0);
+  var totIn=filtered.reduce(function(a,e){return a+e[1].insentif;},0);
+  var grand=totBB+totOp+totIn;
+  var trxAll=transaksi.filter(function(t){return t.sppgId===sppgId;});
+  var pk=trxAll.reduce(function(x,t){return x+(t.porsiKecil||0);},0);
+  var pb=trxAll.reduce(function(x,t){return x+(t.porsiBesar||0);},0);
+  var maxPagu=sppg?calcPagu(pk,pb,sppg.hariOperasional).periode:0;
+  var sisa=maxPagu-grand;
+
+  if(sppgList.length===0)return React.createElement("div",{className:"text-center py-10 text-gray-400"},React.createElement("p",{className:"text-2xl mb-2"},"📊"),React.createElement("p",{className:"text-sm"},"Belum ada SPPG."));
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"1rem"}},
+    React.createElement("div",{className:"flex justify-between items-center flex-wrap gap-2"},
+      React.createElement("h1",{className:"text-xl font-bold text-gray-800"},"Laporan"),
+      React.createElement("div",{className:"flex gap-2"},
+        React.createElement("select",{className:"border rounded-lg px-2 py-1 text-xs",value:sppgId,onChange:function(e){setSel(e.target.value);}},sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})),
+        React.createElement("input",{type:"month",className:"border rounded-lg px-2 py-1 text-xs",value:bulan,onChange:function(e){setBulan(e.target.value);}})
+      )
+    ),
+    React.createElement("div",{className:"flex gap-2"},
+      [{v:"ringkasan",l:"Ringkasan"},{v:"harian",l:"Rincian Harian"}].map(function(t){
+        return React.createElement("button",{key:t.v,onClick:function(){setTipe(t.v);},className:"text-xs px-3 py-1 rounded-lg "+(tipe===t.v?"bg-blue-600 text-white":"bg-gray-100 text-gray-600")},t.l);
+      })
+    ),
+    tipe==="ringkasan"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+      React.createElement(Card,null,
+        React.createElement("h3",{className:"font-semibold text-sm text-gray-700 mb-3"},"Rekapitulasi "+new Date(bulan+"-01").toLocaleDateString("id-ID",{month:"long",year:"numeric"})),
+        [{l:"Bahan Baku",v:totBB,c:"blue"},{l:"Operasional",v:totOp,c:"orange"},{l:"Insentif Fasilitas",v:totIn,c:"purple"},{l:"TOTAL REALISASI",v:grand,bold:true},{l:"Estimasi Pagu",v:maxPagu,c:"green"},{l:"Sisa / (Kelebihan)",v:sisa,c:sisa<0?"red":"green"}].map(function(r){
+          return React.createElement("div",{key:r.l,className:"flex justify-between py-1 text-xs "+(r.bold?"border-t font-bold text-sm mt-1":"")},
+            React.createElement("span",{className:"text-gray-600"},r.l),
+            React.createElement("span",{className:r.c==="red"?"text-red-600":r.c==="green"?"text-green-600":r.c==="blue"?"text-blue-600":r.c==="orange"?"text-orange-600":r.c==="purple"?"text-purple-600":"text-gray-800"},sisa<0&&r.l.indexOf("Sisa")>=0?"("+fmt(Math.abs(r.v))+")":fmt(r.v))
+          );
+        })
+      ),
+      sisa<0&&React.createElement("div",{className:"bg-red-50 border border-red-200 rounded-xl p-3"},React.createElement("p",{className:"text-xs text-red-700 font-medium"},"Melebihi estimasi pagu sebesar "+fmt(Math.abs(sisa)))),
+      React.createElement("button",{className:"w-full bg-green-600 text-white text-xs py-2 rounded-xl font-medium",onClick:function(){
+        var lines=["LAPORAN PENGGUNAAN DANA MBG","SPPG: "+(sppg&&sppg.nama||""),"Periode: "+bulan,"==========================================","","BAHAN BAKU    : "+fmt(totBB),"OPERASIONAL   : "+fmt(totOp),"INSENTIF      : "+fmt(totIn),"TOTAL         : "+fmt(grand),"EST. PAGU     : "+fmt(maxPagu),"SISA/(LEBIH)  : "+fmt(sisa),"","--- RINCIAN HARIAN ---"];
+        filtered.forEach(function(e){lines.push(e[0]+" | BB:"+fmtS(e[1].bahan_baku)+" Op:"+fmtS(e[1].operasional)+" | Total:"+fmtS(e[1].bahan_baku+e[1].operasional+e[1].insentif));});
+        var el=document.createElement("a");el.href="data:text/plain;charset=utf-8,"+encodeURIComponent(lines.join("\n"));el.download="Laporan_MBG_"+(sppg&&sppg.nama||"")+"_"+bulan+".txt";el.click();
+      }},"Ekspor Laporan (.txt)")
+    ),
+    tipe==="harian"&&React.createElement(Card,null,
+      React.createElement("h3",{className:"font-semibold text-sm text-gray-700 mb-3"},"Rincian Harian"),
+      filtered.length===0&&React.createElement("p",{className:"text-xs text-gray-400 text-center py-4"},"Belum ada data bulan ini"),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+        filtered.map(function(entry){
+          var tgl=entry[0],v=entry[1];
+          var total=v.bahan_baku+v.operasional+v.insentif;
+          return React.createElement("div",{key:tgl,className:"border rounded-lg p-3"},
+            React.createElement("div",{className:"flex justify-between items-center mb-1"},
+              React.createElement("span",{className:"text-xs font-semibold text-gray-700"},new Date(tgl).toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"})),
+              React.createElement("span",{className:"text-xs font-bold text-gray-800"},fmt(total))
+            ),
+            React.createElement("div",{className:"grid grid-cols-3 gap-1 text-xs text-gray-500"},
+              React.createElement("span",null,"🛒 "+fmtS(v.bahan_baku)),
+              React.createElement("span",null,"⚙️ "+fmtS(v.operasional)),
+              React.createElement("span",null,"🏢 "+fmtS(v.insentif))
+            ),
+            v.items.map(function(i){return React.createElement("p",{key:i.id,className:"text-xs text-gray-400 mt-1 pl-2 border-l-2 border-gray-200"},i.uraian);})
+          );
+        })
+      )
+    )
+  );
+}
+
+function PageEstimasi({sppgList,onAddSppg}){
+  var [pk,setPk]=useState(0);
+  var [pb,setPb]=useState(0);
+  var [hari,setHari]=useState(26);
+  var e=calcPagu(pk,pb,hari);
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"1rem"}},
+    React.createElement("div",{className:"flex justify-between items-center"},
+      React.createElement("h1",{className:"text-xl font-bold text-gray-800"},"Estimasi Anggaran"),
+      React.createElement("button",{onClick:onAddSppg,className:"bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium"},"+ SPPG")
+    ),
+    React.createElement(Card,null,
+      React.createElement("h3",{className:"font-semibold text-gray-700 mb-3 text-sm"},"Kalkulator Estimasi Harian"),
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+        React.createElement("div",{className:"grid grid-cols-2 gap-3"},
+          React.createElement("div",null,
+            React.createElement("label",{className:"text-xs text-gray-500 font-medium"},"Porsi Kecil"),
+            React.createElement("p",{className:"text-xs text-gray-400"},"PAUD/SD 1-3/Balita"),
+            React.createElement("p",{className:"text-xs font-semibold text-blue-600"},"@ Rp8.000/porsi"),
+            React.createElement("input",{type:"number",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})
+          ),
+          React.createElement("div",null,
+            React.createElement("label",{className:"text-xs text-gray-500 font-medium"},"Porsi Besar"),
+            React.createElement("p",{className:"text-xs text-gray-400"},"SD 4-6/SMP/SMA/Bumil/dll"),
+            React.createElement("p",{className:"text-xs font-semibold text-blue-600"},"@ Rp10.000/porsi"),
+            React.createElement("input",{type:"number",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}})
+          )
+        ),
+        React.createElement("div",null,
+          React.createElement("label",{className:"text-xs text-gray-500 font-medium"},"Hari Operasional"),
+          React.createElement("input",{type:"number",className:"w-full mt-1 border rounded-lg px-3 py-2 text-sm",value:hari,onChange:function(ev){setHari(parseInt(ev.target.value)||26);}})
+        )
+      )
+    ),
+    (pk>0||pb>0)&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
+      React.createElement(Card,null,
+        React.createElement("h3",{className:"font-semibold text-gray-700 mb-3 text-sm"},"Hasil Estimasi Per Hari"),
+        React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.375rem"}},
+          React.createElement("div",{className:"flex justify-between text-xs"},React.createElement("span",{className:"text-gray-500"},"Porsi Kecil ("+pk+" × Rp8.000)"),React.createElement("span",{className:"font-medium"},fmt(pk*8000))),
+          React.createElement("div",{className:"flex justify-between text-xs"},React.createElement("span",{className:"text-gray-500"},"Porsi Besar ("+pb+" × Rp10.000)"),React.createElement("span",{className:"font-medium"},fmt(pb*10000))),
+          React.createElement("div",{className:"flex justify-between text-xs border-t pt-2 font-semibold"},React.createElement("span",null,"Total Bahan Baku/Hari"),React.createElement("span",{className:"text-blue-600"},fmt(e.bb))),
+          React.createElement("div",{className:"flex justify-between text-xs"},React.createElement("span",{className:"text-gray-500"},"Operasional ("+e.pm+" × Rp3.000)"),React.createElement("span",null,fmt(e.op))),
+          React.createElement("div",{className:"flex justify-between text-xs"},React.createElement("span",{className:"text-gray-500"},"Insentif Fasilitas"),React.createElement("span",null,fmt(e.ins))),
+          React.createElement("div",{className:"flex justify-between text-sm border-t pt-2 font-bold"},React.createElement("span",null,"TOTAL PER HARI"),React.createElement("span",{className:"text-blue-600"},fmt(e.total))),
+          React.createElement("div",{className:"flex justify-between text-sm font-bold"},React.createElement("span",null,"TOTAL "+hari+" HARI"),React.createElement("span",{className:"text-green-600"},fmt(e.periode)))
+        )
+      ),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"0.75rem"}},
+        React.createElement("div",{className:"bg-blue-50 border border-blue-200 rounded-xl p-3 text-center"},React.createElement("p",{className:"text-xs text-gray-500"},"Maks Harian"),React.createElement("p",{className:"font-bold text-blue-700 text-sm"},fmt(e.total))),
+        React.createElement("div",{className:"bg-green-50 border border-green-200 rounded-xl p-3 text-center"},React.createElement("p",{className:"text-xs text-gray-500"},"Total "+hari+" Hari"),React.createElement("p",{className:"font-bold text-green-700 text-sm"},fmt(e.periode)))
+      )
+    ),
+    React.createElement("div",{className:"bg-blue-50 border border-blue-200 rounded-xl p-3"},
+      React.createElement("p",{className:"text-xs font-semibold text-blue-700 mb-1"},"Catatan Juknis BGN"),
+      React.createElement("ul",{className:"text-xs text-blue-600 list-disc ml-4",style:{display:"flex",flexDirection:"column",gap:"0.125rem"}},
+        React.createElement("li",null,"Porsi kecil: PAUD/TK/RA, SD 1-3, Balita → Rp8.000/porsi"),
+        React.createElement("li",null,"Porsi besar: SD 4-6, SMP, SMA, Pendidik, Bumil/Busui → Rp10.000/porsi"),
+        React.createElement("li",null,"Operasional acuan Rp3.000/org (at cost)"),
+        React.createElement("li",null,"Insentif fasilitas Rp6.000.000/hari (flat)")
+      )
+    )
+  );
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+function App(){
+  var [tab,setTab]=useState("dashboard");
+  var [sppgList,setSppgList]=useLS("mbg_sppg",[]);
+  var [transaksi,setTransaksi]=useLS("mbg_transaksi",[]);
+  var [hargaList,setHargaList]=useLS("mbg_harga",HARGA0);
+  var [menuTemplates,setMenuTemplates]=useLS("mbg_menus",MENU0);
+  var [menuHistory,setMenuHistory]=useLS("mbg_menu_history",[]);
+  var [bkuList,setBkuList]=useLS("mbg_bku",[]);
+  var [modal,setModal]=useState(null);
+  var [dbStatus,setDbStatus]=useState("connecting");
+  var [loading,setLoading]=useState(true);
+
+  useEffect(function(){
+    var ctrl=new AbortController();
+    var timer=setTimeout(function(){ctrl.abort();},8000);
+    fetch(SB_URL+"/rest/v1/sppg?select=*&limit=1",{headers:SBH,signal:ctrl.signal})
+      .then(function(r){
+        clearTimeout(timer);
+        if(!r.ok)throw new Error("HTTP "+r.status);
+        return Promise.all([sbGet("sppg"),sbGet("transaksi"),sbGet("harga_survei")]);
+      })
+      .then(function(results){
+        var s=results[0],t=results[1],h=results[2];
+        if(Array.isArray(s)&&s.length>0)setSppgList(s.map(mSppg));
+        if(Array.isArray(t)&&t.length>0)setTransaksi(t.map(mTrx));
+        if(Array.isArray(h)&&h.length>0)setHargaList(h.map(mHarga));
+        setDbStatus("online");
+      })
+      .catch(function(){setDbStatus("local");})
+      .finally(function(){setLoading(false);clearTimeout(timer);});
+    return function(){clearTimeout(timer);ctrl.abort();};
+  },[]);
+
+  function addSppg(s){setSppgList(function(p){return p.concat([s]);});if(dbStatus==="online")sbPost("sppg",toSppg(s)).catch(function(){});}
+  function addTrx(t){setTransaksi(function(p){return p.concat([t]);});if(dbStatus==="online")sbPost("transaksi",toTrx(t)).catch(function(){});}
+  function delTrx(id){setTransaksi(function(p){return p.filter(function(x){return x.id!==id;});});if(dbStatus==="online")sbDel("transaksi",id).catch(function(){});}
+  function addHarga(h){setHargaList(function(p){return p.concat([h]);});if(dbStatus==="online")sbPost("harga_survei",toHarga(h)).catch(function(){});}
+
+  var NAV=[
+    {id:"dashboard",icon:"🏠",label:"Home"},
+    {id:"belanja",icon:"🛒",label:"Belanja"},
+    {id:"menu",icon:"🍽️",label:"Menu"},
+    {id:"bku",icon:"📒",label:"BKU"},
+    {id:"harga",icon:"💹",label:"Harga"},
+    {id:"estimasi",icon:"🧮",label:"Estimasi"},
+  ];
+  var stC={online:"#4ade80",connecting:"#60a5fa",local:"#facc15"};
+  var stL={online:"Live",connecting:"...",local:"Lokal"};
+
+  return React.createElement("div",{style:{minHeight:"100vh",background:"#f9fafb",display:"flex",flexDirection:"column",maxWidth:"768px",margin:"0 auto",width:"100%",position:"relative"}},
+    React.createElement("div",{style:{background:"linear-gradient(to right,#2563eb,#1d4ed8)",color:"white",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:40,boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}},
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:"0.75rem"}},
+        React.createElement("div",{style:{width:"2rem",height:"2rem",background:"rgba(255,255,255,0.2)",borderRadius:"0.5rem",display:"flex",alignItems:"center",justifyContent:"center"}},"🍱"),
+        React.createElement("div",null,
+          React.createElement("p",{style:{fontWeight:"bold",fontSize:"0.875rem",margin:0}},"PantauBelanjaMBG"),
+          React.createElement("p",{style:{fontSize:"0.75rem",opacity:0.7,margin:0}},"Sistem Pemantauan Belanja Dapur SPPG")
+        )
+      ),
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:"0.375rem"}},
+        React.createElement("div",{style:{width:"0.5rem",height:"0.5rem",borderRadius:"9999px",background:stC[dbStatus]||"#9ca3af"}}),
+        React.createElement("span",{style:{fontSize:"0.75rem",opacity:0.8}},stL[dbStatus]||"?")
+      )
+    ),
+    loading&&React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(255,255,255,0.9)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}},
+      React.createElement("div",{style:{textAlign:"center"}},
+        React.createElement("div",{className:"spin",style:{width:"2.5rem",height:"2.5rem",border:"4px solid #3b82f6",borderTopColor:"transparent",borderRadius:"9999px",margin:"0 auto 0.75rem"}}),
+        React.createElement("p",{style:{fontSize:"0.875rem",color:"#4b5563",fontWeight:500,margin:0}},"Memuat data..."),
+        React.createElement("p",{style:{fontSize:"0.75rem",color:"#9ca3af",marginTop:"0.25rem"}},"Menghubungkan ke Supabase")
+      )
+    ),
+    React.createElement("div",{style:{flex:1,padding:"clamp(0.75rem,3vw,1.5rem)",paddingBottom:"5rem",overflowY:"auto"}},
+      tab==="dashboard"&&React.createElement(PageDashboard,{sppgList:sppgList,transaksi:transaksi,setModal:setModal}),
+      tab==="belanja"&&React.createElement(PageBelanja,{sppgList:sppgList,transaksi:transaksi,setModal:setModal,delTrx:delTrx}),
+      tab==="menu"&&React.createElement(PageMenu,{menuTemplates:menuTemplates,setMenuTemplates:setMenuTemplates,menuHistory:menuHistory,setMenuHistory:setMenuHistory,hargaList:hargaList}),
+      tab==="bku"&&React.createElement(PageBKU,{bkuList:bkuList,setBkuList:setBkuList,sppgList:sppgList}),
+      tab==="harga"&&React.createElement(PageHarga,{hargaList:hargaList,setHargaList:function(fn){setHargaList(fn);}}),
+      tab==="estimasi"&&React.createElement(PageEstimasi,{sppgList:sppgList,onAddSppg:function(){setModal("sppg");}})
+    ),
+    React.createElement("nav",{style:{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"768px",background:"white",borderTop:"1px solid #f3f4f6",display:"flex",zIndex:40,boxShadow:"0 -1px 3px rgba(0,0,0,0.1)"}},
+      NAV.map(function(n){
+        return React.createElement("button",{key:n.id,onClick:function(){setTab(n.id);},style:{flex:1,padding:"0.6rem 0",display:"flex",flexDirection:"column",alignItems:"center",gap:"0.125rem",border:"none",background:"none",cursor:"pointer",color:tab===n.id?"#2563eb":"#9ca3af",minWidth:0}},
+          React.createElement("span",{style:{fontSize:"clamp(0.9rem,2.5vw,1.1rem)",lineHeight:1}},n.icon),
+          React.createElement("span",{style:{fontSize:"clamp(0.55rem,1.8vw,0.7rem)",fontWeight:500,whiteSpace:"nowrap"}},n.label)
+        );
+      })
+    ),
+    modal==="belanja"&&React.createElement(ModalBelanja,{sppgList:sppgList,onSave:function(t){addTrx(t);setModal(null);},onClose:function(){setModal(null);}}),
+    modal==="sppg"&&React.createElement(ModalSPPG,{onSave:function(s){addSppg(s);setModal(null);},onClose:function(){setModal(null);}})
+  );
+}
+
+var root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App,null));
 </script>
 </body>
 </html>
