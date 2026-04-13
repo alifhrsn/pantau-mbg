@@ -27,20 +27,61 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sa
 }
 .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
 .animate-spin { animation: spin 1s linear infinite; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
 .animate-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useMemo, useCallback } = React;
+const { useState, useMemo, useEffect, useCallback } = React;
+
+// ── GANTI DUA BARIS INI DENGAN CREDENTIALS SUPABASE KAMU ──
+const SUPABASE_URL = "https://ozxuvjhotrzwhmjivwgm.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96eHV2amhvdHJ6d2htaml2d2dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNjc0NTQsImV4cCI6MjA5MTY0MzQ1NH0.-G1mzblvOTrOHHYeBiSWcyOK9VtYBJ0gJS59ezxupBI";
+// ──────────────────────────────────────────────────────────
+
+const SB_ON = SUPABASE_URL !== "MASUKKAN_PROJECT_URL";
+const SB_HEADERS = {
+  apikey: SUPABASE_KEY,
+  Authorization: "Bearer " + SUPABASE_KEY,
+  "Content-Type": "application/json",
+  Prefer: "return=representation",
+};
+
+async function sbGet(table) {
+  const r = await fetch(SUPABASE_URL+"/rest/v1/"+table+"?select=*&order=created_at.asc", {headers:SB_HEADERS});
+  return r.json();
+}
+async function sbPost(table, data) {
+  const r = await fetch(SUPABASE_URL+"/rest/v1/"+table, {
+    method:"POST", headers:SB_HEADERS,
+    body: JSON.stringify(Array.isArray(data)?data:[data])
+  });
+  return r.json();
+}
+async function sbDel(table, id) {
+  await fetch(SUPABASE_URL+"/rest/v1/"+table+"?id=eq."+id, {method:"DELETE", headers:SB_HEADERS});
+}
+
+const mapSppg = r => ({id:r.id,nama:r.nama,kecamatan:r.kecamatan,kabupaten:r.kabupaten,provinsi:r.provinsi,pmPaud:r.pm_paud,pmSd13:r.pm_sd13,pmSd46:r.pm_sd46,pmSmp:r.pm_smp,pmSma:r.pm_sma,pmLainnya:r.pm_lainnya,pmIbuHamil:r.pm_ibu_hamil,pmIbuMenyusui:r.pm_ibu_menyusui,pmBalita:r.pm_balita,hariOperasional:r.hari_operasional,aktif:r.aktif});
+const mapTrx = r => ({id:r.id,sppgId:r.sppg_id,tanggal:r.tanggal,komponen:r.komponen,uraian:r.uraian,jumlah:r.jumlah,sumber:r.sumber});
+const mapHarga = r => ({id:r.id,komoditas:r.komoditas,satuan:r.satuan,harga:r.harga,tanggal:r.tanggal,pasar:r.pasar,sumber:r.sumber});
+const toSppg = s => ({id:s.id,nama:s.nama,kecamatan:s.kecamatan,kabupaten:s.kabupaten,provinsi:s.provinsi,pm_paud:s.pmPaud||0,pm_sd13:s.pmSd13||0,pm_sd46:s.pmSd46||0,pm_smp:s.pmSmp||0,pm_sma:s.pmSma||0,pm_lainnya:s.pmLainnya||0,pm_ibu_hamil:s.pmIbuHamil||0,pm_ibu_menyusui:s.pmIbuMenyusui||0,pm_balita:s.pmBalita||0,hari_operasional:s.hariOperasional||26,aktif:s.aktif!==false});
+const toTrx = t => ({id:t.id,sppg_id:t.sppgId,tanggal:t.tanggal,komponen:t.komponen,uraian:t.uraian,jumlah:t.jumlah,kategori:t.kategori,sumber:t.sumber||"manual"});
+const toHarga = h => ({id:h.id,komoditas:h.komoditas,satuan:h.satuan,harga:h.harga,tanggal:h.tanggal,pasar:h.pasar,sumber:h.sumber||"survei"});
 
 const fmt = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
-const fmtShort = n => { if(n>=1e9) return "Rp"+(n/1e9).toFixed(1)+"M"; if(n>=1e6) return "Rp"+(n/1e6).toFixed(1)+"jt"; return "Rp"+(n/1e3).toFixed(0)+"rb"; };
+const fmtShort = n => {if(n>=1e9)return"Rp"+(n/1e9).toFixed(1)+"M";if(n>=1e6)return"Rp"+(n/1e6).toFixed(1)+"jt";return"Rp"+(n/1e3).toFixed(0)+"rb";};
 const todayStr = () => new Date().toISOString().split("T")[0];
 const uid = () => Math.random().toString(36).slice(2,10);
+
+function useLS(key, def) {
+  const [val,setVal] = useState(()=>{try{const s=localStorage.getItem(key);return s?JSON.parse(s):def;}catch{return def;}});
+  const set = useCallback(upd=>{setVal(prev=>{const next=typeof upd==="function"?upd(prev):upd;try{localStorage.setItem(key,JSON.stringify(next));}catch{}return next;});},[key]);
+  return [val,set];
+}
 
 const KATEGORI = ["Beras","Ayam Potong","Ayam Fillet Dada","Ayam Giling Dada","Telur Ayam","Minyak Goreng","Wortel","Sawi Putih","Buncis","Kentang","Brokoli","Tomat","Bawang Putih Kupas","Bawang Merah","Bawang Bombay","Cabai Merah Besar","Tahu Putih","Tempe","Jeruk Santang","Pisang Ambon","Kelengkeng","Susu UHT 1L","Susu FF 110ml","Jagung Pipil","Gula Pasir","Lainnya"];
 
@@ -88,39 +129,34 @@ const StatCard = ({label,value,sub,color="blue",icon}) => {
   );
 };
 
-function estimasiPagu(s) {
-  if(!s) return {bahanBakuPerHari:0,opPerHari:0,insentifPerHari:6000000,totalPerHari:0,totalPeriode:0,hari:0,totalPM:0};
-  const hari=s.hariOperasional||26;
-  const bb=(s.pmPaud||0)*8000+(s.pmSd13||0)*8000+(s.pmSd46||0)*10000+(s.pmSmp||0)*10000+(s.pmSma||0)*10000+(s.pmLainnya||0)*10000+(s.pmIbuHamil||0)*10000+(s.pmIbuMenyusui||0)*10000+(s.pmBalita||0)*8000;
-  const totalPM=(s.pmPaud||0)+(s.pmSd13||0)+(s.pmSd46||0)+(s.pmSmp||0)+(s.pmSma||0)+(s.pmLainnya||0)+(s.pmIbuHamil||0)+(s.pmIbuMenyusui||0)+(s.pmBalita||0);
-  const op=totalPM*3000,ins=6000000;
-  return {bahanBakuPerHari:bb,opPerHari:op,insentifPerHari:ins,totalPerHari:bb+op+ins,totalPeriode:(bb+op+ins)*hari,hari,totalPM};
+function estimasiPagu(porsiKecil, porsiBesar, hari) {
+  const h = hari || 26;
+  const bb = (porsiKecil||0)*8000 + (porsiBesar||0)*10000;
+  const totalPM = (porsiKecil||0) + (porsiBesar||0);
+  const op = totalPM * 3000;
+  const ins = 6000000;
+  return { bb, op, ins, total: bb+op+ins, periode: (bb+op+ins)*h, totalPM, hari:h };
 }
 
 function ModalSPPG({onSave,onClose}) {
-  const [f,setF]=useState({nama:"",kecamatan:"",kabupaten:"",provinsi:"Jawa Barat",pmPaud:0,pmSd13:0,pmSd46:0,pmSmp:0,pmSma:0,pmLainnya:0,pmIbuHamil:0,pmIbuMenyusui:0,pmBalita:0,hariOperasional:26});
+  const [f,setF]=useState({nama:"",kecamatan:"",kabupaten:"",provinsi:"Jawa Barat",hariOperasional:26});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
-  const pmF=[{k:"pmPaud",l:"PAUD/TK/RA"},{k:"pmSd13",l:"SD Kls 1-3"},{k:"pmSd46",l:"SD Kls 4-6"},{k:"pmSmp",l:"SMP/MTs"},{k:"pmSma",l:"SMA/SMK"},{k:"pmLainnya",l:"Pendidik+TK"},{k:"pmIbuHamil",l:"Ibu Hamil"},{k:"pmIbuMenyusui",l:"Ibu Menyusui"},{k:"pmBalita",l:"Balita"}];
   return (
-    <div className="fixed inset-0 bg-black" style={{backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
-      <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"32rem",maxHeight:"90vh",overflowY:"auto"}}>
-        <div className="p-5 border-b flex justify-between items-center" style={{position:"sticky",top:0,background:"white"}}>
+    <div style={{position:"fixed",inset:0,backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
+      <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"28rem"}}>
+        <div className="p-5 border-b flex justify-between items-center">
           <h3 className="font-bold text-gray-800">Tambah SPPG</h3>
           <button onClick={onClose} className="text-gray-400 text-xl">x</button>
         </div>
         <div className="p-5" style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
           <div><label className="text-xs text-gray-500 font-medium">Nama SPPG</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.nama} onChange={e=>set("nama",e.target.value)} placeholder="SPPG ..."/></div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <div><label className="text-xs text-gray-500">Kecamatan</label><input className="w-full mt-1 border rounded-lg px-2 py-1 text-xs" value={f.kecamatan} onChange={e=>set("kecamatan",e.target.value)}/></div>
             <div><label className="text-xs text-gray-500">Kab/Kota</label><input className="w-full mt-1 border rounded-lg px-2 py-1 text-xs" value={f.kabupaten} onChange={e=>set("kabupaten",e.target.value)}/></div>
-            <div><label className="text-xs text-gray-500">Hari Ops</label><input type="number" className="w-full mt-1 border rounded-lg px-2 py-1 text-xs" value={f.hariOperasional} onChange={e=>set("hariOperasional",parseInt(e.target.value)||26)}/></div>
           </div>
-          <p className="text-xs font-semibold text-gray-600">Jumlah Penerima Manfaat</p>
-          <div className="grid grid-cols-3 gap-2">
-            {pmF.map(x=>(
-              <div key={x.k}><label className="text-xs text-gray-500">{x.l}</label><input type="number" className="w-full mt-0.5 border rounded-lg px-2 py-1 text-xs" value={f[x.k]} onChange={e=>set(x.k,parseInt(e.target.value)||0)}/></div>
-            ))}
-          </div>
+          <div><label className="text-xs text-gray-500">Provinsi</label><input className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.provinsi} onChange={e=>set("provinsi",e.target.value)}/></div>
+          <div><label className="text-xs text-gray-500">Hari Operasional per Periode</label><input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.hariOperasional} onChange={e=>set("hariOperasional",parseInt(e.target.value)||26)}/></div>
+          <p className="text-xs text-gray-400">Jumlah porsi diinput setiap hari saat input belanja</p>
         </div>
         <div className="p-5 pt-0 flex gap-2">
           <button onClick={onClose} className="flex-1 border rounded-lg py-2 text-sm text-gray-600">Batal</button>
@@ -135,7 +171,7 @@ function ModalTransaksi({sppgList,onSave,onClose}) {
   const [f,setF]=useState({sppgId:sppgList[0]?.id||"",tanggal:todayStr(),komponen:"bahan_baku",uraian:"",jumlah:""});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   return (
-    <div className="fixed inset-0" style={{backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
+    <div style={{position:"fixed",inset:0,backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
       <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"28rem"}}>
         <div className="p-5 border-b flex justify-between items-center">
           <h3 className="font-bold text-gray-800">Input Belanja Harian</h3>
@@ -174,7 +210,7 @@ function ModalHarga({onSave,onClose}) {
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const nama=f.komoditas==="Lainnya"?f.komoditasCustom:f.komoditas;
   return (
-    <div className="fixed inset-0" style={{backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
+    <div style={{position:"fixed",inset:0,backgroundColor:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
       <div className="bg-white rounded-2xl w-full shadow-2xl" style={{maxWidth:"24rem"}}>
         <div className="p-5 border-b flex justify-between items-center">
           <h3 className="font-bold text-gray-800">Input Survei Harga</h3>
@@ -209,7 +245,12 @@ function HalamanDashboard({sppgList,transaksi,setModal}) {
   const total=transaksi.reduce((a,t)=>a+t.jumlah,0);
   const bln=new Date().toISOString().slice(0,7);
   const blnIni=transaksi.filter(t=>t.tanggal.startsWith(bln)).reduce((a,t)=>a+t.jumlah,0);
-  const totalPagu=sppgList.reduce((a,s)=>a+estimasiPagu(s).totalPeriode,0);
+  const totalPagu=sppgList.reduce((a,s)=>{
+    const trxS=transaksi.filter(t=>t.sppgId===s.id);
+    const pk=trxS.reduce((x,t)=>x+(t.porsiKecil||0),0);
+    const pb=trxS.reduce((x,t)=>x+(t.porsiBesar||0),0);
+    return a+estimasiPagu(pk,pb,s.hariOperasional||26).periode;
+  },0);
   return (
     <div style={{display:"flex",flexDirection:"column",gap:"1.25rem"}}>
       <div className="flex justify-between items-start">
@@ -223,7 +264,16 @@ function HalamanDashboard({sppgList,transaksi,setModal}) {
         <StatCard label="Est. Pagu Total" value={fmtShort(totalPagu)} sub={sppgList.length+" SPPG"} color="green" icon="📋"/>
         <StatCard label="SPPG Aktif" value={sppgList.filter(s=>s.aktif).length} sub={"dari "+sppgList.length+" terdaftar"} color="orange" icon="🍽️"/>
       </div>
-      {sppgList.length>0&&<Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">Realisasi vs Pagu per SPPG</h3><div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>{sppgList.map(s=>{const real=transaksi.filter(t=>t.sppgId===s.id).reduce((a,t)=>a+t.jumlah,0);const pagu=estimasiPagu(s).totalPeriode;const pct=pagu>0?Math.min(100,(real/pagu)*100):0;const over=real>pagu&&pagu>0;return(<div key={s.id}><div className="flex justify-between items-center mb-1"><span className="text-xs font-medium text-gray-700">{s.nama}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500">{fmtShort(real)} / {fmtShort(pagu)}</span><Badge color={over?"red":pct>80?"yellow":"green"}>{pct.toFixed(0)}%</Badge></div></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className={"h-full rounded-full "+(over?"bg-red-500":pct>80?"bg-yellow-400":"bg-green-500")} style={{width:pct+"%"}}/></div></div>);})}</div></Card>}
+      {sppgList.length>0&&<Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">Realisasi vs Pagu per SPPG</h3><div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>{sppgList.map(s=>{
+        const real=transaksi.filter(t=>t.sppgId===s.id).reduce((a,t)=>a+t.jumlah,0);
+        const trxS=transaksi.filter(t=>t.sppgId===s.id);
+        const pk=trxS.reduce((x,t)=>x+(t.porsiKecil||0),0);
+        const pb=trxS.reduce((x,t)=>x+(t.porsiBesar||0),0);
+        const pagu=estimasiPagu(pk,pb,s.hariOperasional||26).periode;
+        const pct=pagu>0?Math.min(100,(real/pagu)*100):0;
+        const over=real>pagu&&pagu>0;
+        return(<div key={s.id}><div className="flex justify-between items-center mb-1"><span className="text-xs font-medium text-gray-700">{s.nama}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500">{fmtShort(real)} / {fmtShort(pagu)}</span><Badge color={over?"red":pct>80?"yellow":"green"}>{pct.toFixed(0)}%</Badge></div></div><div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className={"h-full rounded-full "+(over?"bg-red-500":pct>80?"bg-yellow-400":"bg-green-500")} style={{width:pct+"%"}}/></div></div>);
+      })}</div></Card>}
       {transaksi.length>0&&<Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">5 Transaksi Terakhir</h3><div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>{[...transaksi].sort((a,b)=>b.tanggal.localeCompare(a.tanggal)).slice(0,5).map(t=>{const s=sppgList.find(x=>x.id===t.sppgId);const icon=t.komponen==="bahan_baku"?"🛒":t.komponen==="operasional"?"⚙️":"🏢";return(<div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-50"><div className="flex items-center gap-2"><span>{icon}</span><div><p className="text-xs font-medium text-gray-700 line-clamp-1">{t.uraian}</p><p className="text-xs text-gray-400">{s?.nama} · {new Date(t.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"})}</p></div></div><span className="text-xs font-semibold text-gray-700 ml-2">{fmtShort(t.jumlah)}</span></div>);})}</div></Card>}
     </div>
   );
@@ -460,67 +510,164 @@ function HalamanLaporan({sppgList,transaksi}) {
 
 function HalamanEstimasi({sppgList,onAddSppg}) {
   const [sel,setSel]=useState("");
+  const [porsiKecil,setPorsiKecil]=useState(0);
+  const [porsiBesar,setPorsiBesar]=useState(0);
+  const [hari,setHari]=useState(26);
   const sppgId=sel||sppgList[0]?.id||"";
-  const sppg=sppgList.find(s=>s.id===sppgId);
-  const e=sppg?estimasiPagu(sppg):null;
-  const rows=sppg?[{l:"PAUD/TK/RA",pm:sppg.pmPaud,rate:8000},{l:"SD Kelas 1-3",pm:sppg.pmSd13,rate:8000},{l:"SD Kelas 4-6",pm:sppg.pmSd46,rate:10000},{l:"SMP/MTs",pm:sppg.pmSmp,rate:10000},{l:"SMA/SMK",pm:sppg.pmSma,rate:10000},{l:"Pendidik+TK",pm:sppg.pmLainnya,rate:10000},{l:"Ibu Hamil",pm:sppg.pmIbuHamil,rate:10000},{l:"Ibu Menyusui",pm:sppg.pmIbuMenyusui,rate:10000},{l:"Balita",pm:sppg.pmBalita,rate:8000}]:[];
+  const e=estimasiPagu(porsiKecil,porsiBesar,hari);
   return (
     <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
-      <div className="flex justify-between items-center"><h1 className="text-xl font-bold text-gray-800">Estimasi Anggaran</h1><button onClick={onAddSppg} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium">+ SPPG</button></div>
-      {sppgList.length===0?<div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center"><p className="text-2xl mb-2">🧮</p><p className="text-sm font-semibold text-blue-700">Belum ada SPPG</p><p className="text-xs text-blue-500 mt-1 mb-3">Tambah SPPG untuk menghitung estimasi</p><button onClick={onAddSppg} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg">Tambah SPPG</button></div>:<>
-        <select className="w-full border rounded-lg px-3 py-2 text-sm" value={sppgId} onChange={ev=>setSel(ev.target.value)}>{sppgList.map(s=><option key={s.id} value={s.id}>{s.nama}</option>)}</select>
-        <Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">Bahan Baku per Hari</h3><div style={{display:"flex",flexDirection:"column",gap:"0.375rem"}}>{rows.map(r=><div key={r.l} className="flex justify-between text-xs"><span className="text-gray-500">{r.l} ({r.pm} org x {fmt(r.rate)})</span><span className="font-medium">{fmt((r.pm||0)*r.rate)}</span></div>)}<div className="border-t pt-2 flex justify-between text-sm font-semibold"><span>Total BB/Hari</span><span className="text-blue-600">{e&&fmt(e.bahanBakuPerHari)}</span></div></div></Card>
-        <Card><h3 className="font-semibold text-gray-700 mb-3 text-sm">Rekap Estimasi</h3><div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>{[{l:"Bahan Baku/Hari",v:e?.bahanBakuPerHari},{l:"Operasional/Hari",v:e?.opPerHari},{l:"Insentif Fasilitas/Hari",v:e?.insentifPerHari},{l:"TOTAL PER HARI",v:e?.totalPerHari,bold:true,c:"blue"},{l:"TOTAL PER PERIODE ("+e?.hari+" hari)",v:e?.totalPeriode,bold:true,c:"green"}].map(r=><div key={r.l} className={"flex justify-between py-1 text-xs "+(r.bold?"border-t font-bold text-sm":"")}><span className={r.bold?"":"text-gray-500"}>{r.l}</span><span className={r.c==="blue"?"text-blue-600":r.c==="green"?"text-green-600":"text-gray-700"}>{e&&fmt(r.v||0)}</span></div>)}</div></Card>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3"><p className="text-xs font-semibold text-blue-700 mb-1">Catatan Juknis BGN</p><ul className="text-xs text-blue-600 list-disc ml-4" style={{display:"flex",flexDirection:"column",gap:"0.125rem"}}><li>Bahan baku at cost — acuan Rp8rb/Rp10rb/org</li><li>Operasional acuan Rp3.000/org (at cost)</li><li>Insentif fasilitas Rp6.000.000/hari (flat)</li><li>Pagu: Rp15.000/org (umum), Rp13.000/org (PAUD/SD1-3/Balita)</li></ul></div>
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-bold text-gray-800">Estimasi Anggaran</h1>
+        <button onClick={onAddSppg} className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg font-medium">+ SPPG</button>
+      </div>
+
+      <Card>
+        <h3 className="font-semibold text-gray-700 mb-3 text-sm">Kalkulator Estimasi Harian</h3>
+        <div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Porsi Kecil</label>
+              <p className="text-xs text-gray-400">PAUD/SD 1-3/Balita</p>
+              <p className="text-xs font-semibold text-blue-600">@ Rp8.000/porsi</p>
+              <input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0" value={porsiKecil||""} onChange={e=>setPorsiKecil(parseInt(e.target.value)||0)}/>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Porsi Besar</label>
+              <p className="text-xs text-gray-400">SD 4-6/SMP/SMA/Bumil/dll</p>
+              <p className="text-xs font-semibold text-blue-600">@ Rp10.000/porsi</p>
+              <input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0" value={porsiBesar||""} onChange={e=>setPorsiBesar(parseInt(e.target.value)||0)}/>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium">Hari Operasional (untuk hitung periode)</label>
+            <input type="number" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={hari} onChange={e=>setHari(parseInt(e.target.value)||26)}/>
+          </div>
+        </div>
+      </Card>
+
+      {(porsiKecil>0||porsiBesar>0)&&<>
+        <Card>
+          <h3 className="font-semibold text-gray-700 mb-3 text-sm">Hasil Estimasi Per Hari</h3>
+          <div style={{display:"flex",flexDirection:"column",gap:"0.375rem"}}>
+            <div className="flex justify-between text-xs"><span className="text-gray-500">Porsi Kecil ({porsiKecil} × Rp8.000)</span><span className="font-medium">{fmt(porsiKecil*8000)}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-gray-500">Porsi Besar ({porsiBesar} × Rp10.000)</span><span className="font-medium">{fmt(porsiBesar*10000)}</span></div>
+            <div className="flex justify-between text-xs border-t pt-2 font-semibold"><span>Total Bahan Baku/Hari</span><span className="text-blue-600">{fmt(e.bb)}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-gray-500">Operasional ({e.totalPM} org × Rp3.000)</span><span>{fmt(e.op)}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-gray-500">Insentif Fasilitas</span><span>{fmt(e.ins)}</span></div>
+            <div className="flex justify-between text-sm border-t pt-2 font-bold"><span>TOTAL PER HARI</span><span className="text-blue-600">{fmt(e.total)}</span></div>
+            <div className="flex justify-between text-sm font-bold"><span>TOTAL {hari} HARI</span><span className="text-green-600">{fmt(e.periode)}</span></div>
+          </div>
+        </Card>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"0.75rem"}}>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+            <p className="text-xs text-gray-500">Maks Harian</p>
+            <p className="font-bold text-blue-700 text-sm">{fmt(e.total)}</p>
+          </div>
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+            <p className="text-xs text-gray-500">Total {hari} Hari</p>
+            <p className="font-bold text-green-700 text-sm">{fmt(e.periode)}</p>
+          </div>
+        </div>
       </>}
+
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+        <p className="text-xs font-semibold text-blue-700 mb-1">Catatan Juknis BGN</p>
+        <ul className="text-xs text-blue-600 list-disc ml-4" style={{display:"flex",flexDirection:"column",gap:"0.125rem"}}>
+          <li>Porsi kecil: PAUD/TK/RA, SD kls 1-3, Balita → Rp8.000/porsi</li>
+          <li>Porsi besar: SD kls 4-6, SMP, SMA, Pendidik, Ibu Hamil/Menyusui → Rp10.000/porsi</li>
+          <li>Operasional acuan Rp3.000/org (at cost)</li>
+          <li>Insentif fasilitas Rp6.000.000/hari (flat)</li>
+        </ul>
+      </div>
+
+      {sppgList.length===0&&<div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-center">
+        <p className="text-xs text-yellow-700">Tambah SPPG untuk menyimpan data dan memantau realisasi vs estimasi</p>
+        <button onClick={onAddSppg} className="mt-2 bg-blue-600 text-white text-xs px-4 py-1.5 rounded-lg">+ Tambah SPPG</button>
+      </div>}
     </div>
   );
 }
 
-function useLocalState(key, defaultVal) {
-  const [val, setVal] = useState(() => {
-    try {
-      const saved = localStorage.getItem(key);
-      return saved ? JSON.parse(saved) : defaultVal;
-    } catch { return defaultVal; }
-  });
-  const setAndSave = useCallback(updater => {
-    setVal(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      try { localStorage.setItem(key, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  }, [key]);
-  return [val, setAndSave];
-}
-
 function App() {
   const [tab,setTab]=useState("dashboard");
-  const [sppgList,setSppgList]=useLocalState("mbg_sppg",[]);
-  const [transaksi,setTransaksi]=useLocalState("mbg_transaksi",[]);
-  const [hargaList,setHargaList]=useLocalState("mbg_harga",INIT_HARGA);
+  const [sppgList,setSppgList]=useLS("mbg_sppg",[]);
+  const [transaksi,setTransaksi]=useLS("mbg_transaksi",[]);
+  const [hargaList,setHargaList]=useLS("mbg_harga",INIT_HARGA);
   const [modal,setModal]=useState(null);
-  const addSppg=useCallback(s=>setSppgList(p=>[...p,s]),[]);
-  const addTransaksi=useCallback(t=>setTransaksi(p=>[...p,t]),[]);
+  const [dbStatus,setDbStatus]=useState("connecting");
+  const [loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),8000);
+    const load=async()=>{
+      try{
+        const r=await fetch(SUPABASE_URL+"/rest/v1/sppg?select=*&limit=1",{headers:SB_HEADERS,signal:ctrl.signal});
+        clearTimeout(timer);
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        const [s,t,h]=await Promise.all([sbGet("sppg"),sbGet("transaksi"),sbGet("harga_survei")]);
+        if(Array.isArray(s)&&s.length>0) setSppgList(s.map(mapSppg));
+        if(Array.isArray(t)&&t.length>0) setTransaksi(t.map(mapTrx));
+        if(Array.isArray(h)&&h.length>0) setHargaList(h.map(mapHarga));
+        setDbStatus("online");
+      }catch(err){
+        clearTimeout(timer);
+        setDbStatus("local");
+      }finally{ setLoading(false); }
+    };
+    load();
+    return()=>{ clearTimeout(timer); ctrl.abort(); };
+  },[]);
+
+  const addSppg=useCallback(async s=>{
+    setSppgList(p=>[...p,s]);
+    if(SB_ON&&dbStatus==="online")try{await sbPost("sppg",toSppg(s));}catch(e){console.error(e);}
+  },[dbStatus]);
+  const addTransaksi=useCallback(async t=>{
+    setTransaksi(p=>[...p,t]);
+    if(SB_ON&&dbStatus==="online")try{await sbPost("transaksi",toTrx(t));}catch(e){console.error(e);}
+  },[dbStatus]);
+  const delTransaksi=useCallback(async id=>{
+    setTransaksi(p=>p.filter(x=>x.id!==id));
+    if(SB_ON&&dbStatus==="online")try{await sbDel("transaksi",id);}catch(e){console.error(e);}
+  },[dbStatus]);
+  const addHarga=useCallback(async h=>{
+    setHargaList(p=>[...p,h]);
+    if(SB_ON&&dbStatus==="online")try{await sbPost("harga_survei",toHarga(h));}catch(e){console.error(e);}
+  },[dbStatus]);
+  const delHarga=useCallback(async id=>{
+    setHargaList(p=>p.filter(x=>x.id!==id));
+    if(SB_ON&&dbStatus==="online")try{await sbDel("harga_survei",id);}catch(e){console.error(e);}
+  },[dbStatus]);
+
   const navItems=[{id:"dashboard",icon:"🏠",label:"Home"},{id:"belanja",icon:"🛒",label:"Belanja"},{id:"harga",icon:"💹",label:"Harga"},{id:"laporan",icon:"📊",label:"Laporan"},{id:"estimasi",icon:"🧮",label:"Estimasi"}];
+  const stColor={online:"#4ade80",local:"#facc15",connecting:"#60a5fa"};
+  const stLabel={online:"Live",local:"Lokal",connecting:"..."};
+
   return (
-    <div style={{minHeight:"100vh",background:"#f9fafb",display:"flex",flexDirection:"column",maxWidth:"448px",margin:"0 auto",position:"relative"}}>
+    <div style={{minHeight:"100vh",background:"#f9fafb",display:"flex",flexDirection:"column",maxWidth:"768px",margin:"0 auto",width:"100%",position:"relative"}}>
       <div style={{background:"linear-gradient(to right,#2563eb,#1d4ed8)",color:"white",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:40,boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}>
         <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
           <div style={{width:"2rem",height:"2rem",background:"rgba(255,255,255,0.2)",borderRadius:"0.5rem",display:"flex",alignItems:"center",justifyContent:"center"}}>🍱</div>
           <div><p style={{fontWeight:"bold",fontSize:"0.875rem",margin:0}}>PantauBelanjaMBG</p><p style={{fontSize:"0.75rem",opacity:0.7,margin:0}}>Sistem Pemantauan Belanja Dapur SPPG</p></div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:"0.375rem"}}>
-          <div style={{width:"0.5rem",height:"0.5rem",borderRadius:"9999px",background:"#facc15"}}/>
-          <span style={{fontSize:"0.75rem",opacity:0.8}}>Lokal</span>
+          <div style={{width:"0.5rem",height:"0.5rem",borderRadius:"9999px",background:stColor[dbStatus]||"#9ca3af"}}/>
+          <span style={{fontSize:"0.75rem",opacity:0.8}}>{stLabel[dbStatus]||"?"}</span>
         </div>
       </div>
-      <div style={{background:"#fefce8",borderBottom:"1px solid #fde68a",padding:"0.375rem 1rem"}}>
-        <p style={{fontSize:"0.75rem",color:"#92400e",margin:0}}>Mode lokal — data tersimpan sementara. Hubungkan Supabase untuk data permanen.</p>
-      </div>
+      {loading&&<div style={{position:"fixed",inset:0,background:"rgba(255,255,255,0.9)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div style={{textAlign:"center"}}>
+          <div className="animate-spin" style={{width:"2.5rem",height:"2.5rem",border:"4px solid #3b82f6",borderTopColor:"transparent",borderRadius:"9999px",margin:"0 auto 0.75rem"}}/>
+          <p style={{fontSize:"0.875rem",color:"#4b5563",fontWeight:500,margin:0}}>Memuat data...</p>
+          <p style={{fontSize:"0.75rem",color:"#9ca3af",marginTop:"0.25rem"}}>Menghubungkan ke Supabase</p>
+        </div>
+      </div>}
       <div style={{flex:1,padding:"clamp(0.75rem,3vw,1.5rem)",paddingBottom:"5rem",overflowY:"auto"}}>
         {tab==="dashboard"&&<HalamanDashboard sppgList={sppgList} transaksi={transaksi} setModal={setModal}/>}
-        {tab==="belanja"&&<HalamanBelanja sppgList={sppgList} transaksi={transaksi} setModal={setModal} setTransaksi={setTransaksi}/>}
+        {tab==="belanja"&&<HalamanBelanja sppgList={sppgList} transaksi={transaksi} setModal={setModal} setTransaksi={delTransaksi}/>}
         {tab==="harga"&&<HalamanHarga hargaList={hargaList} setHargaList={setHargaList}/>}
         {tab==="laporan"&&<HalamanLaporan sppgList={sppgList} transaksi={transaksi}/>}
         {tab==="estimasi"&&<HalamanEstimasi sppgList={sppgList} onAddSppg={()=>setModal("sppg")}/>}
@@ -539,7 +686,7 @@ function App() {
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const root=ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App/>);
 </script>
 </body>
