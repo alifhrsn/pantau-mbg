@@ -12,6 +12,19 @@
 <style>
 * { box-sizing: border-box; }
 body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; }
+@media (min-width: 640px) {
+  .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .text-xl { font-size: 1.5rem !important; }
+  .content-pad { padding: 1.5rem !important; }
+  .nav-item span.label { font-size: 0.8rem !important; }
+}
+@media (min-width: 768px) {
+  body { background: #e5e7eb; }
+  .app-shell { box-shadow: 0 0 40px rgba(0,0,0,0.15) !important; border-radius: 0 !important; }
+}
 .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
 .animate-spin { animation: spin 1s linear infinite; }
 @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
@@ -107,10 +120,10 @@ const Card = ({children,className=""}) => <div className={"bg-white rounded-xl s
 const StatCard = ({label,value,sub,color="blue",icon}) => {
   const bg={blue:"from-blue-500 to-blue-600",green:"from-green-500 to-green-600",orange:"from-orange-500 to-orange-600",purple:"from-purple-500 to-purple-600"};
   return (
-    <div className={"bg-gradient-to-br "+(bg[color]||bg.blue)+" rounded-xl p-4 text-white"}>
+    <div className={"bg-gradient-to-br "+(bg[color]||bg.blue)+" rounded-xl p-4 text-white"} style={{minWidth:0}}>
       <div className="flex justify-between items-start">
-        <div><p className="text-xs opacity-80 mb-1">{label}</p><p className="text-xl font-bold">{value}</p>{sub&&<p className="text-xs opacity-70 mt-1">{sub}</p>}</div>
-        {icon&&<span className="text-2xl opacity-80">{icon}</span>}
+        <div style={{minWidth:0}}><p className="text-xs opacity-80 mb-1" style={{whiteSpace:"nowrap"}}>{label}</p><p style={{fontSize:"clamp(1rem,3vw,1.5rem)",fontWeight:"bold"}}>{value}</p>{sub&&<p className="text-xs opacity-70 mt-1">{sub}</p>}</div>
+        {icon&&<span style={{fontSize:"clamp(1.25rem,3vw,2rem)",opacity:0.8,flexShrink:0}}>{icon}</span>}
       </div>
     </div>
   );
@@ -172,7 +185,7 @@ function ModalTransaksi({sppgList,onSave,onClose}) {
               {sppgList.map(s=><option key={s.id} value={s.id}>{s.nama}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:"0.75rem"}}>
             <div><label className="text-xs text-gray-500">Tanggal</label><input type="date" className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.tanggal} onChange={e=>set("tanggal",e.target.value)}/></div>
             <div><label className="text-xs text-gray-500">Komponen</label>
               <select className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" value={f.komponen} onChange={e=>set("komponen",e.target.value)}>
@@ -560,7 +573,7 @@ function App() {
   const stLabel={online:"Live",local:"Lokal",connecting:"..."};
 
   return (
-    <div style={{minHeight:"100vh",background:"#f9fafb",display:"flex",flexDirection:"column",maxWidth:"448px",margin:"0 auto"}}>
+    <div style={{minHeight:"100vh",background:"#f9fafb",display:"flex",flexDirection:"column",maxWidth:"768px",margin:"0 auto",width:"100%"}}>
       <div style={{background:"linear-gradient(to right,#2563eb,#1d4ed8)",color:"white",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:40,boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}>
         <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
           <div style={{width:"2rem",height:"2rem",background:"rgba(255,255,255,0.2)",borderRadius:"0.5rem",display:"flex",alignItems:"center",justifyContent:"center"}}>🍱</div>
@@ -578,18 +591,18 @@ function App() {
           <p style={{fontSize:"0.75rem",color:"#9ca3af",marginTop:"0.25rem"}}>Menghubungkan ke Supabase</p>
         </div>
       </div>}
-      <div style={{flex:1,padding:"1rem",paddingBottom:"6rem",overflowY:"auto"}}>
+      <div style={{flex:1,padding:"clamp(0.75rem,3vw,1.5rem)",paddingBottom:"5rem",overflowY:"auto"}}>
         {tab==="dashboard"&&<HalamanDashboard sppgList={sppgList} transaksi={transaksi} setModal={setModal}/>}
         {tab==="belanja"&&<HalamanBelanja sppgList={sppgList} transaksi={transaksi} setModal={setModal} setTransaksi={delTransaksi}/>}
         {tab==="harga"&&<HalamanHarga hargaList={hargaList} setHargaList={setHargaList}/>}
         {tab==="laporan"&&<HalamanLaporan sppgList={sppgList} transaksi={transaksi}/>}
         {tab==="estimasi"&&<HalamanEstimasi sppgList={sppgList} onAddSppg={()=>setModal("sppg")}/>}
       </div>
-      <nav style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"448px",background:"white",borderTop:"1px solid #f3f4f6",display:"flex",zIndex:40,boxShadow:"0 -1px 3px rgba(0,0,0,0.1)"}}>
+      <nav style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"768px",background:"white",borderTop:"1px solid #f3f4f6",display:"flex",zIndex:40,boxShadow:"0 -1px 3px rgba(0,0,0,0.1)"}}>
         {navItems.map(n=>(
-          <button key={n.id} onClick={()=>setTab(n.id)} style={{flex:1,padding:"0.75rem 0",display:"flex",flexDirection:"column",alignItems:"center",gap:"0.125rem",border:"none",background:"none",cursor:"pointer",color:tab===n.id?"#2563eb":"#9ca3af"}}>
-            <span style={{fontSize:"1.125rem",lineHeight:1}}>{n.icon}</span>
-            <span style={{fontSize:"0.75rem",fontWeight:500}}>{n.label}</span>
+          <button key={n.id} onClick={()=>setTab(n.id)} style={{flex:1,padding:"0.6rem 0",display:"flex",flexDirection:"column",alignItems:"center",gap:"0.125rem",border:"none",background:"none",cursor:"pointer",color:tab===n.id?"#2563eb":"#9ca3af",minWidth:0}}>
+            <span style={{fontSize:"clamp(1rem,3vw,1.25rem)",lineHeight:1}}>{n.icon}</span>
+            <span style={{fontSize:"clamp(0.6rem,2vw,0.75rem)",fontWeight:500,whiteSpace:"nowrap"}}>{n.label}</span>
           </button>
         ))}
       </nav>
