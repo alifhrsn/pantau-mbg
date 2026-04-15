@@ -335,6 +335,7 @@ function PageBelanja(p){
     p.setHargaDB(Object.values(newDB));
     var entry={id:uid(),sppgId:selSppg,judul:judul,tanggal:tgl,porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,items:active,totalSupplier:totalSupplier,totalFinal:totalFinal,createdAt:new Date().toISOString()};
     p.setBelanjaList(function(prev){return [entry].concat(Array.isArray(prev)?prev:[]);});
+    if(typeof sbUpsert!=="undefined")sbUpsert("transaksi",[belanjaToTrx(entry)]).catch(function(){});
     var r=[];for(var i=0;i<8;i++)r.push(emptyRow());
     setRows(function(){return r;});
     setJudul("");setPk(0);setPb(0);
@@ -478,7 +479,7 @@ function PageOperasional(p){
   var filtered=safeO.filter(function(o){return filterSppg==="semua"||o.sppgId===filterSppg;}).slice().sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
   var totalBln=safeO.filter(function(o){return o.tanggal&&o.tanggal.startsWith(bln)&&(filterSppg==="semua"||o.sppgId===filterSppg);}).reduce(function(a,o){return a+(o.jumlah||0);},0);
   var KATEGORI=["Operasional Dapur","Gas LPG","Kemasan","Transportasi","Peralatan","Kebersihan","Lainnya"];
-  function simpan(){if(!selSppg)return alert("Pilih SPPG!");if(!uraian||!jumlah)return alert("Isi uraian dan jumlah!");p.setOperasionalList(function(prev){return [{id:uid(),sppgId:selSppg,tanggal:tgl,uraian:uraian,jumlah:parseInt(jumlah)||0,kategori:kat}].concat(Array.isArray(prev)?prev:[]);});setUraian("");setJumlah("");setShowForm(false);}
+  function simpan(){if(!selSppg)return alert("Pilih SPPG!");if(!uraian||!jumlah)return alert("Isi uraian dan jumlah!");var nOp={id:uid(),sppgId:selSppg,tanggal:tgl,uraian:uraian,jumlah:parseInt(jumlah)||0,kategori:kat};setOperasionalList(function(prev){return [nOp].concat(Array.isArray(prev)?prev:[]);});if(typeof sbUpsert!=="undefined")sbUpsert("transaksi",[opToTrx(nOp)]).catch(function(){});setUraian("");setJumlah("");setShowForm(false);}
   function del(id){if(confirm("Hapus?"))p.setOperasionalList(function(prev){return prev.filter(function(o){return o.id!==id;});});}
   return React.createElement("div",{id:"ops-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
     React.createElement(PageHeader,{title:"Operasional",sub:"Di luar budget harian porsi",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},filtered.length>0&&React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var csvH=["Tanggal","Uraian","Kategori","SPPG","Jumlah"];var csvR=filtered.map(function(o){var s=p.sppgList.find(function(x){return x.id===o.sppgId;});return[o.tanggal||"",o.uraian,o.kategori,s?s.nama:"",o.jumlah];});p.onExport({title:"Operasional",elementId:"ops-content",filename:"Operasional_MBG",csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Operasional",data:[csvH].concat(csvR)}],txtLines:["DATA OPERASIONAL MBG"].concat(csvR.map(function(r){return r.join(" | ");}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setShowForm(function(prev){return !prev;});},small:true},showForm?"Tutup":"+ Input"))}),
@@ -720,12 +721,91 @@ function ExportSheet(p){
 }
 
 // ─── SUPABASE CONFIG ─────────────────────────────────────────────────────────
-var SB_URL="https://ozxuvjhotrzwhmjivwgm.supabase.co";
-var SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96eHV2amhvdHJ6d2htaml2d2dtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNjc0NTQsImV4cCI6MjA5MTY0MzQ1NH0.-G1mzblvOTrOHHYeBiSWcyOK9VtYBJ0gJS59ezxupBI";
+// Schema: sppg | transaksi (komponen: bahan_baku/operasional/insentif) | harga_survei
+var SB_URL="https://tsioeiajfnpjdznuktsj.supabase.co";
+var SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaW9laWFqZm5wamR6bnVrdHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTYwMTUsImV4cCI6MjA5MTc5MjAxNX0.7fiEc5wCb_lv5Fk75Y2QE7Mqs8rmqFEeVkt7quBlTBw";
 var SBH={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json",Prefer:"return=representation"};
-function sbGet(t){return fetch(SB_URL+"/rest/v1/"+t+"?select=*&order=created_at.asc",{headers:SBH}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});}
-function sbUpsert(t,d){var rows=Array.isArray(d)?d:[d];if(!rows.length)return Promise.resolve([]);return fetch(SB_URL+"/rest/v1/"+t,{method:"POST",headers:Object.assign({},SBH,{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(rows)}).then(function(r){if(!r.ok&&r.status!==409)throw new Error(t+" HTTP "+r.status);});}
-function sbDel(t,id){return fetch(SB_URL+"/rest/v1/"+t+"?id=eq."+id,{method:"DELETE",headers:SBH});}
+
+function sbGet(t,filter){
+  var url=SB_URL+"/rest/v1/"+t+"?select=*&order=created_at.asc"+(filter?"&"+filter:"");
+  return fetch(url,{headers:SBH}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status+" "+t);return r.json();});
+}
+function sbUpsert(t,d){
+  var rows=Array.isArray(d)?d:[d];
+  if(!rows.length)return Promise.resolve();
+  return fetch(SB_URL+"/rest/v1/"+t,{
+    method:"POST",
+    headers:Object.assign({},SBH,{Prefer:"resolution=merge-duplicates,return=minimal"}),
+    body:JSON.stringify(rows)
+  }).then(function(r){if(!r.ok&&r.status!==409)throw new Error(t+" HTTP "+r.status);});
+}
+function sbDel(t,id){
+  return fetch(SB_URL+"/rest/v1/"+t+"?id=eq."+id,{method:"DELETE",headers:SBH});
+}
+
+// ── SPPG mappers ──
+function sppgToSB(s){
+  return {id:s.id,nama:s.nama,kecamatan:s.kecamatan||"",kabupaten:s.kabupaten||"",
+    provinsi:s.provinsi||"",hari_operasional:s.hariOperasional||26,aktif:s.aktif!==false};
+}
+function sbToSppg(r){
+  return {id:r.id,nama:r.nama,kecamatan:r.kecamatan||"",kabupaten:r.kabupaten||"",
+    provinsi:r.provinsi||"",hariOperasional:r.hari_operasional||26,aktif:r.aktif};
+}
+
+// ── BELANJA (bahan_baku) ↔ transaksi mappers ──
+// kategori field stores JSON: {items, totalSupplier, totalFinal, porsiKecil, porsiBesar, judul}
+function belanjaToTrx(b){
+  return {
+    id:b.id, sppg_id:b.sppgId||"", tanggal:b.tanggal,
+    komponen:"bahan_baku", uraian:b.judul||"",
+    jumlah:b.totalFinal||0, sumber:"app",
+    kategori:JSON.stringify({
+      judul:b.judul||"", items:b.items||[],
+      totalSupplier:b.totalSupplier||0, totalFinal:b.totalFinal||0,
+      porsiKecil:b.porsiKecil||0, porsiBesar:b.porsiBesar||0
+    })
+  };
+}
+function trxToBelanja(t){
+  var d={};
+  try{d=JSON.parse(t.kategori||"{}");}catch(e){}
+  return {
+    id:t.id, sppgId:t.sppg_id||"", judul:d.judul||t.uraian||"",
+    tanggal:t.tanggal||"", items:d.items||[],
+    totalSupplier:d.totalSupplier||0, totalFinal:t.jumlah||d.totalFinal||0,
+    porsiKecil:d.porsiKecil||0, porsiBesar:d.porsiBesar||0,
+    createdAt:t.created_at||""
+  };
+}
+
+// ── OPERASIONAL ↔ transaksi (komponen='operasional') mappers ──
+function opToTrx(o){
+  return {
+    id:o.id, sppg_id:o.sppgId||"", tanggal:o.tanggal,
+    komponen:"operasional", uraian:o.uraian||"",
+    jumlah:o.jumlah||0, sumber:"app",
+    kategori:JSON.stringify({kategori:o.kategori||"Operasional Dapur"})
+  };
+}
+function trxToOp(t){
+  var d={};
+  try{d=JSON.parse(t.kategori||"{}");}catch(e){}
+  return {
+    id:t.id, sppgId:t.sppg_id||"", tanggal:t.tanggal||"",
+    uraian:t.uraian||"", jumlah:t.jumlah||0,
+    kategori:d.kategori||"Operasional Dapur"
+  };
+}
+
+// ── HARGA ↔ harga_survei mappers ──
+function hargaToSB(h){
+  return {id:h.id,komoditas:h.nama||h.komoditas||"",satuan:h.satuan||"",
+    harga:h.harga||0,tanggal:today(),pasar:"Input App",sumber:"app"};
+}
+function sbToHarga(r){
+  return {id:r.id,nama:r.komoditas||"",satuan:r.satuan||"",harga:r.harga||0};
+}
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
 function App(){
@@ -750,13 +830,20 @@ function App(){
     var timer=setTimeout(function(){ctrl.abort();},8000);
     setLoading(true);
     fetch(SB_URL+"/rest/v1/sppg?select=*&limit=1",{headers:SBH,signal:ctrl.signal})
-      .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return Promise.all([sbGet("sppg"),sbGet("belanja"),sbGet("operasional"),sbGet("harga_survei")]);})
+      .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);
+        return Promise.all([
+          sbGet("sppg"),
+          sbGet("transaksi","komponen=eq.bahan_baku"),
+          sbGet("transaksi","komponen=eq.operasional"),
+          sbGet("harga_survei")
+        ]);
+      })
       .then(function(results){
         clearTimeout(timer);
-        if(Array.isArray(results[0])&&results[0].length>0)setSppgList(results[0]);
-        if(Array.isArray(results[1])&&results[1].length>0)setBelanjaList(results[1]);
-        if(Array.isArray(results[2])&&results[2].length>0)setOperasionalList(results[2]);
-        if(Array.isArray(results[3])&&results[3].length>0)setHargaDB(results[3]);
+        if(Array.isArray(results[0])&&results[0].length>0)setSppgList(results[0].map(sbToSppg));
+        if(Array.isArray(results[1])&&results[1].length>0)setBelanjaList(results[1].map(trxToBelanja));
+        if(Array.isArray(results[2])&&results[2].length>0)setOperasionalList(results[2].map(trxToOp));
+        if(Array.isArray(results[3])&&results[3].length>0)setHargaDB(results[3].map(sbToHarga));
         setDbStatus("online");
       })
       .catch(function(){setDbStatus("local");})
@@ -766,12 +853,17 @@ function App(){
 
   function syncFromSB(){
     setSyncMsg("Mengambil data dari Supabase...");
-    Promise.all([sbGet("sppg"),sbGet("belanja"),sbGet("operasional"),sbGet("harga_survei")])
+    Promise.all([
+        sbGet("sppg"),
+        sbGet("transaksi","komponen=eq.bahan_baku"),
+        sbGet("transaksi","komponen=eq.operasional"),
+        sbGet("harga_survei")
+      ])
       .then(function(results){
-        if(Array.isArray(results[0])&&results[0].length>0)setSppgList(results[0]);
-        if(Array.isArray(results[1])&&results[1].length>0)setBelanjaList(results[1]);
-        if(Array.isArray(results[2])&&results[2].length>0)setOperasionalList(results[2]);
-        if(Array.isArray(results[3])&&results[3].length>0)setHargaDB(results[3]);
+        if(Array.isArray(results[0])&&results[0].length>0)setSppgList(results[0].map(sbToSppg));
+        if(Array.isArray(results[1])&&results[1].length>0)setBelanjaList(results[1].map(trxToBelanja));
+        if(Array.isArray(results[2])&&results[2].length>0)setOperasionalList(results[2].map(trxToOp));
+        if(Array.isArray(results[3])&&results[3].length>0)setHargaDB(results[3].map(sbToHarga));
         setSyncMsg("Berhasil diambil!");setTimeout(function(){setSyncMsg("");},2500);
         setDbStatus("online");
       })
@@ -779,15 +871,20 @@ function App(){
   }
   function pushToSB(){
     setSyncMsg("Mengirim ke Supabase...");
+    var sppgRows=(Array.isArray(sppgList)?sppgList:[]).map(sppgToSB);
+    var trxBelanja=(Array.isArray(belanjaList)?belanjaList:[]).map(belanjaToTrx);
+    var trxOp=(Array.isArray(operasionalList)?operasionalList:[]).map(opToTrx);
+    var hargaRows=(Array.isArray(hargaDB)?hargaDB:[]).map(hargaToSB);
     Promise.all([
-      sbUpsert("sppg",Array.isArray(sppgList)?sppgList:[]),
-      sbUpsert("belanja",Array.isArray(belanjaList)?belanjaList:[]),
-      sbUpsert("operasional",Array.isArray(operasionalList)?operasionalList:[]),
-    ]).then(function(){setSyncMsg("Berhasil dikirim!");setTimeout(function(){setSyncMsg("");},2500);})
+      sbUpsert("sppg",sppgRows),
+      sbUpsert("transaksi",trxBelanja),
+      sbUpsert("transaksi",trxOp),
+      sbUpsert("harga_survei",hargaRows),
+    ]).then(function(){setSyncMsg("Berhasil dikirim ke Supabase!");setTimeout(function(){setSyncMsg("");},2500);})
     .catch(function(e){setSyncMsg("Push gagal: "+e.message);});
   }
 
-  function addSppg(s){setSppgList(function(prev){return (Array.isArray(prev)?prev:[]).concat([s]);});if(dbStatus==="online")sbUpsert("sppg",[s]).catch(function(){});}
+  function addSppg(s){setSppgList(function(prev){return (Array.isArray(prev)?prev:[]).concat([s]);});if(dbStatus==="online")sbUpsert("sppg",[sppgToSB(s)]).catch(function(){});}
   var safeSppg=Array.isArray(sppgList)?sppgList:[];
   var NAV=[
     {id:"dashboard",icon:"🏠",label:"Home"},
