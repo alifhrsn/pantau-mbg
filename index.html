@@ -304,7 +304,7 @@ function PageBelanja(p){
   var s3=useState(today()),tgl=s3[0],setTgl=s3[1];
   var s4=useState(0),pk=s4[0],setPk=s4[1];
   var s5=useState(0),pb=s5[0],setPb=s5[1];
-  var s6=useLS("mbg_belanja_draft",initRows),rows=s6[0],setRowsRaw=s6[1];
+  var s6=_useState(initRows),rows=s6[0],setRowsRaw=s6[1];
   var safeRows=Array.isArray(rows)?rows:initRows;
   function setRows(fn){setRowsRaw(function(prev){var p2=Array.isArray(prev)?prev:initRows;return fn(p2);});}
   var s7=useState(0),globalMargin=s7[0],setGlobalMargin=s7[1];
@@ -416,7 +416,7 @@ function PageBelanja(p){
       React.createElement(SppgSel,{list:p.sppgList,value:selSppg,onChange:setSelSppg,onAdd:function(){p.setModal("sppg");}}),
       React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginTop:".5rem"}},
         React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Judul / Nama Menu"),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},placeholder:"Belanja Senin...",value:judul,onChange:function(e){setJudul(e.target.value);}})),
-        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),React.createElement("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:tgl,onChange:function(e){setTgl(e.target.value);var r=[];for(var i=0;i<8;i++)r.push(emptyRow());setRows(function(){return r;});setJudul("");}}))  
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),React.createElement("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:tgl,onChange:function(e){setTgl(e.target.value);var r=[];for(var i=0;i<8;i++)r.push(emptyRow());try{localStorage.removeItem("mbg_belanja_draft");}catch(ex){}setRows(function(){return r;});setJudul("");}}))  
       ),
       React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginTop:".5rem"}},
         React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#3b82f6",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Kecil @ Rp8.000"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#eff6ff"},placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})),
