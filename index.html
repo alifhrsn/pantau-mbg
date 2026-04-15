@@ -234,7 +234,7 @@ function ModalEditBelanja(p){
                   React.createElement("td",{key:"nama",style:{padding:"4px 6px",minWidth:"130px"}},React.createElement(BahanInput,{value:row.nama,onChange:function(v){updRow(row.id,"nama",v);},db:p.hargaDB,onSelect:function(h){selSugg(row.id,h);}})),
                   React.createElement("td",{key:"qty",style:{padding:"4px 5px",width:"60px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"54px",textAlign:"center",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.qty||"",placeholder:"0",onChange:function(e){updRow(row.id,"qty",e.target.value);}})),
                   React.createElement("td",{key:"sat",style:{padding:"4px 5px",width:"80px"}},React.createElement("input",{style:Object.assign({},iS,{width:"74px"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",placeholder:"kg/pcs/...",value:row.satuan,onChange:function(e){updRow(row.id,"satuan",e.target.value);}})),
-                  React.createElement("td",{key:"hs",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaSupplier",e.target.value);}})),
+                  colVis.showSupplier!==false&&React.createElement("td",{key:"hs",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaSupplier",e.target.value);}})),
                   React.createElement("td",{key:"hf",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaFinal||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaFinal",e.target.value);}})),
                   React.createElement("td",{key:"del",style:{padding:"4px 5px"}},React.createElement("button",{onClick:function(){delRow(row.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px",padding:"3px 5px",borderRadius:"5px"}},"✕"))
                 ];
@@ -308,6 +308,7 @@ function PageBelanja(p){
   var safeRows=Array.isArray(rows)?rows:initRows;
   function setRows(fn){setRowsRaw(function(prev){var p2=Array.isArray(prev)?prev:initRows;return fn(p2);});}
   var s7=useState(0),globalMargin=s7[0],setGlobalMargin=s7[1];
+  var s7b=useLS("mbg_col_vis",{showSupplier:true,showTotSupplier:true,showMargin:true}),colVis=s7b[0],setColVis=s7b[1];
   var s8=useState("input"),view=s8[0],setView=s8[1];
   var s9=useState("semua"),filterSppg=s9[0],setFilterSppg=s9[1];
   var s9b=useState(""),filterTgl=s9b[0],setFilterTgl=s9b[1];
@@ -350,8 +351,8 @@ function PageBelanja(p){
   // ── RIWAYAT VIEW ──
   if(view==="riwayat"){
     var safeB=Array.isArray(p.belanjaList)?p.belanjaList:[];
-    var filtered2=safeB.filter(function(b){return (filterSppg==="semua"||b.sppgId===filterSppg)&&(!filterTgl||b.tanggal===filterTgl);}).slice().sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
-    var allDates=Array.from(new Set(safeB.map(function(b){return b.tanggal||""}).filter(Boolean))).sort(function(a,b){return b.localeCompare(a);});
+    var tglOf=function(t){return t?(t.substring?t.substring(0,10):String(t).substring(0,10)):"";};var filtered2=safeB.filter(function(b){return (filterSppg==="semua"||b.sppgId===filterSppg)&&(!filterTgl||tglOf(b.tanggal)===filterTgl);}).slice().sort(function(a,b){return tglOf(b.tanggal).localeCompare(tglOf(a.tanggal));});
+    var allDates=Array.from(new Set(safeB.map(function(b){return tglOf(b.tanggal)}).filter(Boolean))).sort(function(a,b){return b.localeCompare(a);});
     return React.createElement("div",{id:"riwayat-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
       React.createElement(PageHeader,{title:"Riwayat Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var filt=filtered2;var csvH=["Tanggal","Judul","SPPG","Porsi Kecil","Porsi Besar","Modal","Harga Jual","Margin"];var csvR=filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return[b.tanggal||"",b.judul||"",s?s.nama:"",b.porsiKecil||0,b.porsiBesar||0,b.totalSupplier||0,b.totalFinal||0,(b.totalFinal||0)-(b.totalSupplier||0)];});p.onExport({title:"Riwayat Belanja",elementId:"riwayat-content",filename:"Riwayat_Belanja",csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Ringkasan",data:[csvH].concat(csvR)}],txtLines:["RIWAYAT BELANJA MBG"].concat(filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return(b.tanggal||"")+" | "+(b.judul||"")+" | "+(s?s.nama:"")+" | "+fmtS(b.totalFinal||0);}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("input");},small:true},"+ Input"))}),
       React.createElement("div",{style:{display:"flex",gap:".375rem",alignItems:"center",flexWrap:"wrap"}},
@@ -409,7 +410,7 @@ function PageBelanja(p){
 
   // ── INPUT VIEW ──
   return React.createElement("div",{id:"input-belanja-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
-    React.createElement(PageHeader,{title:"Input Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var actR=safeRows.filter(function(r){return r.nama&&r.qty>0;});var csvH=["No","Nama Bahan","QTY","Satuan","H.Supplier","Total Supplier","H.Final","Total Final","Margin"];var csvR=actR.map(function(r,i){var ts=r.qty*(r.hargaSupplier||0),tf=r.qty*(r.hargaFinal||0);return[i+1,r.nama,r.qty,r.satuan,r.hargaSupplier||0,ts,r.hargaFinal||0,tf,tf-ts];});p.onExport({title:"Draft: "+(judul||""),elementId:"input-belanja-content",filename:"Draft_Belanja_"+(judul||tgl||""),csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Draft",data:[csvH].concat(csvR)}],txtLines:["DRAFT BELANJA","Judul: "+(judul||"-"),"Tgl: "+(tgl||"-")].concat(actR.map(function(r){return r.nama+" | "+r.qty+" "+r.satuan+" | "+fmtS(r.hargaSupplier||0);}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("riwayat");},small:true,color:"gray"},"📋 Riwayat"))}),
+    React.createElement(PageHeader,{title:"Input Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var actR=safeRows.filter(function(r){return r.nama&&r.qty>0;});(function(){var csvH=["No","Nama Bahan","QTY","Satuan"];if(colVis.showSupplier!==false)csvH.push("H.Supplier");if(colVis.showTotSupplier!==false)csvH.push("Total Supplier");csvH.push("H.Final","Total Final");if(colVis.showMargin!==false)csvH.push("Margin");var csvR=actR.map(function(r,i){var ts=r.qty*(r.hargaSupplier||0),tf=r.qty*(r.hargaFinal||0);var row=[i+1,r.nama,r.qty,r.satuan];if(colVis.showSupplier!==false)row.push(r.hargaSupplier||0);if(colVis.showTotSupplier!==false)row.push(ts);row.push(r.hargaFinal||0,tf);if(colVis.showMargin!==false)row.push(tf-ts);return row;});p.onExport({title:"Draft: "+(judul||""),elementId:"input-belanja-content",filename:"Draft_Belanja_"+(judul||tgl||""),csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Draft",data:[csvH].concat(csvR)}],txtLines:["DRAFT BELANJA","Judul: "+(judul||"-"),"Tgl: "+(tgl||"-")].concat(actR.map(function(r){return r.nama+" | "+r.qty+" "+r.satuan+" | "+fmtS(r.hargaFinal||0);}))});})();}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("riwayat");},small:true,color:"gray"},"📋 Riwayat"))}),
     React.createElement(Card,null,
       React.createElement("p",{style:{fontSize:".7rem",fontWeight:700,color:"#475569",margin:"0 0 .5rem",textTransform:"uppercase",letterSpacing:".04em"}},"Info Belanja"),
       React.createElement(SppgSel,{list:p.sppgList,value:selSppg,onChange:setSelSppg,onAdd:function(){p.setModal("sppg");}}),
@@ -430,13 +431,26 @@ function PageBelanja(p){
       React.createElement("span",{style:{fontSize:".65rem",color:"#94a3b8"}},"%"),
       React.createElement(Btn,{onClick:applyMargin,small:true},"Terapkan")
     ),
+    React.createElement("div",{style:{display:"flex",gap:".375rem",alignItems:"center",flexWrap:"wrap",padding:"6px 10px",background:"#f8fafc",borderRadius:".625rem",border:"1px solid #e2e8f0"}},
+      React.createElement("span",{style:{fontSize:".65rem",color:"#64748b",fontWeight:600,marginRight:"2px"}},"Tampilkan:"),
+      [
+        {key:"showSupplier",label:"H.Supplier"},
+        {key:"showTotSupplier",label:"Total Supplier"},
+        {key:"showMargin",label:"Margin"},
+      ].map(function(col){
+        var active=colVis[col.key]!==false;
+        return React.createElement("button",{key:col.key,onClick:function(){setColVis(function(prev){var next=Object.assign({},prev);next[col.key]=!active;return next;});},style:{fontSize:".65rem",padding:"3px 9px",borderRadius:"20px",border:"1px solid "+(active?"#2563eb":"#e2e8f0"),background:active?"#eff6ff":"white",color:active?"#2563eb":"#94a3b8",cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}},
+          (active?"✓ ":"")+col.label
+        );
+      })
+    ),
     React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:".375rem"}},
       [{l:"Modal",v:fmtS(totalSupplier),c:"#3b82f6"},{l:"Jual",v:fmtS(totalFinal),c:"#059669"},{l:"Margin",v:fmtS(totalMargin),c:totalMargin>=0?"#ea580c":"#dc2626"},{l:"Margin%",v:marginPct+"%",c:"#7c3aed"}].map(function(x){return React.createElement("div",{key:x.l,style:{background:"white",border:"1px solid #f1f5f9",borderRadius:".5rem",padding:".4rem",textAlign:"center"}},React.createElement("p",{style:{fontSize:".58rem",color:"#94a3b8",margin:"0 0 2px",textTransform:"uppercase",fontWeight:600}},x.l),React.createElement("p",{style:{fontSize:".75rem",fontWeight:800,color:x.c,margin:0}},x.v));})
     ),
     React.createElement("div",{style:{background:"white",border:"1px solid #f1f5f9",borderRadius:".75rem",overflow:"hidden"}},
       React.createElement("div",{style:{overflowX:"auto"}},
         React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",minWidth:"640px",fontSize:".72rem"}},
-          React.createElement("thead",null,React.createElement("tr",null,["","NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","TOT. SUPPLIER","H.FINAL","TOT. FINAL","MARGIN",""].map(function(h,i){return React.createElement(TH,{key:i,right:i>=5&&i<=9},h);}))),
+          React.createElement("thead",null,React.createElement("tr",null,(function(){var cols=["","NO","NAMA BAHAN","QTY","SATUAN"];if(colVis.showSupplier!==false)cols.push("H.SUPPLIER");if(colVis.showTotSupplier!==false)cols.push("TOT. SUPPLIER");cols.push("H.FINAL","TOT. FINAL");if(colVis.showMargin!==false)cols.push("MARGIN");cols.push("");return cols;})().map(function(h,i){return React.createElement(TH,{key:i,right:i>=5},h);}))),
           React.createElement(DraggableRows,{
             rows:safeRows,
             onReorder:function(r){setRows(function(){return r;});},
@@ -449,11 +463,11 @@ function PageBelanja(p){
                 React.createElement("td",{key:"nama",style:{padding:"4px 8px",minWidth:"140px"}},React.createElement(BahanInput,{value:row.nama,onChange:function(v){updRow(row.id,"nama",v);},db:p.hargaDB,onSelect:function(h){selSugg(row.id,h);}})),
                 React.createElement("td",{key:"qty",style:{padding:"4px 5px",width:"60px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"54px",textAlign:"center",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.qty||"",placeholder:"0",onChange:function(e){updRow(row.id,"qty",e.target.value);}})),
                 React.createElement("td",{key:"sat",style:{padding:"4px 5px",width:"80px"}},React.createElement("input",{style:Object.assign({},iS,{width:"74px"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",placeholder:"kg/pcs/...",value:row.satuan,onChange:function(e){updRow(row.id,"satuan",e.target.value);}})),
-                React.createElement("td",{key:"hs",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaSupplier",e.target.value);}})),
-                React.createElement("td",{key:"ts",style:{padding:"4px 8px",fontFamily:"monospace",fontWeight:600,color:"#3b82f6",textAlign:"right",whiteSpace:"nowrap"}},ts>0?fmtS(ts):"—"),
+                colVis.showSupplier!==false&&React.createElement("td",{key:"hs",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaSupplier",e.target.value);}})),
+                colVis.showTotSupplier!==false&&React.createElement("td",{key:"ts",style:{padding:"4px 8px",fontFamily:"monospace",fontWeight:600,color:"#3b82f6",textAlign:"right",whiteSpace:"nowrap"}},ts>0?fmtS(ts):"—"),
                 React.createElement("td",{key:"hf",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaFinal||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaFinal",e.target.value);}})),
                 React.createElement("td",{key:"tf",style:{padding:"4px 8px",fontFamily:"monospace",fontWeight:600,color:"#059669",textAlign:"right",whiteSpace:"nowrap"}},tf>0?fmtS(tf):"—"),
-                React.createElement("td",{key:"mg",style:{padding:"4px 8px",textAlign:"right",whiteSpace:"nowrap"}},mgPct3!==null?React.createElement("div",null,React.createElement("span",{style:{display:"inline-block",padding:"2px 6px",borderRadius:"20px",fontSize:".62rem",fontWeight:700,background:mg>0?"#dcfce7":mg<0?"#fee2e2":"#f1f5f9",color:mg>0?"#16a34a":mg<0?"#dc2626":"#9ca3af"}},mgPct3+"%"),React.createElement("div",{style:{fontSize:".6rem",color:"#94a3b8",marginTop:"1px"}},fmtS(mg))):React.createElement("span",{style:{color:"#d1d5db"}},"—")),
+                colVis.showMargin!==false&&React.createElement("td",{key:"mg",style:{padding:"4px 8px",textAlign:"right",whiteSpace:"nowrap"}},mgPct3!==null?React.createElement("div",null,React.createElement("span",{style:{display:"inline-block",padding:"2px 6px",borderRadius:"20px",fontSize:".62rem",fontWeight:700,background:mg>0?"#dcfce7":mg<0?"#fee2e2":"#f1f5f9",color:mg>0?"#16a34a":mg<0?"#dc2626":"#9ca3af"}},mgPct3+"%"),React.createElement("div",{style:{fontSize:".6rem",color:"#94a3b8",marginTop:"1px"}},fmtS(mg))):React.createElement("span",{style:{color:"#d1d5db"}},"—")),
                 React.createElement("td",{key:"del",style:{padding:"4px 5px"}},React.createElement("button",{onClick:function(){delRow(row.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px",padding:"3px 5px",borderRadius:"5px"},onMouseOver:function(e){e.target.style.color="#dc2626";e.target.style.background="#fee2e2";},onMouseOut:function(e){e.target.style.color="#fca5a5";e.target.style.background="none";}},"✕"))
               ];
             }
@@ -462,9 +476,9 @@ function PageBelanja(p){
       ),
       React.createElement("button",{onClick:addRow,style:{width:"100%",padding:"9px",background:"none",border:"none",borderTop:"1px dashed #e2e8f0",cursor:"pointer",fontSize:".72rem",fontWeight:600,color:"#94a3b8"},onMouseOver:function(e){e.currentTarget.style.color="#2563eb";e.currentTarget.style.background="#eff6ff";},onMouseOut:function(e){e.currentTarget.style.color="#94a3b8";e.currentTarget.style.background="none";}},"＋ Tambah Baris"),
       React.createElement("div",{style:{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"7px 12px",display:"flex",gap:"16px",flexWrap:"wrap",fontSize:".68rem",alignItems:"center"}},
-        React.createElement("span",null,"Modal: ",React.createElement("b",{style:{color:"#3b82f6"}},fmt(totalSupplier))),
+        colVis.showSupplier!==false&&React.createElement("span",null,"Modal: ",React.createElement("b",{style:{color:"#3b82f6"}},fmt(totalSupplier))),
         React.createElement("span",null,"Final: ",React.createElement("b",{style:{color:"#059669"}},fmt(totalFinal))),
-        React.createElement("span",null,"Margin: ",React.createElement("b",{style:{color:totalMargin>=0?"#ea580c":"#dc2626"}},fmt(totalMargin)+" ("+marginPct+"%)"))
+        colVis.showMargin!==false&&React.createElement("span",null,"Margin: ",React.createElement("b",{style:{color:totalMargin>=0?"#ea580c":"#dc2626"}},fmt(totalMargin)+" ("+marginPct+"%)"))
       )
     ),
     React.createElement(Btn,{onClick:simpan,style:{width:"100%",padding:".75rem",fontSize:".875rem"}},"💾 Simpan Belanja")
