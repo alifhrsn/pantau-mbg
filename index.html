@@ -72,8 +72,8 @@ function useEffect(a,b){return _useEffect(a,b);}
 function useCallback(a,b){return _useCallback(a,b);}
 function useRef(a){return _useRef(a);}
 
-var fmt=function(n){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);};
-var fmtS=function(n){if(!n||n===0)return"Rp 0";if(n>=1e9)return"Rp"+(n/1e9).toFixed(1)+"M";if(n>=1e6)return"Rp"+(n/1e6).toFixed(1)+"jt";return"Rp"+(n/1e3).toFixed(0)+"rb";};
+var fmt=function(n){if(!n&&n!==0)return"Rp 0";var abs=Math.abs(Math.round(n));var s=abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g,".");return(n<0?"-":"")+"Rp "+s;};
+var fmtS=function(n){if(!n||n===0)return"Rp 0";var abs=Math.abs(n);if(abs>=1e9)return(n<0?"-":"")+"Rp "+(abs/1e9).toFixed(1).replace(".",",")+"M";if(abs>=1e6)return(n<0?"-":"")+"Rp "+(abs/1e6).toFixed(1).replace(".",",")+"jt";if(abs>=1e3)return(n<0?"-":"")+"Rp "+(abs/1e3).toFixed(0)+"rb";return(n<0?"-":"")+"Rp "+Math.round(abs).toString();};
 var today=function(){return new Date().toISOString().split("T")[0];};
 var uid=function(){return Math.random().toString(36).slice(2,10);};
 var monthLabel=function(d){try{return new Date(d+"-01").toLocaleDateString("id-ID",{month:"long",year:"numeric"});}catch(e){return d;}};
