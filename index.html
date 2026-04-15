@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <meta name="theme-color" content="#2563eb"/>
 <title>PantauBelanjaMBG</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -13,51 +13,69 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb}
-.spin{animation:spin 1s linear infinite}
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-.suggest-list{position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:200;max-height:180px;overflow-y:auto}
-.suggest-item{padding:7px 12px;cursor:pointer;font-size:0.73rem;border-bottom:1px solid #f8fafc;display:flex;justify-content:space-between;align-items:center}
-.suggest-item:hover{background:#eff6ff}
-.suggest-item:last-child{border-bottom:none}
-input:focus,select:focus{outline:none}
-.export-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:flex;align-items:flex-end;justify-content:center}
-.export-sheet{background:white;border-radius:1.25rem 1.25rem 0 0;width:100%;max-width:768px;padding:1.25rem 1rem 2rem;animation:slideUp 0.2s ease}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9}
+input:focus,select:focus,textarea:focus{outline:none}
+.suggest-list{position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:300;max-height:190px;overflow-y:auto}
+.suggest-item{padding:8px 12px;cursor:pointer;font-size:.73rem;border-bottom:1px solid #f8fafc;display:flex;justify-content:space-between;align-items:center}
+.suggest-item:hover,.suggest-item:active{background:#eff6ff}
+.exp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:400;display:flex;align-items:flex-end;justify-content:center}
+.exp-inner{background:white;border-radius:1.25rem 1.25rem 0 0;width:100%;max-width:900px;padding:1.25rem 1rem 1.75rem;animation:slideUp .2s ease}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.export-btn{display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;border-radius:0.75rem;border:1px solid #e2e8f0;background:white;cursor:pointer;width:100%;font-family:inherit;font-size:0.82rem;font-weight:600;color:#1e293b;transition:background 0.15s}
-.export-btn:hover{background:#f8fafc}
-.export-btn .icon{width:2.25rem;height:2.25rem;border-radius:0.625rem;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
-.export-btn .desc{font-size:0.65rem;font-weight:400;color:#94a3b8;margin-top:1px}
-.export-progress{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:8px 18px;border-radius:20px;font-size:0.78rem;font-weight:600;z-index:400;white-space:nowrap}
+.exp-btn{display:flex;align-items:center;gap:.75rem;padding:.7rem 1rem;border-radius:.75rem;border:1px solid #e2e8f0;background:white;cursor:pointer;width:100%;font-family:inherit;font-size:.82rem;font-weight:600;color:#1e293b;text-align:left;transition:background .12s}
+.exp-btn:hover{background:#f8fafc}
+.exp-progress{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:8px 20px;border-radius:20px;font-size:.78rem;font-weight:600;z-index:500;pointer-events:none}
+.xbtn{background:#f1f5f9;color:#475569;border:none;border-radius:.5rem;padding:4px 10px;font-size:.68rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
+.xbtn:hover{background:#e2e8f0}
+.drag-handle{cursor:grab;padding:4px 6px;color:#cbd5e1;font-size:1rem;user-select:none;touch-action:none}
+.drag-handle:active{cursor:grabbing}
+.row-dragging{opacity:.5;background:#eff6ff!important}
+/* RESPONSIVE */
+.app-shell{display:flex;flex-direction:column;min-height:100vh;max-width:1400px;margin:0 auto;width:100%}
+.topbar{background:linear-gradient(to right,#2563eb,#1d4ed8);color:white;padding:.75rem 1.25rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+@media(min-width:900px){
+  .topbar{padding:.75rem 2rem}
+  .content-area{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 56px)}
+  .sidebar{display:flex;flex-direction:column;background:white;border-right:1px solid #e2e8f0;padding:1rem .75rem;gap:.25rem;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto}
+  .bottom-nav{display:none!important}
+  .page-content{padding:1.5rem 2rem;padding-bottom:2rem;overflow-y:auto}
+  .sidebar-btn{display:flex;align-items:center;gap:.625rem;padding:.625rem .875rem;border-radius:.625rem;border:none;background:none;cursor:pointer;font-family:inherit;font-size:.83rem;font-weight:600;color:#64748b;width:100%;text-align:left;transition:background .12s}
+  .sidebar-btn:hover{background:#f1f5f9;color:#334155}
+  .sidebar-btn.active{background:#eff6ff;color:#2563eb}
+  .sidebar-btn .si{font-size:1.1rem;width:1.5rem;text-align:center}
+}
+@media(max-width:899px){
+  .content-area{display:block}
+  .sidebar{display:none}
+  .bottom-nav{display:flex!important}
+  .page-content{padding:.875rem;padding-bottom:5rem}
+}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const {useState,useMemo,useEffect,useCallback,useRef} = React;
+var _useState=React.useState,_useMemo=React.useMemo,_useEffect=React.useEffect,_useCallback=React.useCallback,_useRef=React.useRef;
+function useState(a){return _useState(a);}
+function useMemo(a,b){return _useMemo(a,b);}
+function useEffect(a,b){return _useEffect(a,b);}
+function useCallback(a,b){return _useCallback(a,b);}
+function useRef(a){return _useRef(a);}
 
-const fmt=n=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);
-const fmtS=n=>{if(!n||n===0)return"Rp 0";if(n>=1e9)return"Rp"+(n/1e9).toFixed(1)+"M";if(n>=1e6)return"Rp"+(n/1e6).toFixed(1)+"jt";return"Rp"+(n/1e3).toFixed(0)+"rb";};
-const today=()=>new Date().toISOString().split("T")[0];
-const uid=()=>Math.random().toString(36).slice(2,10);
-const monthLabel=d=>{try{return new Date(d+"-01").toLocaleDateString("id-ID",{month:"long",year:"numeric"});}catch(e){return d;}};
+var fmt=function(n){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);};
+var fmtS=function(n){if(!n||n===0)return"Rp 0";if(n>=1e9)return"Rp"+(n/1e9).toFixed(1)+"M";if(n>=1e6)return"Rp"+(n/1e6).toFixed(1)+"jt";return"Rp"+(n/1e3).toFixed(0)+"rb";};
+var today=function(){return new Date().toISOString().split("T")[0];};
+var uid=function(){return Math.random().toString(36).slice(2,10);};
+var monthLabel=function(d){try{return new Date(d+"-01").toLocaleDateString("id-ID",{month:"long",year:"numeric"});}catch(e){return d;}};
 
 function useLS(key,def){
-  const [val,setVal]=useState(function(){
-    try{var s=localStorage.getItem(key);return s?JSON.parse(s):def;}catch(e){return def;}
-  });
-  const set=useCallback(function(upd){
-    setVal(function(prev){
-      var next=typeof upd==="function"?upd(prev):upd;
-      try{localStorage.setItem(key,JSON.stringify(next));}catch(e){}
-      return next;
-    });
-  },[key]);
+  var init=useState(function(){try{var s=localStorage.getItem(key);return s?JSON.parse(s):def;}catch(e){return def;}});
+  var val=init[0],setVal=init[1];
+  var set=useCallback(function(upd){setVal(function(prev){var next=typeof upd==="function"?upd(prev):upd;try{localStorage.setItem(key,JSON.stringify(next));}catch(e){}return next;});},[ key]);
   return [val,set];
 }
 
-const HARGA0=[
+var HARGA0=[
   {id:"ih1",nama:"Beras",satuan:"kg",harga:14700},{id:"ih2",nama:"Ayam Potong",satuan:"pcs",harga:43000},
   {id:"ih3",nama:"Ayam Fillet Dada",satuan:"kg",harga:54000},{id:"ih4",nama:"Telur Ayam",satuan:"kg",harga:30000},
   {id:"ih5",nama:"Minyak Goreng",satuan:"jeriken",harga:400000},{id:"ih6",nama:"Wortel",satuan:"kg",harga:13000},
@@ -71,566 +89,410 @@ const HARGA0=[
   {id:"ih21",nama:"Susu UHT 1L",satuan:"dus",harga:276000},{id:"ih22",nama:"Susu FF 110ml",satuan:"dus",harga:127000},
   {id:"ih23",nama:"Jagung Pipil",satuan:"kg",harga:16000},{id:"ih24",nama:"Gula Pasir",satuan:"kg",harga:22000},
 ];
-const SATUAN_LIST=["pcs","kg","g","liter","ml","unit","set","m","m²","dus","karton","lembar","roll","botol","buah","peti","jeriken","ikat","lonjor","bungkus"];
 
 // ─── ATOMS ────────────────────────────────────────────────────────────────────
-function Overlay({children}){
-  return React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}},children);
-}
-function Card({children,style}){
-  return React.createElement("div",{style:Object.assign({background:"white",border:"1px solid #f1f5f9",borderRadius:"0.75rem",padding:"0.875rem"},style||{})},children);
-}
-function TH({children,right}){
-  return React.createElement("th",{style:{padding:"7px 10px",textAlign:right?"right":"left",color:"#94a3b8",fontWeight:700,fontSize:"0.62rem",textTransform:"uppercase",letterSpacing:"0.04em",whiteSpace:"nowrap",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},children);
-}
-function TD({children,style}){
-  return React.createElement("td",{style:Object.assign({padding:"7px 10px",borderTop:"1px solid #f8fafc",fontSize:"0.72rem",color:"#334155"},style||{})},children);
-}
-function Btn({children,onClick,color,small,style}){
-  var bg=color==="green"?"#059669":color==="red"?"#dc2626":color==="gray"?"#64748b":"#2563eb";
-  return React.createElement("button",{onClick:onClick,style:Object.assign({background:bg,color:"white",border:"none",borderRadius:"0.5rem",padding:small?"4px 10px":"0.5rem 1rem",fontSize:small?"0.68rem":"0.75rem",fontWeight:600,cursor:"pointer"},style||{})},children);
-}
-function PageHeader({title,sub,action}){
-  return React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
-    React.createElement("div",null,
-      React.createElement("h1",{style:{fontSize:"1.125rem",fontWeight:800,color:"#1e293b",margin:0}},title),
-      sub&&React.createElement("p",{style:{fontSize:"0.68rem",color:"#94a3b8",margin:0}},sub)
-    ),
-    action||null
-  );
-}
-function SppgSelector({sppgList,value,onChange,onAdd}){
-  return React.createElement("div",{style:{display:"flex",gap:"0.375rem",alignItems:"center"}},
-    React.createElement("select",{style:{flex:1,border:"1px solid #e2e8f0",borderRadius:"0.625rem",padding:"0.5rem 0.75rem",fontSize:"0.8rem",color:"#334155",background:"white"},value:value,onChange:function(e){onChange(e.target.value);}},
-      React.createElement("option",{value:""},"— Pilih SPPG —"),
-      sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})
-    ),
-    React.createElement("button",{onClick:onAdd,style:{background:"#2563eb",color:"white",border:"none",borderRadius:"0.625rem",padding:"0.5rem 0.75rem",fontSize:"0.75rem",fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}},"+ SPPG")
-  );
-}
+function Overlay(p){return React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}},p.children);}
+function Card(p){return React.createElement("div",{style:Object.assign({background:"white",border:"1px solid #f1f5f9",borderRadius:".75rem",padding:".875rem"},p.style||{})},p.children);}
+function TH(p){return React.createElement("th",{style:{padding:"7px 10px",textAlign:p.right?"right":"left",color:"#94a3b8",fontWeight:700,fontSize:".62rem",textTransform:"uppercase",letterSpacing:".04em",whiteSpace:"nowrap",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},p.children);}
+function TD(p){return React.createElement("td",{style:Object.assign({padding:"7px 10px",borderTop:"1px solid #f8fafc",fontSize:".72rem",color:"#334155"},p.style||{})},p.children);}
+function Btn(p){var bg=p.color==="green"?"#059669":p.color==="red"?"#dc2626":p.color==="gray"?"#64748b":"#2563eb";return React.createElement("button",{onClick:p.onClick,style:Object.assign({background:bg,color:"white",border:"none",borderRadius:".5rem",padding:p.small?"4px 10px":".5rem 1rem",fontSize:p.small?".68rem":".75rem",fontWeight:600,cursor:"pointer"},p.style||{})},p.children);}
+function PageHeader(p){return React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:".25rem"}},React.createElement("div",null,React.createElement("h1",{style:{fontSize:"1.1rem",fontWeight:800,color:"#1e293b",margin:0}},p.title),p.sub&&React.createElement("p",{style:{fontSize:".68rem",color:"#94a3b8",margin:0}},p.sub)),p.action||null);}
+function SppgSel(p){return React.createElement("div",{style:{display:"flex",gap:".375rem",alignItems:"center"}},React.createElement("select",{style:{flex:1,border:"1px solid #e2e8f0",borderRadius:".625rem",padding:".5rem .75rem",fontSize:".8rem",color:"#334155",background:"white"},value:p.value,onChange:function(e){p.onChange(e.target.value);}},React.createElement("option",{value:""},"— Pilih SPPG —"),p.list.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})),React.createElement("button",{onClick:p.onAdd,style:{background:"#2563eb",color:"white",border:"none",borderRadius:".625rem",padding:".5rem .75rem",fontSize:".75rem",fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}},"+ SPPG"));}
 
 // ─── BAHAN INPUT WITH SUGGESTION ─────────────────────────────────────────────
-function BahanInput({value,onChange,hargaDB,onSelectSuggestion,placeholder}){
-  var [open,setOpen]=useState(false);
+function BahanInput(p){
+  var s1=useState(false),open=s1[0],setOpen=s1[1];
   var ref=useRef(null);
-  var suggestions=useMemo(function(){
-    if(!value||value.length<1)return[];
-    var q=value.toLowerCase();
-    return (hargaDB||[]).filter(function(h){return h.nama&&h.nama.toLowerCase().includes(q);}).slice(0,7);
-  },[value,hargaDB]);
-
+  var sugg=useMemo(function(){
+    if(!p.value||p.value.length<1)return[];
+    var q=p.value.toLowerCase();
+    return (p.db||[]).filter(function(h){return h.nama&&h.nama.toLowerCase().indexOf(q)>=0;}).slice(0,7);
+  },[p.value,p.db]);
   useEffect(function(){
-    function handler(e){if(ref.current&&!ref.current.contains(e.target))setOpen(false);}
-    document.addEventListener("mousedown",handler);
-    return function(){document.removeEventListener("mousedown",handler);};
+    function h(e){if(ref.current&&!ref.current.contains(e.target))setOpen(false);}
+    document.addEventListener("mousedown",h);
+    return function(){document.removeEventListener("mousedown",h);};
   },[]);
-
   return React.createElement("div",{ref:ref,style:{position:"relative",width:"100%"}},
-    React.createElement("input",{
-      style:{width:"100%",border:"1px solid transparent",borderRadius:"6px",padding:"5px 7px",fontSize:"0.72rem",background:"transparent"},
-      className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",
-      placeholder:placeholder||"Nama bahan...",
-      value:value,
-      onChange:function(e){onChange(e.target.value);setOpen(true);},
-      onFocus:function(){if(value)setOpen(true);},
-    }),
-    open&&suggestions.length>0&&React.createElement("div",{className:"suggest-list"},
-      suggestions.map(function(h){
-        return React.createElement("div",{key:h.id||h.nama,className:"suggest-item",
-          onMouseDown:function(e){e.preventDefault();onSelectSuggestion(h);setOpen(false);}
-        },
-          React.createElement("span",{style:{fontWeight:600,color:"#1e293b"}},h.nama),
-          React.createElement("span",{style:{color:"#3b82f6",fontSize:"0.65rem"}},fmt(h.harga)+"/"+h.satuan)
-        );
-      })
-    )
+    React.createElement("input",{style:{width:"100%",border:"1px solid transparent",borderRadius:"6px",padding:"5px 7px",fontSize:".72rem",background:"transparent",fontFamily:"inherit"},className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",placeholder:p.placeholder||"Nama bahan...",value:p.value,onChange:function(e){p.onChange(e.target.value);setOpen(true);},onFocus:function(){if(p.value)setOpen(true);}}),
+    open&&sugg.length>0&&React.createElement("div",{className:"suggest-list"},sugg.map(function(h){return React.createElement("div",{key:h.id||h.nama,className:"suggest-item",onMouseDown:function(e){e.preventDefault();p.onSelect(h);setOpen(false);}},React.createElement("span",{style:{fontWeight:600,color:"#1e293b"}},h.nama),React.createElement("span",{style:{color:"#3b82f6",fontSize:".65rem"}},fmt(h.harga)+"/"+h.satuan));}))
   );
 }
 
 // ─── MODAL SPPG ───────────────────────────────────────────────────────────────
-function ModalSPPG({onSave,onClose}){
-  var [f,setF]=useState({nama:"",kecamatan:"",kabupaten:"",hariOperasional:26});
-  function set(k,v){setF(function(p){return Object.assign({},p,{[k]:v});});}
+function ModalSPPG(p){
+  var s1=useState({nama:"",kecamatan:"",kabupaten:"",hariOperasional:26});
+  var f=s1[0],setF=s1[1];
+  function set(k,v){setF(function(prev){return Object.assign({},prev,{[k]:v});});}
+  var fields=[["nama","Nama SPPG","SPPG Citeureup 1"],["kecamatan","Kecamatan",""],["kabupaten","Kab/Kota",""]];
   return React.createElement(Overlay,null,
-    React.createElement("div",{style:{background:"white",borderRadius:"1rem",width:"100%",maxWidth:"24rem",boxShadow:"0 20px 40px rgba(0,0,0,0.2)"}},
+    React.createElement("div",{style:{background:"white",borderRadius:"1rem",width:"100%",maxWidth:"24rem",boxShadow:"0 20px 40px rgba(0,0,0,.2)"}},
       React.createElement("div",{style:{padding:"1rem 1.25rem",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center"}},
-        React.createElement("p",{style:{fontWeight:700,fontSize:"0.9rem",margin:0}},"Tambah SPPG"),
-        React.createElement("button",{onClick:onClose,style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"1.5rem",lineHeight:1}},"×")
+        React.createElement("p",{style:{fontWeight:700,fontSize:".9rem",margin:0}},"Tambah SPPG"),
+        React.createElement("button",{onClick:p.onClose,style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"1.5rem",lineHeight:1}},"×")
       ),
-      React.createElement("div",{style:{padding:"1rem 1.25rem",display:"flex",flexDirection:"column",gap:"0.625rem"}},
-        [["nama","Nama SPPG","SPPG Citeureup 1"],["kecamatan","Kecamatan",""],["kabupaten","Kab/Kota",""]].map(function(x){
-          return React.createElement("div",{key:x[0]},
-            React.createElement("label",{style:{fontSize:"0.7rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"4px"}},x[1]),
-            React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"0.5rem 0.75rem",fontSize:"0.8rem"},placeholder:x[2],value:f[x[0]],onChange:function(e){set(x[0],e.target.value);}})
-          );
-        }),
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.7rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"4px"}},"Hari Operasional/Bulan"),
-          React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"0.5rem 0.75rem",fontSize:"0.8rem"},value:f.hariOperasional,onChange:function(e){set("hariOperasional",parseInt(e.target.value)||26);}})
-        )
+      React.createElement("div",{style:{padding:"1rem 1.25rem",display:"flex",flexDirection:"column",gap:".625rem"}},
+        fields.map(function(x){return React.createElement("div",{key:x[0]},React.createElement("label",{style:{fontSize:".7rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"4px"}},x[1]),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".5rem .75rem",fontSize:".8rem"},placeholder:x[2],value:f[x[0]],onChange:function(e){set(x[0],e.target.value);}}));}),
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".7rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"4px"}},"Hari Operasional/Bulan"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".5rem .75rem",fontSize:".8rem"},value:f.hariOperasional,onChange:function(e){set("hariOperasional",parseInt(e.target.value)||26);}}))
       ),
-      React.createElement("div",{style:{padding:"0.75rem 1.25rem",display:"flex",gap:"0.5rem"}},
-        React.createElement("button",{onClick:onClose,style:{flex:1,border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"0.5rem",fontSize:"0.8rem",background:"white",cursor:"pointer"}},"Batal"),
-        React.createElement(Btn,{onClick:function(){if(!f.nama)return alert("Nama SPPG wajib diisi!");onSave(Object.assign({},f,{id:"sppg-"+uid(),aktif:true}));},style:{flex:1}},"Simpan")
+      React.createElement("div",{style:{padding:".75rem 1.25rem",display:"flex",gap:".5rem"}},
+        React.createElement("button",{onClick:p.onClose,style:{flex:1,border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".5rem",fontSize:".8rem",background:"white",cursor:"pointer"}},"Batal"),
+        React.createElement(Btn,{onClick:function(){if(!f.nama)return alert("Nama SPPG wajib!");p.onSave(Object.assign({},f,{id:"sppg-"+uid(),aktif:true}));},style:{flex:1}},"Simpan")
+      )
+    )
+  );
+}
+
+// ─── DRAGGABLE ROW TABLE ──────────────────────────────────────────────────────
+function DraggableRows(p){
+  // p.rows, p.onReorder, p.renderRow
+  var s1=useState(null),dragIdx=s1[0],setDragIdx=s1[1];
+  var s2=useState(null),overIdx=s2[0],setOverIdx=s2[1];
+  function onDragStart(i){setDragIdx(i);}
+  function onDragOver(e,i){e.preventDefault();setOverIdx(i);}
+  function onDrop(i){
+    if(dragIdx===null||dragIdx===i){setDragIdx(null);setOverIdx(null);return;}
+    var newRows=p.rows.slice();
+    var dragged=newRows.splice(dragIdx,1)[0];
+    newRows.splice(i,0,dragged);
+    p.onReorder(newRows);
+    setDragIdx(null);setOverIdx(null);
+  }
+  function onDragEnd(){setDragIdx(null);setOverIdx(null);}
+  return React.createElement("tbody",null,
+    p.rows.map(function(row,i){
+      return React.createElement("tr",{
+        key:row.id,
+        draggable:true,
+        onDragStart:function(){onDragStart(i);},
+        onDragOver:function(e){onDragOver(e,i);},
+        onDrop:function(){onDrop(i);},
+        onDragEnd:onDragEnd,
+        style:{borderTop:"1px solid #f8fafc",background:overIdx===i?"#eff6ff":dragIdx===i?"rgba(79,110,247,.08)":"white",transition:"background .1s"}
+      },p.renderRow(row,i));
+    })
+  );
+}
+
+// ─── MODAL EDIT BELANJA ───────────────────────────────────────────────────────
+function ModalEditBelanja(p){
+  // p.entry, p.onSave, p.onClose, p.hargaDB, p.sppgList
+  var entry=p.entry;
+  var s1=useState(entry.judul||""),judul=s1[0],setJudul=s1[1];
+  var s2=useState(entry.tanggal||today()),tgl=s2[0],setTgl=s2[1];
+  var s3=useState(entry.porsiKecil||0),pk=s3[0],setPk=s3[1];
+  var s4=useState(entry.porsiBesar||0),pb=s4[0],setPb=s4[1];
+  var initItems=(entry.items||[]).map(function(it){return Object.assign({},it,{id:it.id||uid()});});
+  var s5=useState(initItems),rows=s5[0],setRowsRaw=s5[1];
+  function setRows(fn){setRowsRaw(function(prev){return fn(Array.isArray(prev)?prev:[]);});}
+  function emptyRow(){return {id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0};}
+  function updRow(id,field,val){setRows(function(prev){return prev.map(function(r){if(r.id!==id)return r;var v=(field==="qty"||field==="hargaSupplier"||field==="hargaFinal")?parseFloat(val)||0:val;return Object.assign({},r,{[field]:v});});});}
+  function selSugg(rowId,h){setRows(function(prev){return prev.map(function(r){if(r.id!==rowId)return r;return Object.assign({},r,{nama:h.nama,satuan:h.satuan,hargaSupplier:h.harga,hargaFinal:h.harga});});});}
+  function delRow(id){setRows(function(prev){return prev.filter(function(r){return r.id!==id;});});}
+  function save(){
+    var active=rows.filter(function(r){return r.nama&&r.qty>0;});
+    var ts=active.reduce(function(a,r){return a+r.qty*(r.hargaSupplier||0);},0);
+    var tf=active.reduce(function(a,r){return a+r.qty*(r.hargaFinal||0);},0);
+    p.onSave(Object.assign({},entry,{judul:judul,tanggal:tgl,porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,items:active,totalSupplier:ts,totalFinal:tf}));
+  }
+  var iS={width:"100%",border:"1px solid transparent",borderRadius:"6px",padding:"4px 6px",fontSize:".7rem",background:"transparent",fontFamily:"inherit"};
+  return React.createElement(Overlay,null,
+    React.createElement("div",{style:{background:"white",borderRadius:"1rem",width:"100%",maxWidth:"56rem",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 40px rgba(0,0,0,.2)"}},
+      React.createElement("div",{style:{padding:"1rem 1.25rem",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"white",zIndex:10}},
+        React.createElement("p",{style:{fontWeight:700,fontSize:".9rem",margin:0}},"Edit Belanja"),
+        React.createElement("button",{onClick:p.onClose,style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"1.5rem",lineHeight:1}},"×")
+      ),
+      React.createElement("div",{style:{padding:"1rem 1.25rem",display:"flex",flexDirection:"column",gap:".75rem"}},
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem"}},
+          React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Judul"),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:judul,onChange:function(e){setJudul(e.target.value);}})),
+          React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),React.createElement("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:tgl,onChange:function(e){setTgl(e.target.value);}}))
+        ),
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem"}},
+          React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#3b82f6",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Kecil"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#eff6ff"},value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})),
+          React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#ea580c",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Besar"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#fff7ed"},value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}}))
+        ),
+        React.createElement("div",{style:{overflowX:"auto"}},
+          React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".7rem",minWidth:"580px"}},
+            React.createElement("thead",null,React.createElement("tr",null,["","NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","H.FINAL",""].map(function(h,i){return React.createElement(TH,{key:i},h);}))),
+            React.createElement(DraggableRows,{
+              rows:rows,
+              onReorder:function(r){setRows(function(){return r;});},
+              renderRow:function(row,idx){
+                return [
+                  React.createElement("td",{key:"drag",style:{padding:"4px 4px",textAlign:"center"}},React.createElement("span",{className:"drag-handle",title:"Drag untuk pindah urutan"},"⠿")),
+                  React.createElement("td",{key:"no",style:{padding:"4px 8px",textAlign:"center",color:"#94a3b8",fontSize:".65rem",fontWeight:600}},idx+1),
+                  React.createElement("td",{key:"nama",style:{padding:"4px 6px",minWidth:"130px"}},React.createElement(BahanInput,{value:row.nama,onChange:function(v){updRow(row.id,"nama",v);},db:p.hargaDB,onSelect:function(h){selSugg(row.id,h);}})),
+                  React.createElement("td",{key:"qty",style:{padding:"4px 5px",width:"60px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"54px",textAlign:"center",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.qty||"",placeholder:"0",onChange:function(e){updRow(row.id,"qty",e.target.value);}})),
+                  React.createElement("td",{key:"sat",style:{padding:"4px 5px",width:"80px"}},React.createElement("input",{style:Object.assign({},iS,{width:"74px"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",placeholder:"kg/pcs/...",value:row.satuan,onChange:function(e){updRow(row.id,"satuan",e.target.value);}})),
+                  React.createElement("td",{key:"hs",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaSupplier",e.target.value);}})),
+                  React.createElement("td",{key:"hf",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaFinal||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaFinal",e.target.value);}})),
+                  React.createElement("td",{key:"del",style:{padding:"4px 5px"}},React.createElement("button",{onClick:function(){delRow(row.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px",padding:"3px 5px",borderRadius:"5px"}},"✕"))
+                ];
+              }
+            })
+          )
+        ),
+        React.createElement("button",{onClick:function(){setRows(function(prev){return prev.concat([emptyRow()]);});},style:{border:"1px dashed #e2e8f0",borderRadius:".5rem",padding:"7px",background:"none",cursor:"pointer",fontSize:".72rem",color:"#94a3b8"}},"＋ Tambah Baris")
+      ),
+      React.createElement("div",{style:{padding:".75rem 1.25rem",display:"flex",gap:".5rem",position:"sticky",bottom:0,background:"white",borderTop:"1px solid #f1f5f9"}},
+        React.createElement("button",{onClick:p.onClose,style:{flex:1,border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".5rem",fontSize:".8rem",background:"white",cursor:"pointer"}},"Batal"),
+        React.createElement(Btn,{onClick:save,style:{flex:1}},"Simpan Perubahan")
       )
     )
   );
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function PageDashboard({sppgList,belanjaList,operasionalList,setModal,onExport}){
+function PageDashboard(p){
   var bln=new Date().toISOString().slice(0,7);
-  var safeB=Array.isArray(belanjaList)?belanjaList:[];
-  var safeO=Array.isArray(operasionalList)?operasionalList:[];
-
-  var blnBelanja=safeB.filter(function(b){return b.tanggal&&b.tanggal.startsWith(bln);});
-  var totalBelanjaAll=safeB.reduce(function(a,b){return a+(b.totalFinal||0);},0);
-  var totalBlnIni=blnBelanja.reduce(function(a,b){return a+(b.totalFinal||0);},0);
-  var totalModalBlnIni=blnBelanja.reduce(function(a,b){return a+(b.totalSupplier||0);},0);
-  var marginBlnIni=totalBlnIni-totalModalBlnIni;
-  var totalOpBlnIni=safeO.filter(function(o){return o.tanggal&&o.tanggal.startsWith(bln);}).reduce(function(a,o){return a+(o.jumlah||0);},0);
-  var budgetHarianBlnIni=blnBelanja.reduce(function(a,b){return a+((b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000);},0);
-
+  var safeB=Array.isArray(p.belanjaList)?p.belanjaList:[];
+  var safeO=Array.isArray(p.operasionalList)?p.operasionalList:[];
+  var blnB=safeB.filter(function(b){return b.tanggal&&b.tanggal.startsWith(bln);});
+  var totalBlnIni=blnB.reduce(function(a,b){return a+(b.totalFinal||0);},0);
+  var totalModal=blnB.reduce(function(a,b){return a+(b.totalSupplier||0);},0);
+  var marginBln=totalBlnIni-totalModal;
+  var totalOp=safeO.filter(function(o){return o.tanggal&&o.tanggal.startsWith(bln);}).reduce(function(a,o){return a+(o.jumlah||0);},0);
+  var budgetHarian=blnB.reduce(function(a,b){return a+((b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000);},0);
   var bahanMap={};
-  blnBelanja.forEach(function(b){(b.items||[]).forEach(function(item){
-    if(!item.nama)return;
-    if(!bahanMap[item.nama])bahanMap[item.nama]={nama:item.nama,totalHarga:0,count:0};
-    bahanMap[item.nama].totalHarga+=(item.qty||0)*(item.hargaSupplier||0);
-    bahanMap[item.nama].count++;
-  });});
+  blnB.forEach(function(b){(b.items||[]).forEach(function(it){if(!it.nama)return;if(!bahanMap[it.nama])bahanMap[it.nama]={nama:it.nama,totalHarga:0,count:0};bahanMap[it.nama].totalHarga+=(it.qty||0)*(it.hargaSupplier||0);bahanMap[it.nama].count++;});});
   var topBahan=Object.values(bahanMap).sort(function(a,b){return b.totalHarga-a.totalHarga;}).slice(0,5);
-
-  var recentBelanja=safeB.slice().sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");}).slice(0,5);
-
-  var perSppg=sppgList.map(function(s){
-    var bl=safeB.filter(function(b){return b.sppgId===s.id;});
-    var blnBl=bl.filter(function(b){return b.tanggal&&b.tanggal.startsWith(bln);});
-    return {id:s.id,nama:s.nama,blnTotal:blnBl.reduce(function(a,b){return a+(b.totalFinal||0);},0),total:bl.reduce(function(a,b){return a+(b.totalFinal||0);},0),count:bl.length};
-  });
-
-  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.875rem"}},
-    React.createElement("div",{id:"dash-content"},
-    React.createElement(PageHeader,{title:"Dashboard",sub:"Rekap "+monthLabel(bln),action:
-      React.createElement("div",{style:{display:"flex",gap:"0.375rem"}},
-        React.createElement("button",{className:"xbtn",onClick:function(){if(!onExport)return;
-          var csvH=["SPPG","Belanja Bln Ini","Total","Transaksi"];
-          var csvR=perSppg.map(function(s){return[s.nama,s.blnTotal,s.total,s.count];});
-          var exSheets=[{name:"Dashboard",data:[["Dashboard MBG - "+monthLabel(bln)],[],["Metrik","Nilai"],["Belanja Bulan Ini",totalBlnIni],["Budget Harian",budgetHarianBlnIni],["Operasional",totalOpBlnIni],["Margin",marginBlnIni],[],["SPPG","Bln Ini","Total","Trx"]].concat(perSppg.map(function(s){return[s.nama,s.blnTotal,s.total,s.count];}))},{name:"Top Bahan",data:[["Bahan","Total Harga","Frekuensi"]].concat(topBahan.map(function(b){return[b.nama,b.totalHarga,b.count];}))}];
-          var txtL=["DASHBOARD MBG","Periode: "+monthLabel(bln),"","Belanja Bln Ini : "+fmtS(totalBlnIni),"Budget Harian   : "+fmtS(budgetHarianBlnIni),"Operasional     : "+fmtS(totalOpBlnIni),"Margin          : "+fmtS(marginBlnIni),"","PER SPPG:"].concat(perSppg.map(function(s){return"  "+s.nama+": "+fmtS(s.blnTotal)+" ("+s.count+"x)";}));
-          onExport({title:"Dashboard - "+monthLabel(bln),elementId:"dash-content",filename:"Dashboard_MBG_"+bln,csvHeaders:csvH,csvRows:csvR,excelSheets:exSheets,txtLines:txtL});
-        }},"⬇ Export"),
-        React.createElement(Btn,{onClick:function(){setModal("sppg");},small:true},"+ SPPG")
-      )
-    }),
-    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem"}},
-      [{l:"Belanja Bln Ini",v:fmtS(totalBlnIni),c:"#2563eb",bg:"#eff6ff",bd:"#bfdbfe",icon:"🛒"},
-       {l:"Budget Harian (Porsi)",v:fmtS(budgetHarianBlnIni),c:"#7c3aed",bg:"#f5f3ff",bd:"#ddd6fe",icon:"🍱"},
-       {l:"Total Operasional",v:fmtS(totalOpBlnIni),c:"#ea580c",bg:"#fff7ed",bd:"#fed7aa",icon:"⚙️"},
-       {l:"Margin Bln Ini",v:fmtS(marginBlnIni),c:marginBlnIni>=0?"#059669":"#dc2626",bg:marginBlnIni>=0?"#f0fdf4":"#fef2f2",bd:marginBlnIni>=0?"#bbf7d0":"#fecaca",icon:"📈"},
-      ].map(function(x){
-        return React.createElement("div",{key:x.l,style:{background:x.bg,border:"1px solid "+x.bd,borderRadius:"0.75rem",padding:"0.75rem"}},
-          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
-            React.createElement("p",{style:{fontSize:"0.62rem",fontWeight:700,color:"#64748b",margin:0,textTransform:"uppercase",letterSpacing:"0.04em"}},x.l),
-            React.createElement("span",{style:{fontSize:"1rem"}},x.icon)
-          ),
-          React.createElement("p",{style:{fontSize:"1.05rem",fontWeight:800,color:x.c,margin:"4px 0 0"}},x.v)
-        );
-      })
+  var recent=safeB.slice().sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");}).slice(0,6);
+  var perSppg=p.sppgList.map(function(s){var bl=safeB.filter(function(b){return b.sppgId===s.id;});var bBln=bl.filter(function(b){return b.tanggal&&b.tanggal.startsWith(bln);});return {id:s.id,nama:s.nama,blnTotal:bBln.reduce(function(a,b){return a+(b.totalFinal||0);},0),total:bl.reduce(function(a,b){return a+(b.totalFinal||0);},0),count:bl.length};});
+  var cards=[
+    {l:"Belanja Bln Ini",v:fmtS(totalBlnIni),c:"#2563eb",bg:"#eff6ff",bd:"#bfdbfe",icon:"🛒"},
+    {l:"Budget Harian (Porsi)",v:fmtS(budgetHarian),c:"#7c3aed",bg:"#f5f3ff",bd:"#ddd6fe",icon:"🍱"},
+    {l:"Operasional",v:fmtS(totalOp),c:"#ea580c",bg:"#fff7ed",bd:"#fed7aa",icon:"⚙️"},
+    {l:"Margin",v:fmtS(marginBln),c:marginBln>=0?"#059669":"#dc2626",bg:marginBln>=0?"#f0fdf4":"#fef2f2",bd:marginBln>=0?"#bbf7d0":"#fecaca",icon:"📈"},
+  ];
+  return React.createElement("div",{id:"dash-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
+    React.createElement(PageHeader,{title:"Dashboard",sub:"Rekap "+monthLabel(bln),action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;p.onExport({title:"Dashboard",elementId:"dash-content",filename:"Dashboard_MBG_"+bln,csvHeaders:["SPPG","Bln Ini","Total","Trx"],csvRows:perSppg.map(function(s){return[s.nama,s.blnTotal,s.total,s.count];}),excelSheets:[{name:"Dashboard",data:[["Dashboard MBG - "+monthLabel(bln)],[],["Metrik","Nilai"],["Belanja Bln Ini",totalBlnIni],["Budget Harian",budgetHarian],["Operasional",totalOp],["Margin",marginBln],[],["SPPG","Bln Ini","Total","Trx"]].concat(perSppg.map(function(s){return[s.nama,s.blnTotal,s.total,s.count];}))},{name:"Top Bahan",data:[["Bahan","Total Harga","Frekuensi"]].concat(topBahan.map(function(b){return[b.nama,b.totalHarga,b.count];}))}],txtLines:["DASHBOARD MBG","Periode: "+monthLabel(bln),"","Belanja: "+fmtS(totalBlnIni),"Operasional: "+fmtS(totalOp),"Margin: "+fmtS(marginBln)]});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){p.setModal("sppg");},small:true},"+ SPPG"))}),
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:".5rem"}},
+      cards.map(function(x){return React.createElement("div",{key:x.l,style:{background:x.bg,border:"1px solid "+x.bd,borderRadius:".75rem",padding:".75rem"}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},React.createElement("p",{style:{fontSize:".62rem",fontWeight:700,color:"#64748b",margin:0,textTransform:"uppercase",letterSpacing:".04em"}},x.l),React.createElement("span",null,x.icon)),React.createElement("p",{style:{fontSize:"1.05rem",fontWeight:800,color:x.c,margin:"4px 0 0"}},x.v));})
     ),
-    sppgList.length>0&&React.createElement(Card,null,
-      React.createElement("p",{style:{fontSize:"0.75rem",fontWeight:700,color:"#475569",margin:"0 0 0.625rem"}},"Rekap per SPPG — "+monthLabel(bln)),
-      React.createElement("div",{style:{overflowX:"auto"}},
-        React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:"0.7rem",minWidth:"300px"}},
-          React.createElement("thead",null,React.createElement("tr",null,["SPPG","Bln Ini","Total","Transaksi"].map(function(h,i){return React.createElement(TH,{key:h,right:i>0},h);}))),
-          React.createElement("tbody",null,perSppg.map(function(s){
-            return React.createElement("tr",{key:s.id},
-              React.createElement(TD,null,React.createElement("b",{style:{color:"#1e293b"}},s.nama)),
-              React.createElement(TD,{style:{textAlign:"right",color:"#2563eb",fontWeight:700}},fmtS(s.blnTotal)),
-              React.createElement(TD,{style:{textAlign:"right",color:"#64748b"}},fmtS(s.total)),
-              React.createElement(TD,{style:{textAlign:"right",color:"#94a3b8"}},s.count+"x")
-            );
-          }))
-        )
-      )
+    p.sppgList.length>0&&React.createElement(Card,null,
+      React.createElement("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:"0 0 .625rem"}},"Rekap per SPPG — "+monthLabel(bln)),
+      React.createElement("div",{style:{overflowX:"auto"}},React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".7rem",minWidth:"280px"}},React.createElement("thead",null,React.createElement("tr",null,["SPPG","Bln Ini","Total","Trx"].map(function(h,i){return React.createElement(TH,{key:h,right:i>0},h);}))),React.createElement("tbody",null,perSppg.map(function(s){return React.createElement("tr",{key:s.id},React.createElement(TD,null,React.createElement("b",{style:{color:"#1e293b"}},s.nama)),React.createElement(TD,{style:{textAlign:"right",color:"#2563eb",fontWeight:700}},fmtS(s.blnTotal)),React.createElement(TD,{style:{textAlign:"right",color:"#64748b"}},fmtS(s.total)),React.createElement(TD,{style:{textAlign:"right",color:"#94a3b8"}},s.count+"x"));}))))
     ),
     topBahan.length>0&&React.createElement(Card,null,
-      React.createElement("p",{style:{fontSize:"0.75rem",fontWeight:700,color:"#475569",margin:"0 0 0.625rem"}},"Top Bahan Bulan Ini"),
-      React.createElement("div",{style:{overflowX:"auto"}},
-        React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:"0.7rem"}},
-          React.createElement("thead",null,React.createElement("tr",null,["Bahan","Total Harga","Frekuensi"].map(function(h,i){return React.createElement(TH,{key:h,right:i>0},h);}))),
-          React.createElement("tbody",null,topBahan.map(function(b,i){
-            return React.createElement("tr",{key:i},
-              React.createElement(TD,null,React.createElement("b",null,b.nama)),
-              React.createElement(TD,{style:{textAlign:"right",color:"#059669",fontWeight:700}},fmtS(b.totalHarga)),
-              React.createElement(TD,{style:{textAlign:"right",color:"#94a3b8"}},b.count+"x")
-            );
-          }))
-        )
-      )
+      React.createElement("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:"0 0 .625rem"}},"Top Bahan Bulan Ini"),
+      React.createElement("div",{style:{overflowX:"auto"}},React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".7rem"}},React.createElement("thead",null,React.createElement("tr",null,["Bahan","Total Harga","Frekuensi"].map(function(h,i){return React.createElement(TH,{key:h,right:i>0},h);}))),React.createElement("tbody",null,topBahan.map(function(b,i){return React.createElement("tr",{key:i},React.createElement(TD,null,React.createElement("b",null,b.nama)),React.createElement(TD,{style:{textAlign:"right",color:"#059669",fontWeight:700}},fmtS(b.totalHarga)),React.createElement(TD,{style:{textAlign:"right",color:"#94a3b8"}},b.count+"x"));}))))
     ),
-    recentBelanja.length>0&&React.createElement(Card,null,
-      React.createElement("p",{style:{fontSize:"0.75rem",fontWeight:700,color:"#475569",margin:"0 0 0.625rem"}},"Belanja Terakhir"),
-      React.createElement("div",{style:{overflowX:"auto"}},
-        React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:"0.7rem",minWidth:"300px"}},
-          React.createElement("thead",null,React.createElement("tr",null,["Tanggal","Judul","SPPG","Total"].map(function(h,i){return React.createElement(TH,{key:h,right:i===3},h);}))),
-          React.createElement("tbody",null,recentBelanja.map(function(b){
-            var s=sppgList.find(function(x){return x.id===b.sppgId;});
-            return React.createElement("tr",{key:b.id},
-              React.createElement(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap"}},b.tanggal?new Date(b.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"}):"—"),
-              React.createElement(TD,{style:{maxWidth:"110px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:600}},b.judul||"(tanpa judul)"),
-              React.createElement(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap",maxWidth:"80px",overflow:"hidden",textOverflow:"ellipsis"}},s?s.nama:"—"),
-              React.createElement(TD,{style:{textAlign:"right",fontWeight:700,color:"#2563eb",whiteSpace:"nowrap"}},fmtS(b.totalFinal||0))
-            );
-          }))
-        )
-      )
+    recent.length>0&&React.createElement(Card,null,
+      React.createElement("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:"0 0 .625rem"}},"Belanja Terakhir"),
+      React.createElement("div",{style:{overflowX:"auto"}},React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".7rem",minWidth:"280px"}},React.createElement("thead",null,React.createElement("tr",null,["Tanggal","Judul","SPPG","Total"].map(function(h,i){return React.createElement(TH,{key:h,right:i===3},h);}))),React.createElement("tbody",null,recent.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return React.createElement("tr",{key:b.id},React.createElement(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap"}},b.tanggal?new Date(b.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short"}):"—"),React.createElement(TD,{style:{maxWidth:"110px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:600}},b.judul||"(tanpa judul)"),React.createElement(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap",maxWidth:"80px",overflow:"hidden",textOverflow:"ellipsis"}},s?s.nama:"—"),React.createElement(TD,{style:{textAlign:"right",fontWeight:700,color:"#2563eb",whiteSpace:"nowrap"}},fmtS(b.totalFinal||0)));}))))
     ),
-    safeB.length===0&&React.createElement("div",{style:{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:"0.75rem",padding:"1.5rem",textAlign:"center"}},
-      React.createElement("p",{style:{fontSize:"1.5rem",margin:"0 0 0.5rem"}},"🛒"),
-      React.createElement("p",{style:{fontSize:"0.8rem",fontWeight:600,color:"#1d4ed8",margin:0}},"Belum ada data belanja"),
-      React.createElement("p",{style:{fontSize:"0.7rem",color:"#60a5fa",marginTop:"0.25rem"}},"Mulai input di tab Belanja")
-    )
-    ) // end dash-content
+    safeB.length===0&&React.createElement("div",{style:{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:".75rem",padding:"1.5rem",textAlign:"center"}},React.createElement("p",{style:{fontSize:"1.5rem",margin:"0 0 .5rem"}},"🛒"),React.createElement("p",{style:{fontSize:".8rem",fontWeight:600,color:"#1d4ed8",margin:0}},"Belum ada data belanja"),React.createElement("p",{style:{fontSize:".7rem",color:"#60a5fa",marginTop:".25rem"}},"Mulai input di tab Belanja"))
   );
 }
 
 // ─── BELANJA ──────────────────────────────────────────────────────────────────
-function PageBelanja({sppgList,belanjaList,setBelanjaList,hargaDB,setHargaDB,setModal,onExport}){
-  var emptyRow=function(){return {id:uid(),nama:"",qty:0,satuan:"pcs",hargaSupplier:0,hargaFinal:0};};
+function PageBelanja(p){
+  function emptyRow(){return {id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0};}
   var initRows=(function(){var r=[];for(var i=0;i<8;i++)r.push(emptyRow());return r;})();
-  var [selSppg,setSelSppg]=useState(sppgList[0]?sppgList[0].id:"");
-  var [judul,setJudul]=useState("");
-  var [tanggal,setTanggal]=useState(today());
-  var [porsiKecil,setPorsiKecil]=useState(0);
-  var [porsiBesar,setPorsiBesar]=useState(0);
-  var [rows,setRowsRaw]=useLS("mbg_belanja_draft",initRows);
+  var s1=useState(p.sppgList[0]?p.sppgList[0].id:""),selSppg=s1[0],setSelSppg=s1[1];
+  var s2=useState(""),judul=s2[0],setJudul=s2[1];
+  var s3=useState(today()),tgl=s3[0],setTgl=s3[1];
+  var s4=useState(0),pk=s4[0],setPk=s4[1];
+  var s5=useState(0),pb=s5[0],setPb=s5[1];
+  var s6=useLS("mbg_belanja_draft",initRows),rows=s6[0],setRowsRaw=s6[1];
   var safeRows=Array.isArray(rows)?rows:initRows;
-  function setRows(fn){setRowsRaw(function(prev){var p=Array.isArray(prev)?prev:initRows;return fn(p);});}
-  var [globalMargin,setGlobalMargin]=useState(0);
-  var [view,setView]=useState("input");
-  var [filterSppg,setFilterSppg]=useState("semua");
-  var [openId,setOpenId]=useState(null);
+  function setRows(fn){setRowsRaw(function(prev){var p2=Array.isArray(prev)?prev:initRows;return fn(p2);});}
+  var s7=useState(0),globalMargin=s7[0],setGlobalMargin=s7[1];
+  var s8=useState("input"),view=s8[0],setView=s8[1];
+  var s9=useState("semua"),filterSppg=s9[0],setFilterSppg=s9[1];
+  var s10=useState(null),openId=s10[0],setOpenId=s10[1];
+  var s11=useState(null),editEntry=s11[0],setEditEntry=s11[1];
 
-  var totalSupplier=safeRows.reduce(function(a,r){return a+r.qty*r.hargaSupplier;},0);
-  var totalFinal=safeRows.reduce(function(a,r){return a+r.qty*r.hargaFinal;},0);
+  var totalSupplier=safeRows.reduce(function(a,r){return a+r.qty*(r.hargaSupplier||0);},0);
+  var totalFinal=safeRows.reduce(function(a,r){return a+r.qty*(r.hargaFinal||0);},0);
   var totalMargin=totalFinal-totalSupplier;
   var marginPct=totalSupplier>0?((totalMargin/totalSupplier)*100).toFixed(1):0;
-  var budgetHarian=(porsiKecil||0)*8000+(porsiBesar||0)*10000;
+  var budgetHarian=(pk||0)*8000+(pb||0)*10000;
 
-  function updateRow(id,field,val){
-    setRows(function(p){return p.map(function(r){
-      if(r.id!==id)return r;
-      var v=(field==="qty"||field==="hargaSupplier"||field==="hargaFinal")?parseFloat(val)||0:val;
-      return Object.assign({},r,{[field]:v});
-    });});
-  }
-  function selectSuggestion(rowId,h){
-    setRows(function(p){return p.map(function(r){
-      if(r.id!==rowId)return r;
-      var hf=globalMargin>0?Math.round(h.harga*(1+globalMargin/100)):h.harga;
-      return Object.assign({},r,{nama:h.nama,satuan:h.satuan,hargaSupplier:h.harga,hargaFinal:hf});
-    });});
-  }
-  function applyMargin(){setRows(function(p){return p.map(function(r){return Object.assign({},r,{hargaFinal:Math.round(r.hargaSupplier*(1+globalMargin/100))});});});}
-  function addRow(){setRows(function(p){return p.concat([emptyRow()]);});}
-  function delRow(id){setRows(function(p){return p.length>1?p.filter(function(r){return r.id!==id;}):p;});}
+  function updRow(id,field,val){setRows(function(prev){return prev.map(function(r){if(r.id!==id)return r;var v=(field==="qty"||field==="hargaSupplier"||field==="hargaFinal")?parseFloat(val)||0:val;return Object.assign({},r,{[field]:v});});});}
+  function selSugg(rowId,h){setRows(function(prev){return prev.map(function(r){if(r.id!==rowId)return r;var hf=globalMargin>0?Math.round(h.harga*(1+globalMargin/100)):h.harga;return Object.assign({},r,{nama:h.nama,satuan:h.satuan,hargaSupplier:h.harga,hargaFinal:hf});});});}
+  function applyMargin(){setRows(function(prev){return prev.map(function(r){return Object.assign({},r,{hargaFinal:Math.round((r.hargaSupplier||0)*(1+globalMargin/100))});});});}
+  function addRow(){setRows(function(prev){return prev.concat([emptyRow()]);});}
+  function delRow(id){setRows(function(prev){return prev.length>1?prev.filter(function(r){return r.id!==id;}):prev;});}
 
   function simpan(){
     if(!selSppg)return alert("Pilih SPPG dulu!");
     if(!judul)return alert("Isi judul belanja!");
-    var activeRows=safeRows.filter(function(r){return r.nama&&r.qty>0;});
-    if(activeRows.length===0)return alert("Minimal 1 bahan diisi!");
-    var newDB=Object.assign({},Object.fromEntries((hargaDB||[]).map(function(h){return [h.nama,h];})));
-    activeRows.forEach(function(r){if(r.nama&&r.hargaSupplier>0)newDB[r.nama]={id:newDB[r.nama]?newDB[r.nama].id:"h"+uid(),nama:r.nama,satuan:r.satuan,harga:r.hargaSupplier};});
-    setHargaDB(Object.values(newDB));
-    var entry={id:uid(),sppgId:selSppg,judul:judul,tanggal:tanggal,porsiKecil:parseInt(porsiKecil)||0,porsiBesar:parseInt(porsiBesar)||0,items:activeRows,totalSupplier:totalSupplier,totalFinal:totalFinal,createdAt:new Date().toISOString()};
-    setBelanjaList(function(p){return [entry].concat(Array.isArray(p)?p:[]);});
+    var active=safeRows.filter(function(r){return r.nama&&r.qty>0;});
+    if(active.length===0)return alert("Minimal 1 bahan diisi!");
+    var newDB=Object.assign({},Object.fromEntries((p.hargaDB||[]).map(function(h){return [h.nama,h];})));
+    active.forEach(function(r){if(r.nama&&(r.hargaSupplier||0)>0)newDB[r.nama]={id:newDB[r.nama]?newDB[r.nama].id:"h"+uid(),nama:r.nama,satuan:r.satuan,harga:r.hargaSupplier||0};});
+    p.setHargaDB(Object.values(newDB));
+    var entry={id:uid(),sppgId:selSppg,judul:judul,tanggal:tgl,porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,items:active,totalSupplier:totalSupplier,totalFinal:totalFinal,createdAt:new Date().toISOString()};
+    p.setBelanjaList(function(prev){return [entry].concat(Array.isArray(prev)?prev:[]);});
     var r=[];for(var i=0;i<8;i++)r.push(emptyRow());
     setRows(function(){return r;});
-    setJudul("");setPorsiKecil(0);setPorsiBesar(0);
+    setJudul("");setPk(0);setPb(0);
     setView("riwayat");
   }
+  function delBelanja(id){if(!confirm("Hapus data belanja ini?"))return;p.setBelanjaList(function(prev){return prev.filter(function(b){return b.id!==id;});});}
+  function saveEdit(updated){p.setBelanjaList(function(prev){return prev.map(function(b){return b.id===updated.id?updated:b;});});setEditEntry(null);}
 
-  function delBelanja(id){if(!confirm("Hapus data belanja ini?"))return;setBelanjaList(function(p){return p.filter(function(b){return b.id!==id;});});}
+  var iS={width:"100%",border:"1px solid transparent",borderRadius:"6px",padding:"5px 7px",fontSize:".72rem",background:"transparent",fontFamily:"inherit"};
 
-  // ── RIWAYAT ──
+  // ── RIWAYAT VIEW ──
   if(view==="riwayat"){
-    var safeB=Array.isArray(belanjaList)?belanjaList:[];
+    var safeB=Array.isArray(p.belanjaList)?p.belanjaList:[];
     var filtered2=safeB.filter(function(b){return filterSppg==="semua"||b.sppgId===filterSppg;}).slice().sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
-    return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.875rem"}},
-      React.createElement("div",{id:"riwayat-content"},
-      React.createElement(PageHeader,{title:"Riwayat Belanja",action:
-        React.createElement("div",{style:{display:"flex",gap:"0.375rem"}},
-          React.createElement("button",{className:"xbtn",onClick:function(){if(!onExport)return;
-            var safeB2=Array.isArray(belanjaList)?belanjaList:[];
-            var filt=safeB2.filter(function(b){return filterSppg==="semua"||b.sppgId===filterSppg;});
-            var csvH=["Tanggal","Judul","SPPG","Porsi Kecil","Porsi Besar","Modal","Harga Jual","Margin"];
-            var csvR=filt.map(function(b){var s=sppgList.find(function(x){return x.id===b.sppgId;});return[b.tanggal||"",b.judul||"",s?s.nama:"",b.porsiKecil||0,b.porsiBesar||0,b.totalSupplier||0,b.totalFinal||0,(b.totalFinal||0)-(b.totalSupplier||0)];});
-            var detailRows=[["Tanggal","Belanja","SPPG","Bahan","QTY","Satuan","H.Supplier","Total Supplier","H.Final","Total Final","Margin"]];
-            filt.forEach(function(b){var s=sppgList.find(function(x){return x.id===b.sppgId;});(b.items||[]).forEach(function(item){var ts=item.qty*item.hargaSupplier,tf=item.qty*item.hargaFinal;detailRows.push([b.tanggal,b.judul,s?s.nama:"",item.nama,item.qty,item.satuan,item.hargaSupplier,ts,item.hargaFinal,tf,tf-ts]);});});
-            var exSheets=[{name:"Ringkasan",data:[csvH].concat(csvR)},{name:"Detail Bahan",data:detailRows}];
-            var txtL=["RIWAYAT BELANJA MBG",""].concat(filt.map(function(b){var s=sppgList.find(function(x){return x.id===b.sppgId;});return(b.tanggal||"")+" | "+(b.judul||"")+" | "+(s?s.nama:"")+" | "+fmtS(b.totalFinal||0);}));
-            onExport({title:"Riwayat Belanja",elementId:"riwayat-content",filename:"Riwayat_Belanja",csvHeaders:csvH,csvRows:csvR,excelSheets:exSheets,txtLines:txtL});
-          }},"⬇ Export"),
-          React.createElement(Btn,{onClick:function(){setView("input");},small:true},"+ Input Baru")
-        )
-      }),
-      React.createElement("div",{style:{display:"flex",gap:"0.375rem",alignItems:"center"}},
-        React.createElement("select",{style:{border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"5px 10px",fontSize:"0.72rem",background:"white",color:"#475569"},value:filterSppg,onChange:function(e){setFilterSppg(e.target.value);}},
+    return React.createElement("div",{id:"riwayat-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
+      React.createElement(PageHeader,{title:"Riwayat Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var filt=filtered2;var csvH=["Tanggal","Judul","SPPG","Porsi Kecil","Porsi Besar","Modal","Harga Jual","Margin"];var csvR=filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return[b.tanggal||"",b.judul||"",s?s.nama:"",b.porsiKecil||0,b.porsiBesar||0,b.totalSupplier||0,b.totalFinal||0,(b.totalFinal||0)-(b.totalSupplier||0)];});p.onExport({title:"Riwayat Belanja",elementId:"riwayat-content",filename:"Riwayat_Belanja",csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Ringkasan",data:[csvH].concat(csvR)}],txtLines:["RIWAYAT BELANJA MBG"].concat(filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return(b.tanggal||"")+" | "+(b.judul||"")+" | "+(s?s.nama:"")+" | "+fmtS(b.totalFinal||0);}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("input");},small:true},"+ Input"))}),
+      React.createElement("div",{style:{display:"flex",gap:".375rem",alignItems:"center",flexWrap:"wrap"}},
+        React.createElement("select",{style:{border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"5px 10px",fontSize:".72rem",background:"white",color:"#475569"},value:filterSppg,onChange:function(e){setFilterSppg(e.target.value);}},
           React.createElement("option",{value:"semua"},"Semua SPPG"),
-          sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})
-        ),
-        React.createElement("span",{style:{fontSize:"0.7rem",color:"#94a3b8",marginLeft:"auto"}},filtered2.length+" entri")
+          p.sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})),
+        React.createElement("span",{style:{fontSize:".7rem",color:"#94a3b8",marginLeft:"auto"}},filtered2.length+" entri")
       ),
-      filtered2.length===0&&React.createElement("p",{style:{textAlign:"center",color:"#94a3b8",padding:"2rem 0",fontSize:"0.8rem"}},"Belum ada riwayat belanja"),
+      filtered2.length===0&&React.createElement("p",{style:{textAlign:"center",color:"#94a3b8",padding:"2rem 0",fontSize:".8rem"}},"Belum ada riwayat belanja"),
       filtered2.map(function(b){
-        var s=sppgList.find(function(x){return x.id===b.sppgId;});
+        var s=p.sppgList.find(function(x){return x.id===b.sppgId;});
         var mg=(b.totalFinal||0)-(b.totalSupplier||0);
         var mgPct2=b.totalSupplier>0?((mg/b.totalSupplier)*100).toFixed(1):0;
         var isOpen=openId===b.id;
-        return React.createElement("div",{key:b.id,style:{background:"white",border:"1px solid #f1f5f9",borderRadius:"0.75rem",overflow:"hidden"}},
-          React.createElement("div",{style:{padding:"0.75rem 0.875rem",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"},onClick:function(){setOpenId(isOpen?null:b.id);}},
+        return React.createElement("div",{key:b.id,style:{background:"white",border:"1px solid #f1f5f9",borderRadius:".75rem",overflow:"hidden"}},
+          React.createElement("div",{style:{padding:".75rem .875rem",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"},onClick:function(){setOpenId(isOpen?null:b.id);}},
             React.createElement("div",null,
-              React.createElement("p",{style:{fontWeight:700,fontSize:"0.8rem",color:"#1e293b",margin:0}},b.judul||"(tanpa judul)"),
-              React.createElement("p",{style:{fontSize:"0.65rem",color:"#94a3b8",margin:0}},(s?s.nama:"?")+" · "+(b.tanggal?new Date(b.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"2-digit"}):"")+" · "+((b.items||[]).length)+" bahan")
+              React.createElement("p",{style:{fontWeight:700,fontSize:".8rem",color:"#1e293b",margin:0}},b.judul||"(tanpa judul)"),
+              React.createElement("p",{style:{fontSize:".65rem",color:"#94a3b8",margin:0}},(s?s.nama:"?")+" · "+(b.tanggal?new Date(b.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"2-digit"}):"")+" · "+((b.items||[]).length)+" bahan")
             ),
-            React.createElement("div",{style:{textAlign:"right",marginLeft:"0.5rem"}},
-              React.createElement("p",{style:{fontWeight:700,fontSize:"0.85rem",color:"#2563eb",margin:0}},fmtS(b.totalFinal||0)),
-              mg!==0&&React.createElement("p",{style:{fontSize:"0.62rem",color:mg>0?"#059669":"#dc2626",margin:0}},(mg>0?"+":"")+mgPct2+"%")
+            React.createElement("div",{style:{textAlign:"right",marginLeft:".5rem"}},
+              React.createElement("p",{style:{fontWeight:700,fontSize:".85rem",color:"#2563eb",margin:0}},fmtS(b.totalFinal||0)),
+              mg!==0&&React.createElement("p",{style:{fontSize:".62rem",color:mg>0?"#059669":"#dc2626",margin:0}},(mg>0?"+":"")+mgPct2+"%")
             )
           ),
           isOpen&&React.createElement("div",{style:{borderTop:"1px solid #f8fafc"}},
             React.createElement("div",{style:{overflowX:"auto"}},
-              React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:"0.68rem",minWidth:"480px"}},
+              React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".68rem",minWidth:"480px"}},
                 React.createElement("thead",null,React.createElement("tr",null,["Bahan","QTY","Satuan","H.Supplier","Total Supplier","H.Final","Total Final","Margin"].map(function(h,i){return React.createElement(TH,{key:h,right:i>=3},h);}))),
-                React.createElement("tbody",null,(b.items||[]).map(function(item,i){
-                  var ts2=item.qty*item.hargaSupplier,tf2=item.qty*item.hargaFinal,mg2=tf2-ts2;
-                  return React.createElement("tr",{key:i},
-                    React.createElement(TD,{style:{fontWeight:600}},item.nama),
-                    React.createElement(TD,{style:{textAlign:"right"}},item.qty),
-                    React.createElement(TD,null,item.satuan),
-                    React.createElement(TD,{style:{textAlign:"right"}},fmtS(item.hargaSupplier)),
-                    React.createElement(TD,{style:{textAlign:"right",color:"#3b82f6",fontWeight:600}},fmtS(ts2)),
-                    React.createElement(TD,{style:{textAlign:"right"}},fmtS(item.hargaFinal)),
-                    React.createElement(TD,{style:{textAlign:"right",color:"#059669",fontWeight:600}},fmtS(tf2)),
-                    React.createElement(TD,{style:{textAlign:"right",color:mg2>=0?"#059669":"#dc2626"}},fmtS(mg2))
-                  );
-                }))
+                React.createElement("tbody",null,(b.items||[]).map(function(item,i){var ts2=item.qty*(item.hargaSupplier||0),tf2=item.qty*(item.hargaFinal||0),mg2=tf2-ts2;return React.createElement("tr",{key:i},React.createElement(TD,{style:{fontWeight:600}},item.nama),React.createElement(TD,{style:{textAlign:"right"}},item.qty),React.createElement(TD,null,item.satuan),React.createElement(TD,{style:{textAlign:"right"}},fmtS(item.hargaSupplier)),React.createElement(TD,{style:{textAlign:"right",color:"#3b82f6",fontWeight:600}},fmtS(ts2)),React.createElement(TD,{style:{textAlign:"right"}},fmtS(item.hargaFinal)),React.createElement(TD,{style:{textAlign:"right",color:"#059669",fontWeight:600}},fmtS(tf2)),React.createElement(TD,{style:{textAlign:"right",color:mg2>=0?"#059669":"#dc2626"}},fmtS(mg2)));})
+                )
               )
             ),
             React.createElement("div",{style:{padding:"6px 12px",background:"#f8fafc",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"6px"}},
-              React.createElement("div",{style:{display:"flex",gap:"14px",fontSize:"0.7rem"}},
+              React.createElement("div",{style:{display:"flex",gap:"14px",fontSize:".7rem"}},
                 React.createElement("span",null,"Modal: ",React.createElement("b",{style:{color:"#2563eb"}},fmtS(b.totalSupplier||0))),
                 React.createElement("span",null,"Jual: ",React.createElement("b",{style:{color:"#059669"}},fmtS(b.totalFinal||0))),
                 mg!==0&&React.createElement("span",null,"Margin: ",React.createElement("b",{style:{color:mg>=0?"#059669":"#dc2626"}},fmtS(mg)))
               ),
-              React.createElement("button",{onClick:function(){delBelanja(b.id);},style:{background:"none",border:"1px solid #fca5a5",color:"#dc2626",borderRadius:"6px",padding:"3px 10px",fontSize:"0.68rem",cursor:"pointer"}},"Hapus")
+              React.createElement("div",{style:{display:"flex",gap:".375rem"}},
+                React.createElement("button",{onClick:function(){setEditEntry(b);},style:{background:"none",border:"1px solid #bfdbfe",color:"#2563eb",borderRadius:"6px",padding:"3px 10px",fontSize:".68rem",cursor:"pointer"}},"✏️ Edit"),
+                React.createElement("button",{onClick:function(){delBelanja(b.id);},style:{background:"none",border:"1px solid #fca5a5",color:"#dc2626",borderRadius:"6px",padding:"3px 10px",fontSize:".68rem",cursor:"pointer"}},"Hapus")
+              )
             )
           )
         );
-      })
-      ) // end riwayat-content
+      }),
+      editEntry&&React.createElement(ModalEditBelanja,{entry:editEntry,onSave:saveEdit,onClose:function(){setEditEntry(null);},hargaDB:p.hargaDB,sppgList:p.sppgList})
     );
   }
 
-  // ── INPUT ──
-  return React.createElement("div",{id:"input-belanja-content",style:{display:"flex",flexDirection:"column",gap:"0.875rem"}},
-    React.createElement(PageHeader,{title:"Input Belanja",action:
-      React.createElement("div",{style:{display:"flex",gap:"0.375rem"}},
-        React.createElement("button",{className:"xbtn",onClick:function(){if(!onExport)return;
-          var actR=safeRows.filter(function(r){return r.nama&&r.qty>0;});
-          var csvH=["No","Nama Bahan","QTY","Satuan","H.Supplier","Total Supplier","H.Final","Total Final","Margin"];
-          var csvR=actR.map(function(r,i){var ts=r.qty*r.hargaSupplier,tf=r.qty*r.hargaFinal;return[i+1,r.nama,r.qty,r.satuan,r.hargaSupplier,ts,r.hargaFinal,tf,tf-ts];});
-          var exSheets=[{name:"Draft Belanja",data:[["Draft: "+(judul||"-"),"SPPG: "+((sppgList.find(function(s){return s.id===selSppg;})||{}).nama||"-"),"Tgl: "+(tanggal||"-")],[],csvH].concat(csvR).concat([[],["","","","","TOTAL",totalSupplier,"",totalFinal,totalMargin]])}];
-          var txtL=["DRAFT BELANJA","Judul : "+(judul||"-"),"SPPG  : "+((sppgList.find(function(s){return s.id===selSppg;})||{}).nama||"-"),"Tgl   : "+(tanggal||"-"),"","Nama Bahan | QTY | Satuan | H.Supplier | H.Final"].concat(actR.map(function(r){return r.nama+" | "+r.qty+" "+r.satuan+" | "+fmtS(r.hargaSupplier)+" | "+fmtS(r.hargaFinal);})).concat(["","Total Modal : "+fmt(totalSupplier),"Total Final : "+fmt(totalFinal),"Margin      : "+fmt(totalMargin)+" ("+marginPct+"%)"]);
-          onExport({title:"Draft: "+(judul||""),elementId:"input-belanja-content",filename:"Draft_Belanja_"+(judul||tanggal||""),csvHeaders:csvH,csvRows:csvR,excelSheets:exSheets,txtLines:txtL});
-        }},"⬇ Export"),
-        React.createElement(Btn,{onClick:function(){setView("riwayat");},small:true,color:"gray"},"📋 Riwayat")
-      )
-    }),
+  // ── INPUT VIEW ──
+  return React.createElement("div",{id:"input-belanja-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
+    React.createElement(PageHeader,{title:"Input Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var actR=safeRows.filter(function(r){return r.nama&&r.qty>0;});var csvH=["No","Nama Bahan","QTY","Satuan","H.Supplier","Total Supplier","H.Final","Total Final","Margin"];var csvR=actR.map(function(r,i){var ts=r.qty*(r.hargaSupplier||0),tf=r.qty*(r.hargaFinal||0);return[i+1,r.nama,r.qty,r.satuan,r.hargaSupplier||0,ts,r.hargaFinal||0,tf,tf-ts];});p.onExport({title:"Draft: "+(judul||""),elementId:"input-belanja-content",filename:"Draft_Belanja_"+(judul||tgl||""),csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Draft",data:[csvH].concat(csvR)}],txtLines:["DRAFT BELANJA","Judul: "+(judul||"-"),"Tgl: "+(tgl||"-")].concat(actR.map(function(r){return r.nama+" | "+r.qty+" "+r.satuan+" | "+fmtS(r.hargaSupplier||0);}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("riwayat");},small:true,color:"gray"},"📋 Riwayat"))}),
     React.createElement(Card,null,
-      React.createElement("p",{style:{fontSize:"0.7rem",fontWeight:700,color:"#475569",margin:"0 0 0.5rem",textTransform:"uppercase",letterSpacing:"0.04em"}},"Info Belanja"),
-      React.createElement(SppgSelector,{sppgList:sppgList,value:selSppg,onChange:setSelSppg,onAdd:function(){setModal("sppg");}}),
-      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem",marginTop:"0.5rem"}},
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Judul / Nama Menu"),
-          React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.78rem"},placeholder:"Belanja Senin...",value:judul,onChange:function(e){setJudul(e.target.value);}})
-        ),
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),
-          React.createElement("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.78rem"},value:tanggal,onChange:function(e){setTanggal(e.target.value);}})
-        )
+      React.createElement("p",{style:{fontSize:".7rem",fontWeight:700,color:"#475569",margin:"0 0 .5rem",textTransform:"uppercase",letterSpacing:".04em"}},"Info Belanja"),
+      React.createElement(SppgSel,{list:p.sppgList,value:selSppg,onChange:setSelSppg,onAdd:function(){p.setModal("sppg");}}),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginTop:".5rem"}},
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Judul / Nama Menu"),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},placeholder:"Belanja Senin...",value:judul,onChange:function(e){setJudul(e.target.value);}})),
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),React.createElement("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:tgl,onChange:function(e){setTgl(e.target.value);}}))
       ),
-      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem",marginTop:"0.5rem"}},
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.68rem",color:"#3b82f6",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Kecil @ Rp8.000"),
-          React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.78rem",background:"#eff6ff"},placeholder:"0",value:porsiKecil||"",onChange:function(e){setPorsiKecil(parseInt(e.target.value)||0);}})
-        ),
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.68rem",color:"#ea580c",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Besar @ Rp10.000"),
-          React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.78rem",background:"#fff7ed"},placeholder:"0",value:porsiBesar||"",onChange:function(e){setPorsiBesar(parseInt(e.target.value)||0);}})
-        )
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginTop:".5rem"}},
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#3b82f6",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Kecil @ Rp8.000"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#eff6ff"},placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})),
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#ea580c",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Besar @ Rp10.000"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#fff7ed"},placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}}))
       ),
-      budgetHarian>0&&React.createElement("div",{style:{marginTop:"0.5rem",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:"0.5rem",padding:"6px 10px",display:"flex",justifyContent:"space-between"}},
-        React.createElement("span",{style:{fontSize:"0.7rem",color:"#166534"}},"Budget harian (porsi saja)"),
-        React.createElement("b",{style:{fontSize:"0.8rem",color:"#15803d"}},fmt(budgetHarian))
-      )
+      budgetHarian>0&&React.createElement("div",{style:{marginTop:".5rem",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:".5rem",padding:"6px 10px",display:"flex",justifyContent:"space-between"}},React.createElement("span",{style:{fontSize:".7rem",color:"#166534"}},"Budget harian (porsi)"),React.createElement("b",{style:{fontSize:".8rem",color:"#15803d"}},fmt(budgetHarian)))
     ),
-    React.createElement("div",{style:{display:"flex",gap:"0.375rem",alignItems:"center",flexWrap:"wrap"}},
-      React.createElement("p",{style:{fontSize:"0.7rem",fontWeight:700,color:"#475569",margin:0,flex:1}},"Daftar Bahan"),
-      React.createElement("span",{style:{fontSize:"0.65rem",color:"#94a3b8"}},"Margin:"),
-      React.createElement("input",{type:"number",style:{width:"50px",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 6px",fontSize:"0.72rem",textAlign:"center"},value:globalMargin||"",placeholder:"0",onChange:function(e){setGlobalMargin(parseFloat(e.target.value)||0);}}),
-      React.createElement("span",{style:{fontSize:"0.65rem",color:"#94a3b8"}},"%"),
+    React.createElement("div",{style:{display:"flex",gap:".375rem",alignItems:"center",flexWrap:"wrap"}},
+      React.createElement("p",{style:{fontSize:".7rem",fontWeight:700,color:"#475569",margin:0,flex:1}},"Daftar Bahan"),
+      React.createElement("span",{style:{fontSize:".65rem",color:"#94a3b8"}},"Margin:"),
+      React.createElement("input",{type:"number",style:{width:"50px",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 6px",fontSize:".72rem",textAlign:"center"},value:globalMargin||"",placeholder:"0",onChange:function(e){setGlobalMargin(parseFloat(e.target.value)||0);}}),
+      React.createElement("span",{style:{fontSize:".65rem",color:"#94a3b8"}},"%"),
       React.createElement(Btn,{onClick:applyMargin,small:true},"Terapkan")
     ),
-    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"0.375rem"}},
-      [{l:"Modal",v:fmtS(totalSupplier),c:"#3b82f6"},{l:"Harga Jual",v:fmtS(totalFinal),c:"#059669"},{l:"Margin",v:fmtS(totalMargin),c:totalMargin>=0?"#ea580c":"#dc2626"},{l:"Margin%",v:marginPct+"%",c:"#7c3aed"}].map(function(x){
-        return React.createElement("div",{key:x.l,style:{background:"white",border:"1px solid #f1f5f9",borderRadius:"0.5rem",padding:"0.4rem",textAlign:"center"}},
-          React.createElement("p",{style:{fontSize:"0.58rem",color:"#94a3b8",margin:"0 0 2px",textTransform:"uppercase",fontWeight:600}},x.l),
-          React.createElement("p",{style:{fontSize:"0.75rem",fontWeight:800,color:x.c,margin:0}},x.v)
-        );
-      })
+    React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:".375rem"}},
+      [{l:"Modal",v:fmtS(totalSupplier),c:"#3b82f6"},{l:"Jual",v:fmtS(totalFinal),c:"#059669"},{l:"Margin",v:fmtS(totalMargin),c:totalMargin>=0?"#ea580c":"#dc2626"},{l:"Margin%",v:marginPct+"%",c:"#7c3aed"}].map(function(x){return React.createElement("div",{key:x.l,style:{background:"white",border:"1px solid #f1f5f9",borderRadius:".5rem",padding:".4rem",textAlign:"center"}},React.createElement("p",{style:{fontSize:".58rem",color:"#94a3b8",margin:"0 0 2px",textTransform:"uppercase",fontWeight:600}},x.l),React.createElement("p",{style:{fontSize:".75rem",fontWeight:800,color:x.c,margin:0}},x.v));})
     ),
-    React.createElement("div",{style:{background:"white",border:"1px solid #f1f5f9",borderRadius:"0.75rem",overflow:"hidden"}},
+    React.createElement("div",{style:{background:"white",border:"1px solid #f1f5f9",borderRadius:".75rem",overflow:"hidden"}},
       React.createElement("div",{style:{overflowX:"auto"}},
-        React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",minWidth:"660px",fontSize:"0.72rem"}},
-          React.createElement("thead",null,
-            React.createElement("tr",null,["NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","TOTAL SUPPLIER","H.FINAL","TOTAL FINAL","MARGIN",""].map(function(h,i){return React.createElement(TH,{key:i,right:i>=4&&i<=8},h);}))
-          ),
-          React.createElement("tbody",null,
-            safeRows.map(function(row,idx){
-              var ts=row.qty*row.hargaSupplier,tf=row.qty*row.hargaFinal,mg=tf-ts;
+        React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",minWidth:"640px",fontSize:".72rem"}},
+          React.createElement("thead",null,React.createElement("tr",null,["","NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","TOT. SUPPLIER","H.FINAL","TOT. FINAL","MARGIN",""].map(function(h,i){return React.createElement(TH,{key:i,right:i>=5&&i<=9},h);}))),
+          React.createElement(DraggableRows,{
+            rows:safeRows,
+            onReorder:function(r){setRows(function(){return r;});},
+            renderRow:function(row,idx){
+              var ts=row.qty*(row.hargaSupplier||0),tf=row.qty*(row.hargaFinal||0),mg=tf-ts;
               var mgPct3=ts>0?((mg/ts)*100).toFixed(1):null;
-              var iS={width:"100%",border:"1px solid transparent",borderRadius:"6px",padding:"5px 7px",fontSize:"0.72rem",background:"transparent"};
-              return React.createElement("tr",{key:row.id,style:{borderTop:"1px solid #f8fafc"}},
-                React.createElement("td",{style:{padding:"4px 8px",textAlign:"center",color:"#94a3b8",fontSize:"0.65rem",fontWeight:600}},idx+1),
-                React.createElement("td",{style:{padding:"4px 8px",minWidth:"145px"}},
-                  React.createElement(BahanInput,{value:row.nama,onChange:function(v){updateRow(row.id,"nama",v);},hargaDB:hargaDB,onSelectSuggestion:function(h){selectSuggestion(row.id,h);}})
-                ),
-                React.createElement("td",{style:{padding:"4px 5px",width:"60px"}},
-                  React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"54px",textAlign:"center",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.qty||"",placeholder:"0",onChange:function(e){updateRow(row.id,"qty",e.target.value);}})
-                ),
-                React.createElement("td",{style:{padding:"4px 5px",width:"74px"}},
-                  React.createElement("select",{style:Object.assign({},iS,{width:"68px",cursor:"pointer",color:"#475569"}),value:row.satuan,onChange:function(e){updateRow(row.id,"satuan",e.target.value);}},
-                    SATUAN_LIST.map(function(s){return React.createElement("option",{key:s},s);})
-                  )
-                ),
-                React.createElement("td",{style:{padding:"4px 5px",width:"106px"}},
-                  React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"100px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updateRow(row.id,"hargaSupplier",e.target.value);}})
-                ),
-                React.createElement("td",{style:{padding:"4px 8px",fontFamily:"monospace",fontWeight:600,color:"#3b82f6",textAlign:"right",whiteSpace:"nowrap"}},ts>0?fmtS(ts):"—"),
-                React.createElement("td",{style:{padding:"4px 5px",width:"106px"}},
-                  React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"100px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaFinal||"",placeholder:"0",onChange:function(e){updateRow(row.id,"hargaFinal",e.target.value);}})
-                ),
-                React.createElement("td",{style:{padding:"4px 8px",fontFamily:"monospace",fontWeight:600,color:"#059669",textAlign:"right",whiteSpace:"nowrap"}},tf>0?fmtS(tf):"—"),
-                React.createElement("td",{style:{padding:"4px 8px",textAlign:"right",whiteSpace:"nowrap"}},
-                  mgPct3!==null?React.createElement("div",null,
-                    React.createElement("span",{style:{display:"inline-block",padding:"2px 6px",borderRadius:"20px",fontSize:"0.62rem",fontWeight:700,background:mg>0?"#dcfce7":mg<0?"#fee2e2":"#f1f5f9",color:mg>0?"#16a34a":mg<0?"#dc2626":"#9ca3af"}},mgPct3+"%"),
-                    React.createElement("div",{style:{fontSize:"0.6rem",color:"#94a3b8",marginTop:"1px"}},fmtS(mg))
-                  ):React.createElement("span",{style:{color:"#d1d5db"}},"—")
-                ),
-                React.createElement("td",{style:{padding:"4px 5px"}},
-                  React.createElement("button",{onClick:function(){delRow(row.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px",padding:"3px 5px",borderRadius:"5px"},onMouseOver:function(e){e.target.style.color="#dc2626";e.target.style.background="#fee2e2";},onMouseOut:function(e){e.target.style.color="#fca5a5";e.target.style.background="none";}},"✕")
-                )
-              );
-            })
-          )
+              return [
+                React.createElement("td",{key:"drag",style:{padding:"4px 4px",textAlign:"center"}},React.createElement("span",{className:"drag-handle",title:"Drag untuk ubah urutan"},"⠿")),
+                React.createElement("td",{key:"no",style:{padding:"4px 8px",textAlign:"center",color:"#94a3b8",fontSize:".65rem",fontWeight:600}},idx+1),
+                React.createElement("td",{key:"nama",style:{padding:"4px 8px",minWidth:"140px"}},React.createElement(BahanInput,{value:row.nama,onChange:function(v){updRow(row.id,"nama",v);},db:p.hargaDB,onSelect:function(h){selSugg(row.id,h);}})),
+                React.createElement("td",{key:"qty",style:{padding:"4px 5px",width:"60px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"54px",textAlign:"center",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.qty||"",placeholder:"0",onChange:function(e){updRow(row.id,"qty",e.target.value);}})),
+                React.createElement("td",{key:"sat",style:{padding:"4px 5px",width:"80px"}},React.createElement("input",{style:Object.assign({},iS,{width:"74px"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",placeholder:"kg/pcs/...",value:row.satuan,onChange:function(e){updRow(row.id,"satuan",e.target.value);}})),
+                React.createElement("td",{key:"hs",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaSupplier",e.target.value);}})),
+                React.createElement("td",{key:"ts",style:{padding:"4px 8px",fontFamily:"monospace",fontWeight:600,color:"#3b82f6",textAlign:"right",whiteSpace:"nowrap"}},ts>0?fmtS(ts):"—"),
+                React.createElement("td",{key:"hf",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaFinal||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaFinal",e.target.value);}})),
+                React.createElement("td",{key:"tf",style:{padding:"4px 8px",fontFamily:"monospace",fontWeight:600,color:"#059669",textAlign:"right",whiteSpace:"nowrap"}},tf>0?fmtS(tf):"—"),
+                React.createElement("td",{key:"mg",style:{padding:"4px 8px",textAlign:"right",whiteSpace:"nowrap"}},mgPct3!==null?React.createElement("div",null,React.createElement("span",{style:{display:"inline-block",padding:"2px 6px",borderRadius:"20px",fontSize:".62rem",fontWeight:700,background:mg>0?"#dcfce7":mg<0?"#fee2e2":"#f1f5f9",color:mg>0?"#16a34a":mg<0?"#dc2626":"#9ca3af"}},mgPct3+"%"),React.createElement("div",{style:{fontSize:".6rem",color:"#94a3b8",marginTop:"1px"}},fmtS(mg))):React.createElement("span",{style:{color:"#d1d5db"}},"—")),
+                React.createElement("td",{key:"del",style:{padding:"4px 5px"}},React.createElement("button",{onClick:function(){delRow(row.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px",padding:"3px 5px",borderRadius:"5px"},onMouseOver:function(e){e.target.style.color="#dc2626";e.target.style.background="#fee2e2";},onMouseOut:function(e){e.target.style.color="#fca5a5";e.target.style.background="none";}},"✕"))
+              ];
+            }
+          })
         )
       ),
-      React.createElement("button",{onClick:addRow,style:{width:"100%",padding:"9px",background:"none",border:"none",borderTop:"1px dashed #e2e8f0",cursor:"pointer",fontSize:"0.72rem",fontWeight:600,color:"#94a3b8"},onMouseOver:function(e){e.currentTarget.style.color="#2563eb";e.currentTarget.style.background="#eff6ff";},onMouseOut:function(e){e.currentTarget.style.color="#94a3b8";e.currentTarget.style.background="none";}},"＋ Tambah Baris"),
-      React.createElement("div",{style:{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"7px 12px",display:"flex",gap:"16px",flexWrap:"wrap",fontSize:"0.68rem",alignItems:"center"}},
+      React.createElement("button",{onClick:addRow,style:{width:"100%",padding:"9px",background:"none",border:"none",borderTop:"1px dashed #e2e8f0",cursor:"pointer",fontSize:".72rem",fontWeight:600,color:"#94a3b8"},onMouseOver:function(e){e.currentTarget.style.color="#2563eb";e.currentTarget.style.background="#eff6ff";},onMouseOut:function(e){e.currentTarget.style.color="#94a3b8";e.currentTarget.style.background="none";}},"＋ Tambah Baris"),
+      React.createElement("div",{style:{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"7px 12px",display:"flex",gap:"16px",flexWrap:"wrap",fontSize:".68rem",alignItems:"center"}},
         React.createElement("span",null,"Modal: ",React.createElement("b",{style:{color:"#3b82f6"}},fmt(totalSupplier))),
         React.createElement("span",null,"Final: ",React.createElement("b",{style:{color:"#059669"}},fmt(totalFinal))),
         React.createElement("span",null,"Margin: ",React.createElement("b",{style:{color:totalMargin>=0?"#ea580c":"#dc2626"}},fmt(totalMargin)+" ("+marginPct+"%)"))
       )
     ),
-    React.createElement(Btn,{onClick:simpan,style:{width:"100%",padding:"0.75rem",fontSize:"0.875rem"}},"💾 Simpan Belanja")
+    React.createElement(Btn,{onClick:simpan,style:{width:"100%",padding:".75rem",fontSize:".875rem"}},"💾 Simpan Belanja")
   );
 }
 
 // ─── OPERASIONAL ──────────────────────────────────────────────────────────────
-function PageOperasional({sppgList,operasionalList,setOperasionalList,setModal,onExport}){
-  var [selSppg,setSelSppg]=useState(sppgList[0]?sppgList[0].id:"");
-  var [tanggal,setTanggal]=useState(today());
-  var [uraian,setUraian]=useState("");
-  var [jumlah,setJumlah]=useState("");
-  var [kat,setKat]=useState("Operasional Dapur");
-  var [showForm,setShowForm]=useState(false);
-  var [filterSppg,setFilterSppg]=useState("semua");
+function PageOperasional(p){
+  var s1=useState(p.sppgList[0]?p.sppgList[0].id:""),selSppg=s1[0],setSelSppg=s1[1];
+  var s2=useState(today()),tgl=s2[0],setTgl=s2[1];
+  var s3=useState(""),uraian=s3[0],setUraian=s3[1];
+  var s4=useState(""),jumlah=s4[0],setJumlah=s4[1];
+  var s5=useState("Operasional Dapur"),kat=s5[0],setKat=s5[1];
+  var s6=useState(false),showForm=s6[0],setShowForm=s6[1];
+  var s7=useState("semua"),filterSppg=s7[0],setFilterSppg=s7[1];
   var bln=new Date().toISOString().slice(0,7);
-  var safeO=Array.isArray(operasionalList)?operasionalList:[];
+  var safeO=Array.isArray(p.operasionalList)?p.operasionalList:[];
   var filtered=safeO.filter(function(o){return filterSppg==="semua"||o.sppgId===filterSppg;}).slice().sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
-  var totalBlnIni=safeO.filter(function(o){return o.tanggal&&o.tanggal.startsWith(bln)&&(filterSppg==="semua"||o.sppgId===filterSppg);}).reduce(function(a,o){return a+(o.jumlah||0);},0);
+  var totalBln=safeO.filter(function(o){return o.tanggal&&o.tanggal.startsWith(bln)&&(filterSppg==="semua"||o.sppgId===filterSppg);}).reduce(function(a,o){return a+(o.jumlah||0);},0);
   var KATEGORI=["Operasional Dapur","Gas LPG","Kemasan","Transportasi","Peralatan","Kebersihan","Lainnya"];
-  function simpan(){
-    if(!selSppg)return alert("Pilih SPPG!");
-    if(!uraian||!jumlah)return alert("Isi uraian dan jumlah!");
-    setOperasionalList(function(p){return [{id:uid(),sppgId:selSppg,tanggal:tanggal,uraian:uraian,jumlah:parseInt(jumlah)||0,kategori:kat}].concat(Array.isArray(p)?p:[]);});
-    setUraian("");setJumlah("");setShowForm(false);
-  }
-  function del(id){if(confirm("Hapus?"))setOperasionalList(function(p){return p.filter(function(o){return o.id!==id;});});}
-
-  return React.createElement("div",{id:"ops-content",style:{display:"flex",flexDirection:"column",gap:"0.875rem"}},
-    React.createElement(PageHeader,{title:"Operasional",sub:"Di luar budget harian porsi",action:
-      React.createElement("div",{style:{display:"flex",gap:"0.375rem"}},
-        filtered.length>0&&React.createElement("button",{className:"xbtn",onClick:function(){if(!onExport)return;
-          var csvH=["Tanggal","Uraian","Kategori","SPPG","Jumlah"];
-          var csvR=filtered.map(function(o){var s=sppgList.find(function(x){return x.id===o.sppgId;});return[o.tanggal||"",o.uraian,o.kategori,s?s.nama:"",o.jumlah];});
-          var total=filtered.reduce(function(a,o){return a+(o.jumlah||0);},0);
-          var exSheets=[{name:"Operasional",data:[csvH].concat(csvR).concat([[],["TOTAL","","","",total]])}];
-          var txtL=["DATA OPERASIONAL MBG",""].concat(filtered.map(function(o){var s=sppgList.find(function(x){return x.id===o.sppgId;});return(o.tanggal||"")+" | "+o.uraian+" | "+(s?s.nama:"")+" | "+fmt(o.jumlah);})).concat(["","TOTAL: "+fmt(total)]);
-          onExport({title:"Operasional",elementId:"ops-content",filename:"Operasional_MBG",csvHeaders:csvH,csvRows:csvR,excelSheets:exSheets,txtLines:txtL});
-        }},"⬇ Export"),
-        React.createElement(Btn,{onClick:function(){setShowForm(function(p){return !p;});},small:true},showForm?"Tutup":"+ Input")
-      )
-    }),
+  function simpan(){if(!selSppg)return alert("Pilih SPPG!");if(!uraian||!jumlah)return alert("Isi uraian dan jumlah!");p.setOperasionalList(function(prev){return [{id:uid(),sppgId:selSppg,tanggal:tgl,uraian:uraian,jumlah:parseInt(jumlah)||0,kategori:kat}].concat(Array.isArray(prev)?prev:[]);});setUraian("");setJumlah("");setShowForm(false);}
+  function del(id){if(confirm("Hapus?"))p.setOperasionalList(function(prev){return prev.filter(function(o){return o.id!==id;});});}
+  return React.createElement("div",{id:"ops-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
+    React.createElement(PageHeader,{title:"Operasional",sub:"Di luar budget harian porsi",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},filtered.length>0&&React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var csvH=["Tanggal","Uraian","Kategori","SPPG","Jumlah"];var csvR=filtered.map(function(o){var s=p.sppgList.find(function(x){return x.id===o.sppgId;});return[o.tanggal||"",o.uraian,o.kategori,s?s.nama:"",o.jumlah];});p.onExport({title:"Operasional",elementId:"ops-content",filename:"Operasional_MBG",csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Operasional",data:[csvH].concat(csvR)}],txtLines:["DATA OPERASIONAL MBG"].concat(csvR.map(function(r){return r.join(" | ");}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setShowForm(function(prev){return !prev;});},small:true},showForm?"Tutup":"+ Input"))}),
     showForm&&React.createElement(Card,null,
-      React.createElement("p",{style:{fontSize:"0.7rem",fontWeight:700,color:"#475569",margin:"0 0 0.5rem",textTransform:"uppercase",letterSpacing:"0.04em"}},"Input Operasional"),
-      React.createElement(SppgSelector,{sppgList:sppgList,value:selSppg,onChange:setSelSppg,onAdd:function(){setModal("sppg");}}),
-      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem",marginTop:"0.5rem"}},
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),
-          React.createElement("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.78rem"},value:tanggal,onChange:function(e){setTanggal(e.target.value);}})
-        ),
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Kategori"),
-          React.createElement("select",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.78rem"},value:kat,onChange:function(e){setKat(e.target.value);}},
-            KATEGORI.map(function(k){return React.createElement("option",{key:k},k);})
-          )
-        )
+      React.createElement("p",{style:{fontSize:".7rem",fontWeight:700,color:"#475569",margin:"0 0 .5rem",textTransform:"uppercase",letterSpacing:".04em"}},"Input Operasional"),
+      React.createElement(SppgSel,{list:p.sppgList,value:selSppg,onChange:setSelSppg,onAdd:function(){p.setModal("sppg");}}),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginTop:".5rem"}},
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),React.createElement("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:tgl,onChange:function(e){setTgl(e.target.value);}})),
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Kategori"),React.createElement("select",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:kat,onChange:function(e){setKat(e.target.value);}},KATEGORI.map(function(k){return React.createElement("option",{key:k},k);})))
       ),
-      React.createElement("div",{style:{marginTop:"0.5rem"}},
-        React.createElement("label",{style:{fontSize:"0.68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Uraian"),
-        React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.78rem"},placeholder:"Gas LPG 3kg x 2...",value:uraian,onChange:function(e){setUraian(e.target.value);}})
-      ),
-      React.createElement("div",{style:{marginTop:"0.5rem"}},
-        React.createElement("label",{style:{fontSize:"0.68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Jumlah (Rp)"),
-        React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.78rem"},placeholder:"0",value:jumlah,onChange:function(e){setJumlah(e.target.value);}})
-      ),
-      React.createElement(Btn,{onClick:simpan,style:{width:"100%",marginTop:"0.625rem"}},"Simpan")
+      React.createElement("div",{style:{marginTop:".5rem"}},React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Uraian"),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},placeholder:"Gas LPG 3kg x 2...",value:uraian,onChange:function(e){setUraian(e.target.value);}})),
+      React.createElement("div",{style:{marginTop:".5rem"}},React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Jumlah (Rp)"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},placeholder:"0",value:jumlah,onChange:function(e){setJumlah(e.target.value);}})),
+      React.createElement(Btn,{onClick:simpan,style:{width:"100%",marginTop:".625rem"}},"Simpan")
     ),
-    React.createElement("div",{style:{display:"flex",gap:"0.375rem",alignItems:"center",flexWrap:"wrap"}},
-      React.createElement("select",{style:{border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"5px 10px",fontSize:"0.72rem",background:"white",color:"#475569"},value:filterSppg,onChange:function(e){setFilterSppg(e.target.value);}},
-        React.createElement("option",{value:"semua"},"Semua SPPG"),
-        sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})
-      ),
-      React.createElement("span",{style:{fontSize:"0.7rem",color:"#64748b",marginLeft:"auto"}},"Bulan ini: ",React.createElement("b",{style:{color:"#ea580c"}},fmt(totalBlnIni)))
+    React.createElement("div",{style:{display:"flex",gap:".375rem",alignItems:"center",flexWrap:"wrap"}},
+      React.createElement("select",{style:{border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"5px 10px",fontSize:".72rem",background:"white",color:"#475569"},value:filterSppg,onChange:function(e){setFilterSppg(e.target.value);}},React.createElement("option",{value:"semua"},"Semua SPPG"),p.sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})),
+      React.createElement("span",{style:{fontSize:".7rem",color:"#64748b",marginLeft:"auto"}},"Bulan ini: ",React.createElement("b",{style:{color:"#ea580c"}},fmt(totalBln)))
     ),
-    filtered.length===0&&React.createElement("p",{style:{textAlign:"center",color:"#94a3b8",padding:"2rem 0",fontSize:"0.8rem"}},"Belum ada data operasional"),
+    filtered.length===0&&React.createElement("p",{style:{textAlign:"center",color:"#94a3b8",padding:"2rem 0",fontSize:".8rem"}},"Belum ada data operasional"),
     filtered.length>0&&React.createElement(Card,{style:{padding:0,overflow:"hidden"}},
       React.createElement("div",{style:{overflowX:"auto"}},
-        React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:"0.72rem",minWidth:"360px"}},
+        React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem",minWidth:"360px"}},
           React.createElement("thead",null,React.createElement("tr",null,["Tanggal","Uraian","Kategori","SPPG","Jumlah",""].map(function(h,i){return React.createElement(TH,{key:h,right:i===4},h);}))),
-          React.createElement("tbody",null,filtered.map(function(o){
-            var s=sppgList.find(function(x){return x.id===o.sppgId;});
-            return React.createElement("tr",{key:o.id},
-              React.createElement(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap"}},o.tanggal?new Date(o.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"2-digit"}):"—"),
-              React.createElement(TD,{style:{maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:600}},o.uraian),
-              React.createElement(TD,{style:{color:"#ea580c",fontSize:"0.65rem",whiteSpace:"nowrap"}},o.kategori),
-              React.createElement(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap"}},s?s.nama:"—"),
-              React.createElement(TD,{style:{textAlign:"right",fontWeight:700,whiteSpace:"nowrap"}},fmt(o.jumlah)),
-              React.createElement(TD,null,React.createElement("button",{onClick:function(){del(o.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px"},onMouseOver:function(e){e.target.style.color="#dc2626";},onMouseOut:function(e){e.target.style.color="#fca5a5";}},"✕"))
-            );
+          React.createElement("tbody",null,filtered.map(function(o){var s=p.sppgList.find(function(x){return x.id===o.sppgId;});return React.createElement("tr",{key:o.id},React.createElement(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap"}},o.tanggal?new Date(o.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"2-digit"}):"—"),React.createElement(TD,{style:{maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:600}},o.uraian),React.createElement(TD,{style:{color:"#ea580c",fontSize:".65rem",whiteSpace:"nowrap"}},o.kategori),React.createElement(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap"}},s?s.nama:"—"),React.createElement(TD,{style:{textAlign:"right",fontWeight:700,whiteSpace:"nowrap"}},fmt(o.jumlah)),React.createElement(TD,null,React.createElement("button",{onClick:function(){del(o.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px"},onMouseOver:function(e){e.target.style.color="#dc2626";},onMouseOut:function(e){e.target.style.color="#fca5a5";}},"✕")));
           }))
         )
       )
@@ -638,211 +500,166 @@ function PageOperasional({sppgList,operasionalList,setOperasionalList,setModal,o
   );
 }
 
+// ─── HARGA ────────────────────────────────────────────────────────────────────
+function PageHarga(p){
+  var s1=useState(""),search=s1[0],setSearch=s1[1];
+  var s2=useState(false),showForm=s2[0],setShowForm=s2[1];
+  var s3=useState({nama:"",satuan:"",harga:""}),form=s3[0],setForm=s3[1];
+  var s4=useState(null),editId=s4[0],setEditId=s4[1];
+  var db=Array.isArray(p.hargaDB)?p.hargaDB:[];
+  var filtered=db.filter(function(h){return !search||h.nama.toLowerCase().indexOf(search.toLowerCase())>=0;}).slice().sort(function(a,b){return (a.nama||"").localeCompare(b.nama||"");});
+  function setF(k,v){setForm(function(prev){return Object.assign({},prev,{[k]:v});});}
+  function save(){
+    if(!form.nama||!form.satuan||!form.harga)return alert("Lengkapi semua field!");
+    var harga=parseInt(form.harga)||0;
+    if(editId){
+      p.setHargaDB(function(prev){return prev.map(function(h){return h.id===editId?Object.assign({},h,{nama:form.nama,satuan:form.satuan,harga:harga}):h;});});
+      setEditId(null);
+    } else {
+      p.setHargaDB(function(prev){return (Array.isArray(prev)?prev:[]).concat([{id:"h"+uid(),nama:form.nama,satuan:form.satuan,harga:harga}]);});
+    }
+    setForm({nama:"",satuan:"",harga:""});setShowForm(false);
+  }
+  function startEdit(h){setEditId(h.id);setForm({nama:h.nama,satuan:h.satuan,harga:String(h.harga)});setShowForm(true);}
+  function del(id){if(confirm("Hapus data harga ini?"))p.setHargaDB(function(prev){return prev.filter(function(h){return h.id!==id;});});}
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:".875rem"}},
+    React.createElement(PageHeader,{title:"Database Harga",sub:"Referensi harga bahan — diperbarui otomatis saat input belanja",action:React.createElement(Btn,{onClick:function(){setEditId(null);setForm({nama:"",satuan:"",harga:""});setShowForm(function(prev){return !prev;});},small:true},showForm?"Tutup":"+ Tambah")}),
+    showForm&&React.createElement(Card,null,
+      React.createElement("p",{style:{fontSize:".7rem",fontWeight:700,color:"#475569",margin:"0 0 .625rem",textTransform:"uppercase",letterSpacing:".04em"}},editId?"Edit Harga":"Tambah Harga Baru"),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:".5rem"}},
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Nama Bahan"),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},placeholder:"Beras",value:form.nama,onChange:function(e){setF("nama",e.target.value);}})),
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Satuan"),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},placeholder:"kg / pcs / dus...",value:form.satuan,onChange:function(e){setF("satuan",e.target.value);}})),
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Harga (Rp)"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},placeholder:"0",value:form.harga,onChange:function(e){setF("harga",e.target.value);}}))
+      ),
+      React.createElement("div",{style:{display:"flex",gap:".375rem",marginTop:".625rem"}},
+        editId&&React.createElement("button",{onClick:function(){setEditId(null);setForm({nama:"",satuan:"",harga:""});setShowForm(false);},style:{border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 14px",fontSize:".78rem",background:"white",cursor:"pointer"}},"Batal"),
+        React.createElement(Btn,{onClick:save},editId?"Simpan Perubahan":"Simpan")
+      )
+    ),
+    React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".75rem",padding:".5rem 1rem",fontSize:".8rem",background:"white"},placeholder:"Cari nama bahan...",value:search,onChange:function(e){setSearch(e.target.value);}}),
+    React.createElement("div",{style:{fontSize:".68rem",color:"#94a3b8"}},db.length+" item dalam database"),
+    React.createElement(Card,{style:{padding:0,overflow:"hidden"}},
+      React.createElement("div",{style:{overflowX:"auto"}},
+        React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem",minWidth:"320px"}},
+          React.createElement("thead",null,React.createElement("tr",null,["Nama Bahan","Satuan","Harga",""].map(function(h,i){return React.createElement(TH,{key:h,right:i===2},h);}))),
+          React.createElement("tbody",null,filtered.map(function(h){return React.createElement("tr",{key:h.id},React.createElement(TD,{style:{fontWeight:600}},h.nama),React.createElement(TD,null,h.satuan),React.createElement(TD,{style:{textAlign:"right",fontFamily:"monospace",fontWeight:600,color:"#2563eb"}},fmt(h.harga)),React.createElement(TD,null,React.createElement("div",{style:{display:"flex",gap:".25rem"}},React.createElement("button",{onClick:function(){startEdit(h);},style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"12px",padding:"2px 4px"},onMouseOver:function(e){e.target.style.color="#2563eb";},onMouseOut:function(e){e.target.style.color="#94a3b8";}},"✏️"),RC("button",{onClick:function(){del(h.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"12px",padding:"2px 4px"},onMouseOver:function(e){e.target.style.color="#dc2626";},onMouseOut:function(e){e.target.style.color="#fca5a5";}},"✕"))));
+          }))
+        )
+      )
+    )
+  );
+}
+var RC=React.createElement;
+
 // ─── MENU ─────────────────────────────────────────────────────────────────────
-function PageMenu({menuTemplates,setMenuTemplates,menuHistory,setMenuHistory,hargaDB}){
-  var [sub,setSub]=useState("template");
-  var [showAdd,setShowAdd]=useState(false);
-  var [selMenu,setSelMenu]=useState(null);
-  var [pk,setPk]=useState(0);
-  var [pb,setPb]=useState(0);
-
-  function getHarga(nama){
-    return (hargaDB||[]).find(function(h){return h.nama&&h.nama.toLowerCase()===nama.toLowerCase();})
-      ||(hargaDB||[]).find(function(h){return h.nama&&(h.nama.toLowerCase().includes(nama.toLowerCase())||nama.toLowerCase().includes(h.nama.toLowerCase()));})
-      ||null;
-  }
-  function hitungEst(bahan,pK,pB){
-    var totK=0,totB=0;
-    var detail=bahan.filter(function(b){return b.nama;}).map(function(b){
-      var ref=getHarga(b.nama);
-      var hpg=ref?(ref.satuan==="kg"?ref.harga/1000:ref.satuan==="g"?ref.harga:ref.harga):0;
-      var hK=hpg*(b.gK||0),hB=hpg*(b.gB||0);
-      totK+=hK;totB+=hB;
-      return {nama:b.nama,gK:b.gK||0,gB:b.gB||0,ref:ref,tK:hK*pK,tB:hB*pB};
-    });
-    return {detail:detail,totK:totK,totB:totB,grand:totK*pK+totB*pB};
-  }
-  function lastUsed(id){
-    var h=(menuHistory||[]).filter(function(x){return x.menuId===id;}).sort(function(a,b){return b.tanggal.localeCompare(a.tanggal);});
-    return h[0]?h[0].tanggal:null;
-  }
-  function pakaiMenu(m){setMenuHistory(function(p){return (p||[]).concat([{id:uid(),menuId:m.id,tanggal:today()}]);});setSelMenu(m);setSub("kalkulator");}
+function PageMenu(p){
+  var s1=useState("template"),sub=s1[0],setSub=s1[1];
+  var s2=useState(false),showAdd=s2[0],setShowAdd=s2[1];
+  var s3=useState(null),selMenu=s3[0],setSelMenu=s3[1];
+  var s4=useState(0),pk=s4[0],setPk=s4[1];
+  var s5=useState(0),pb=s5[0],setPb=s5[1];
+  var mTemplates=Array.isArray(p.menuTemplates)?p.menuTemplates:[];
+  function getHarga(nama){return (p.hargaDB||[]).find(function(h){return h.nama&&h.nama.toLowerCase()===nama.toLowerCase();})||(p.hargaDB||[]).find(function(h){return h.nama&&(h.nama.toLowerCase().indexOf(nama.toLowerCase())>=0||nama.toLowerCase().indexOf(h.nama.toLowerCase())>=0);})||null;}
+  function hitungEst(bahan,pK,pB){var totK=0,totB=0;var detail=bahan.filter(function(b){return b.nama;}).map(function(b){var ref=getHarga(b.nama);var hpg=ref?(ref.satuan==="kg"?ref.harga/1000:ref.satuan==="g"?ref.harga:ref.harga):0;var hK=hpg*(b.gK||0),hB=hpg*(b.gB||0);totK+=hK;totB+=hB;return {nama:b.nama,gK:b.gK||0,gB:b.gB||0,ref:ref,tK:hK*pK,tB:hB*pB};});return {detail:detail,totK:totK,totB:totB,grand:totK*pK+totB*pB};}
+  function lastUsed(id){var h=(p.menuHistory||[]).filter(function(x){return x.menuId===id;}).sort(function(a,b){return b.tanggal.localeCompare(a.tanggal);});return h[0]?h[0].tanggal:null;}
+  function pakaiMenu(m){p.setMenuHistory(function(prev){return (prev||[]).concat([{id:uid(),menuId:m.id,tanggal:today()}]);});setSelMenu(m);setSub("kalkulator");}
   var estMenu=selMenu?hitungEst(selMenu.bahan,pk,pb):null;
-
-  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.875rem"}},
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:".875rem"}},
     React.createElement(PageHeader,{title:"Menu & Estimasi",action:React.createElement(Btn,{onClick:function(){setShowAdd(true);},small:true},"+ Menu")}),
-    React.createElement("div",{style:{display:"flex",gap:"0.375rem"}},
-      [{v:"template",l:"📋 Template"},{v:"kalkulator",l:"🧮 Kalkulator"}].map(function(t){
-        return React.createElement("button",{key:t.v,onClick:function(){setSub(t.v);},style:{fontSize:"0.75rem",padding:"5px 14px",borderRadius:"0.5rem",border:"none",cursor:"pointer",fontWeight:600,background:sub===t.v?"#1e293b":"#f1f5f9",color:sub===t.v?"white":"#64748b"}},t.l);
-      })
+    React.createElement("div",{style:{display:"flex",gap:".375rem"}},
+      [{v:"template",l:"📋 Template"},{v:"kalkulator",l:"🧮 Kalkulator"}].map(function(t){return React.createElement("button",{key:t.v,onClick:function(){setSub(t.v);},style:{fontSize:".75rem",padding:"5px 14px",borderRadius:".5rem",border:"none",cursor:"pointer",fontWeight:600,background:sub===t.v?"#1e293b":"#f1f5f9",color:sub===t.v?"white":"#64748b"}},t.l);})
     ),
     sub==="template"&&React.createElement("div",null,
-      menuTemplates.length===0&&React.createElement("p",{style:{textAlign:"center",color:"#94a3b8",fontSize:"0.8rem",padding:"2rem 0"}},"Belum ada template menu. Tambah dengan tombol + Menu"),
-      menuTemplates.length>0&&React.createElement(Card,{style:{padding:0,overflow:"hidden"}},
+      mTemplates.length===0&&React.createElement("p",{style:{textAlign:"center",color:"#94a3b8",fontSize:".8rem",padding:"2rem 0"}},"Belum ada template menu"),
+      mTemplates.length>0&&React.createElement(Card,{style:{padding:0,overflow:"hidden"}},
         React.createElement("div",{style:{overflowX:"auto"}},
-          React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:"0.72rem",minWidth:"320px"}},
+          React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem",minWidth:"320px"}},
             React.createElement("thead",null,React.createElement("tr",null,["Nama Menu","Kategori","Bahan",""].map(function(h){return React.createElement(TH,{key:h},h);}))),
-            React.createElement("tbody",null,menuTemplates.map(function(m){
-              var lu=lastUsed(m.id);
-              var hari=lu?Math.floor((Date.now()-new Date(lu).getTime())/(864e5)):null;
-              return React.createElement("tr",{key:m.id},
-                React.createElement(TD,null,
-                  React.createElement("p",{style:{fontWeight:700,color:"#1e293b",margin:0}},m.nama),
-                  lu&&React.createElement("p",{style:{fontSize:"0.62rem",color:"#94a3b8",margin:0}},hari===0?"Hari ini":hari+"h lalu")
-                ),
-                React.createElement(TD,{style:{color:"#64748b",whiteSpace:"nowrap"}},m.kategori),
-                React.createElement(TD,{style:{color:"#94a3b8",fontSize:"0.65rem"}},m.bahan.slice(0,3).map(function(b){return b.nama;}).join(", ")+(m.bahan.length>3?" +"+(m.bahan.length-3)+" lagi":"")),
-                React.createElement(TD,{style:{whiteSpace:"nowrap"}},
-                  React.createElement(Btn,{onClick:function(){pakaiMenu(m);},small:true,style:{marginRight:"6px"}},"Hitung"),
-                  React.createElement("button",{onClick:function(){setMenuTemplates(function(p){return p.filter(function(x){return x.id!==m.id;});});},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px"},onMouseOver:function(e){e.target.style.color="#dc2626";},onMouseOut:function(e){e.target.style.color="#fca5a5";}},"✕")
-                )
-              );
+            React.createElement("tbody",null,mTemplates.map(function(m){var lu=lastUsed(m.id);var hari=lu?Math.floor((Date.now()-new Date(lu).getTime())/(864e5)):null;return React.createElement("tr",{key:m.id},React.createElement(TD,null,React.createElement("p",{style:{fontWeight:700,color:"#1e293b",margin:0}},m.nama),lu&&React.createElement("p",{style:{fontSize:".62rem",color:"#94a3b8",margin:0}},hari===0?"Hari ini":hari+"h lalu")),React.createElement(TD,{style:{color:"#64748b",whiteSpace:"nowrap"}},m.kategori),React.createElement(TD,{style:{color:"#94a3b8",fontSize:".65rem"}},m.bahan.slice(0,3).map(function(b){return b.nama;}).join(", ")+(m.bahan.length>3?" +"+(m.bahan.length-3)+" lagi":"")),React.createElement(TD,{style:{whiteSpace:"nowrap"}},React.createElement(Btn,{onClick:function(){pakaiMenu(m);},small:true,style:{marginRight:"6px"}},"Hitung"),React.createElement("button",{onClick:function(){p.setMenuTemplates(function(prev){return prev.filter(function(x){return x.id!==m.id;});});},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px"},onMouseOver:function(e){e.target.style.color="#dc2626";},onMouseOut:function(e){e.target.style.color="#fca5a5";}},"✕")));
             }))
           )
         )
       )
     ),
-    sub==="kalkulator"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.75rem"}},
-      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem"}},
-        React.createElement("div",{style:{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:"0.75rem",padding:"0.625rem"}},
-          React.createElement("p",{style:{fontSize:"0.65rem",fontWeight:700,color:"#1d4ed8",margin:"0 0 4px"}},"Porsi Kecil"),
-          React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.85rem",background:"white"},placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})
-        ),
-        React.createElement("div",{style:{background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:"0.75rem",padding:"0.625rem"}},
-          React.createElement("p",{style:{fontSize:"0.65rem",fontWeight:700,color:"#c2410c",margin:"0 0 4px"}},"Porsi Besar"),
-          React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:"0.5rem",padding:"6px 10px",fontSize:"0.85rem",background:"white"},placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}})
-        )
+    sub==="kalkulator"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:".75rem"}},
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem"}},
+        React.createElement("div",{style:{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:".75rem",padding:".625rem"}},React.createElement("p",{style:{fontSize:".65rem",fontWeight:700,color:"#1d4ed8",margin:"0 0 4px"}},"Porsi Kecil"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:".5rem",padding:"6px 10px",fontSize:".85rem",background:"white"},placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})),
+        React.createElement("div",{style:{background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:".75rem",padding:".625rem"}},React.createElement("p",{style:{fontSize:".65rem",fontWeight:700,color:"#c2410c",margin:"0 0 4px"}},"Porsi Besar"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:".5rem",padding:"6px 10px",fontSize:".85rem",background:"white"},placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}}))
       ),
-      React.createElement("div",{style:{display:"flex",gap:"0.375rem",flexWrap:"wrap",alignItems:"center"}},
-        React.createElement("span",{style:{fontSize:"0.7rem",color:"#94a3b8",fontWeight:600}},"Menu:"),
-        menuTemplates.map(function(m){
-          return React.createElement("button",{key:m.id,onClick:function(){setSelMenu(m);},style:{fontSize:"0.7rem",padding:"3px 10px",borderRadius:"20px",border:"1px solid #e2e8f0",cursor:"pointer",fontWeight:600,background:selMenu&&selMenu.id===m.id?"#2563eb":"white",color:selMenu&&selMenu.id===m.id?"white":"#64748b",maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},m.nama.split("+")[0].trim());
-        })
+      React.createElement("div",{style:{display:"flex",gap:".375rem",flexWrap:"wrap",alignItems:"center"}},
+        React.createElement("span",{style:{fontSize:".7rem",color:"#94a3b8",fontWeight:600}},"Menu:"),
+        mTemplates.map(function(m){return React.createElement("button",{key:m.id,onClick:function(){setSelMenu(m);},style:{fontSize:".7rem",padding:"3px 10px",borderRadius:"20px",border:"1px solid #e2e8f0",cursor:"pointer",fontWeight:600,background:selMenu&&selMenu.id===m.id?"#2563eb":"white",color:selMenu&&selMenu.id===m.id?"white":"#64748b",maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},m.nama.split("+")[0].trim());})
       ),
       selMenu&&estMenu&&React.createElement(Card,{style:{padding:0,overflow:"hidden"}},
-        React.createElement("div",{style:{padding:"8px 12px",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},
-          React.createElement("p",{style:{fontSize:"0.75rem",fontWeight:700,color:"#475569",margin:0}},"📋 "+selMenu.nama)
-        ),
-        React.createElement("div",{style:{overflowX:"auto"}},
-          React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:"0.7rem",minWidth:"300px"}},
-            React.createElement("thead",null,React.createElement("tr",null,["Bahan","g/Kecil","g/Besar","Harga Ref","Est. Total"].map(function(h,i){return React.createElement(TH,{key:h,right:i>=3},h);}))),
-            React.createElement("tbody",null,estMenu.detail.map(function(b,i){
-              return React.createElement("tr",{key:i},
-                React.createElement(TD,{style:{fontWeight:600}},b.nama),
-                React.createElement(TD,null,b.gK+"g"),
-                React.createElement(TD,null,b.gB+"g"),
-                React.createElement(TD,{style:{color:"#94a3b8",fontSize:"0.65rem",textAlign:"right"}},b.ref?fmt(b.ref.harga)+"/"+b.ref.satuan:"—"),
-                React.createElement(TD,{style:{textAlign:"right",fontWeight:700,color:(b.tK+b.tB)>0?"#059669":"#94a3b8"}},(pk>0||pb>0)&&(b.tK+b.tB)>0?fmt(Math.round(b.tK+b.tB)):"—")
-              );
-            }))
-          )
-        ),
-        React.createElement("div",{style:{padding:"8px 12px",background:"#f0fdf4",borderTop:"1px solid #bbf7d0",display:"flex",justifyContent:"space-between",alignItems:"center"}},
-          React.createElement("span",{style:{fontSize:"0.7rem",color:"#166534",fontWeight:700}},"Total Estimasi"),
-          React.createElement("span",{style:{fontSize:"0.9rem",fontWeight:800,color:"#15803d"}},fmt(Math.round(estMenu.grand)))
-        )
+        React.createElement("div",{style:{padding:"8px 12px",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},React.createElement("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:0}},"📋 "+selMenu.nama)),
+        React.createElement("div",{style:{overflowX:"auto"}},React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".7rem",minWidth:"300px"}},React.createElement("thead",null,React.createElement("tr",null,["Bahan","g/Kecil","g/Besar","Harga Ref","Est. Total"].map(function(h,i){return React.createElement(TH,{key:h,right:i>=3},h);}))),React.createElement("tbody",null,estMenu.detail.map(function(b,i){return React.createElement("tr",{key:i},React.createElement(TD,{style:{fontWeight:600}},b.nama),React.createElement(TD,null,b.gK+"g"),React.createElement(TD,null,b.gB+"g"),React.createElement(TD,{style:{color:"#94a3b8",fontSize:".65rem",textAlign:"right"}},b.ref?fmt(b.ref.harga)+"/"+b.ref.satuan:"—"),React.createElement(TD,{style:{textAlign:"right",fontWeight:700,color:(b.tK+b.tB)>0?"#059669":"#94a3b8"}},(pk>0||pb>0)&&(b.tK+b.tB)>0?fmt(Math.round(b.tK+b.tB)):"—"));})))),
+        React.createElement("div",{style:{padding:"8px 12px",background:"#f0fdf4",borderTop:"1px solid #bbf7d0",display:"flex",justifyContent:"space-between",alignItems:"center"}},React.createElement("span",{style:{fontSize:".7rem",color:"#166534",fontWeight:700}},"Total Estimasi"),React.createElement("span",{style:{fontSize:".9rem",fontWeight:800,color:"#15803d"}},fmt(Math.round(estMenu.grand))))
       )
     ),
-    showAdd&&React.createElement(ModalTambahMenu,{hargaDB:hargaDB,onSave:function(m){setMenuTemplates(function(p){return (p||[]).concat([m]);});setShowAdd(false);},onClose:function(){setShowAdd(false);}})
+    showAdd&&React.createElement(ModalTambahMenu,{hargaDB:p.hargaDB,onSave:function(m){p.setMenuTemplates(function(prev){return (prev||[]).concat([m]);});setShowAdd(false);},onClose:function(){setShowAdd(false);}})
   );
 }
 
 // ─── MODAL TAMBAH MENU ────────────────────────────────────────────────────────
-function ModalTambahMenu({onSave,onClose,hargaDB}){
-  var [nama,setNama]=useState("");
-  var [kat,setKat]=useState("Lauk Utama");
-  var [bahan,setBahan]=useState([{nama:"Beras",gK:150,gB:180,sat:"g"}]);
-  function addB(){setBahan(function(p){return p.concat([{nama:"",gK:0,gB:0,sat:"g"}]);});}
-  function setB(i,k,v){setBahan(function(p){return p.map(function(b,idx){return idx===i?Object.assign({},b,{[k]:v}):b;});});}
-  function delB(i){setBahan(function(p){return p.filter(function(_,idx){return idx!==i;});});}
+function ModalTambahMenu(p){
+  var s1=useState(""),nama=s1[0],setNama=s1[1];
+  var s2=useState("Lauk Utama"),kat=s2[0],setKat=s2[1];
+  var s3=useState([{nama:"Beras",gK:150,gB:180,sat:"g"}]),bahan=s3[0],setBahan=s3[1];
+  function addB(){setBahan(function(prev){return prev.concat([{nama:"",gK:0,gB:0,sat:"g"}]);});}
+  function setB(i,k,v){setBahan(function(prev){return prev.map(function(b,idx){return idx===i?Object.assign({},b,{[k]:v}):b;});});}
+  function delB(i){setBahan(function(prev){return prev.filter(function(_,idx){return idx!==i;});});}
   return React.createElement(Overlay,null,
-    React.createElement("div",{style:{background:"white",borderRadius:"1rem",width:"100%",maxWidth:"30rem",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 40px rgba(0,0,0,0.2)"}},
+    React.createElement("div",{style:{background:"white",borderRadius:"1rem",width:"100%",maxWidth:"30rem",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 40px rgba(0,0,0,.2)"}},
       React.createElement("div",{style:{padding:"1rem 1.25rem",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"white",zIndex:10}},
-        React.createElement("p",{style:{fontWeight:700,fontSize:"0.9rem",margin:0}},"Tambah Template Menu"),
-        React.createElement("button",{onClick:onClose,style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"1.5rem",lineHeight:1}},"×")
+        React.createElement("p",{style:{fontWeight:700,fontSize:".9rem",margin:0}},"Tambah Template Menu"),
+        React.createElement("button",{onClick:p.onClose,style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"1.5rem",lineHeight:1}},"×")
       ),
-      React.createElement("div",{style:{padding:"1rem 1.25rem",display:"flex",flexDirection:"column",gap:"0.75rem"}},
+      React.createElement("div",{style:{padding:"1rem 1.25rem",display:"flex",flexDirection:"column",gap:".75rem"}},
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".7rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"4px"}},"Nama Menu"),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"7px 10px",fontSize:".8rem"},placeholder:"Ayam Goreng + Nasi...",value:nama,onChange:function(e){setNama(e.target.value);}})),
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".7rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"4px"}},"Kategori"),React.createElement("select",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"7px 10px",fontSize:".8rem"},value:kat,onChange:function(e){setKat(e.target.value);}},["Lauk Utama","Lauk Nabati","Lauk Telur","Lauk Ikan","Snack/Roti","Sup/Sayur"].map(function(k){return React.createElement("option",{key:k},k);}))),
         React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.7rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"4px"}},"Nama Menu"),
-          React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"7px 10px",fontSize:"0.8rem"},placeholder:"Ayam Goreng + Nasi...",value:nama,onChange:function(e){setNama(e.target.value);}})
-        ),
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.7rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"4px"}},"Kategori"),
-          React.createElement("select",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"7px 10px",fontSize:"0.8rem"},value:kat,onChange:function(e){setKat(e.target.value);}},
-            ["Lauk Utama","Lauk Nabati","Lauk Telur","Lauk Ikan","Snack/Roti","Sup/Sayur"].map(function(k){return React.createElement("option",{key:k},k);})
-          )
-        ),
-        React.createElement("div",null,
-          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.5rem"}},
-            React.createElement("label",{style:{fontSize:"0.7rem",fontWeight:600,color:"#64748b"}},"Bahan-bahan"),
-            React.createElement(Btn,{onClick:addB,small:true},"+ Bahan")
-          ),
-          bahan.map(function(b,i){
-            return React.createElement("div",{key:i,style:{background:"#f8fafc",borderRadius:"0.625rem",padding:"0.625rem",marginBottom:"0.5rem"}},
-              React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.375rem"}},
-                React.createElement("span",{style:{fontSize:"0.7rem",fontWeight:600,color:"#475569"}},"Bahan "+(i+1)),
-                i>0&&React.createElement("button",{onClick:function(){delB(i);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"12px"}},"✕")
-              ),
-              React.createElement(BahanInput,{value:b.nama,onChange:function(v){setB(i,"nama",v);},hargaDB:hargaDB||[],onSelectSuggestion:function(h){setB(i,"nama",h.nama);},placeholder:"Nama bahan..."}),
-              React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 56px",gap:"0.375rem",marginTop:"0.375rem"}},
-                React.createElement("div",null,
-                  React.createElement("label",{style:{fontSize:"0.62rem",color:"#94a3b8"}},"g/porsi kecil"),
-                  React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 8px",fontSize:"0.75rem"},value:b.gK||"",onChange:function(e){setB(i,"gK",parseFloat(e.target.value)||0);}})
-                ),
-                React.createElement("div",null,
-                  React.createElement("label",{style:{fontSize:"0.62rem",color:"#94a3b8"}},"g/porsi besar"),
-                  React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 8px",fontSize:"0.75rem"},value:b.gB||"",onChange:function(e){setB(i,"gB",parseFloat(e.target.value)||0);}})
-                ),
-                React.createElement("div",null,
-                  React.createElement("label",{style:{fontSize:"0.62rem",color:"#94a3b8"}},"Sat"),
-                  React.createElement("select",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 3px",fontSize:"0.7rem"},value:b.sat,onChange:function(e){setB(i,"sat",e.target.value);}},
-                    ["g","ml","pcs"].map(function(s){return React.createElement("option",{key:s},s);})
-                  )
-                )
-              )
-            );
-          })
+          React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:".5rem"}},React.createElement("label",{style:{fontSize:".7rem",fontWeight:600,color:"#64748b"}},"Bahan-bahan"),React.createElement(Btn,{onClick:addB,small:true},"+ Bahan")),
+          bahan.map(function(b,i){return React.createElement("div",{key:i,style:{background:"#f8fafc",borderRadius:".625rem",padding:".625rem",marginBottom:".5rem"}},
+            React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:".375rem"}},React.createElement("span",{style:{fontSize:".7rem",fontWeight:600,color:"#475569"}},"Bahan "+(i+1)),i>0&&React.createElement("button",{onClick:function(){delB(i);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"12px"}},"✕")),
+            React.createElement(BahanInput,{value:b.nama,onChange:function(v){setB(i,"nama",v);},db:p.hargaDB||[],onSelect:function(h){setB(i,"nama",h.nama);},placeholder:"Nama bahan..."}),
+            React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 56px",gap:".375rem",marginTop:".375rem"}},
+              React.createElement("div",null,React.createElement("label",{style:{fontSize:".62rem",color:"#94a3b8"}},"g/porsi kecil"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 8px",fontSize:".75rem"},value:b.gK||"",onChange:function(e){setB(i,"gK",parseFloat(e.target.value)||0);}})),
+              React.createElement("div",null,React.createElement("label",{style:{fontSize:".62rem",color:"#94a3b8"}},"g/porsi besar"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 8px",fontSize:".75rem"},value:b.gB||"",onChange:function(e){setB(i,"gB",parseFloat(e.target.value)||0);}})),
+              React.createElement("div",null,React.createElement("label",{style:{fontSize:".62rem",color:"#94a3b8"}},"Sat"),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 5px",fontSize:".72rem"},placeholder:"g",value:b.sat,onChange:function(e){setB(i,"sat",e.target.value);}}))
+            )
+          );})
         )
       ),
-      React.createElement("div",{style:{padding:"0.75rem 1.25rem",display:"flex",gap:"0.5rem",position:"sticky",bottom:0,background:"white",borderTop:"1px solid #f1f5f9"}},
-        React.createElement("button",{onClick:onClose,style:{flex:1,border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"0.5rem",fontSize:"0.8rem",background:"white",cursor:"pointer"}},"Batal"),
-        React.createElement(Btn,{onClick:function(){if(!nama)return alert("Nama menu wajib!");onSave({id:"menu-"+uid(),nama:nama,kategori:kat,bahan:bahan});},style:{flex:1}},"Simpan")
+      React.createElement("div",{style:{padding:".75rem 1.25rem",display:"flex",gap:".5rem",position:"sticky",bottom:0,background:"white",borderTop:"1px solid #f1f5f9"}},
+        React.createElement("button",{onClick:p.onClose,style:{flex:1,border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".5rem",fontSize:".8rem",background:"white",cursor:"pointer"}},"Batal"),
+        React.createElement(Btn,{onClick:function(){if(!nama)return alert("Nama menu wajib!");p.onSave({id:"menu-"+uid(),nama:nama,kategori:kat,bahan:bahan});},style:{flex:1}},"Simpan")
       )
     )
   );
 }
 
 // ─── ESTIMASI ─────────────────────────────────────────────────────────────────
-function PageEstimasi({sppgList,setModal}){
-  var [pk,setPk]=useState(0);
-  var [pb,setPb]=useState(0);
-  var [hari,setHari]=useState(26);
+function PageEstimasi(p){
+  var s1=useState(0),pk=s1[0],setPk=s1[1];
+  var s2=useState(0),pb=s2[0],setPb=s2[1];
+  var s3=useState(26),hari=s3[0],setHari=s3[1];
   var bb=(pk||0)*8000+(pb||0)*10000;
   var ins=6000000;
   var totalHari=bb+ins;
   var totalPeriode=totalHari*hari;
-  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.875rem"}},
-    React.createElement(PageHeader,{title:"Estimasi Pagu",action:React.createElement(Btn,{onClick:function(){setModal("sppg");},small:true},"+ SPPG")}),
+  return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:".875rem"}},
+    React.createElement(PageHeader,{title:"Estimasi Pagu",action:React.createElement(Btn,{onClick:function(){p.setModal("sppg");},small:true},"+ SPPG")}),
     React.createElement(Card,null,
-      React.createElement("p",{style:{fontSize:"0.75rem",fontWeight:700,color:"#475569",margin:"0 0 0.75rem"}},"Kalkulator Estimasi"),
-      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem",marginBottom:"0.5rem"}},
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.68rem",color:"#3b82f6",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Kecil @ Rp8.000"),
-          React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:"0.5rem",padding:"7px 10px",fontSize:"0.85rem",background:"#eff6ff"},placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})
-        ),
-        React.createElement("div",null,
-          React.createElement("label",{style:{fontSize:"0.68rem",color:"#ea580c",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Besar @ Rp10.000"),
-          React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:"0.5rem",padding:"7px 10px",fontSize:"0.85rem",background:"#fff7ed"},placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}})
-        )
+      React.createElement("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:"0 0 .75rem"}},"Kalkulator Estimasi"),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginBottom:".5rem"}},
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#3b82f6",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Kecil @ Rp8.000"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:".5rem",padding:"7px 10px",fontSize:".85rem",background:"#eff6ff"},placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})),
+        React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#ea580c",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Besar @ Rp10.000"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:".5rem",padding:"7px 10px",fontSize:".85rem",background:"#fff7ed"},placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}}))
       ),
-      React.createElement("div",null,
-        React.createElement("label",{style:{fontSize:"0.68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Hari Operasional"),
-        React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:"0.5rem",padding:"7px 10px",fontSize:"0.85rem"},value:hari,onChange:function(e){setHari(parseInt(e.target.value)||26);}})
-      )
+      React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Hari Operasional"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"7px 10px",fontSize:".85rem"},value:hari,onChange:function(e){setHari(parseInt(e.target.value)||26);}}))
     ),
     (pk>0||pb>0)&&React.createElement(Card,{style:{padding:0,overflow:"hidden"}},
-      React.createElement("div",{style:{padding:"8px 12px",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},React.createElement("p",{style:{fontSize:"0.75rem",fontWeight:700,color:"#475569",margin:0}},"Hasil Estimasi Per Hari")),
-      React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:"0.72rem"}},
+      React.createElement("div",{style:{padding:"8px 12px",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},React.createElement("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:0}},"Hasil Estimasi Per Hari")),
+      React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem"}},
         React.createElement("tbody",null,[
           {l:"Porsi Kecil ("+pk+" × Rp8.000)",v:pk*8000,c:"#2563eb"},
           {l:"Porsi Besar ("+pb+" × Rp10.000)",v:pb*10000,c:"#ea580c"},
@@ -850,228 +667,98 @@ function PageEstimasi({sppgList,setModal}){
           {l:"Insentif Fasilitas (flat)",v:ins,c:"#7c3aed"},
           {l:"TOTAL PER HARI",v:totalHari,c:"#1e293b",bold:true,border:true},
           {l:"TOTAL "+hari+" HARI",v:totalPeriode,c:"#059669",bold:true},
-        ].map(function(r,i){
-          return React.createElement("tr",{key:i,style:{borderTop:r.border?"2px solid #e2e8f0":"1px solid #f8fafc"}},
-            React.createElement("td",{style:{padding:"7px 12px",color:"#64748b",fontWeight:r.bold?700:400,fontSize:r.bold?"0.75rem":"0.72rem"}},r.l),
-            React.createElement("td",{style:{padding:"7px 12px",textAlign:"right",fontWeight:r.bold?800:600,color:r.c,fontSize:r.bold?"0.8rem":"0.72rem"}},fmt(r.v))
-          );
+        ].map(function(r,i){return React.createElement("tr",{key:i,style:{borderTop:r.border?"2px solid #e2e8f0":"1px solid #f8fafc"}},React.createElement("td",{style:{padding:"7px 12px",color:"#64748b",fontWeight:r.bold?700:400,fontSize:r.bold?".75rem":".72rem"}},r.l),React.createElement("td",{style:{padding:"7px 12px",textAlign:"right",fontWeight:r.bold?800:600,color:r.c,fontSize:r.bold?".8rem":".72rem"}},fmt(r.v)));
         }))
       )
     ),
     React.createElement(Card,{style:{background:"#eff6ff",border:"1px solid #bfdbfe"}},
-      React.createElement("p",{style:{fontSize:"0.72rem",fontWeight:700,color:"#1d4ed8",margin:"0 0 6px"}},"📌 Catatan Juknis BGN"),
-      React.createElement("ul",{style:{fontSize:"0.68rem",color:"#3b82f6",margin:0,paddingLeft:"1rem",lineHeight:1.7}},
+      React.createElement("p",{style:{fontSize:".72rem",fontWeight:700,color:"#1d4ed8",margin:"0 0 6px"}},"Catatan Juknis BGN"),
+      React.createElement("ul",{style:{fontSize:".68rem",color:"#3b82f6",margin:0,paddingLeft:"1rem",lineHeight:1.7}},
         ["Porsi kecil: PAUD/TK, SD 1-3, Balita → Rp8.000/porsi","Porsi besar: SD 4-6, SMP, SMA, Pendidik, Bumil/Busui → Rp10.000/porsi","Operasional at cost (di luar budget harian)","Insentif fasilitas Rp6.000.000/hari (flat)"].map(function(t,i){return React.createElement("li",{key:i},t);})
       )
     ),
-    sppgList.length>0&&React.createElement(Card,null,
-      React.createElement("p",{style:{fontSize:"0.75rem",fontWeight:700,color:"#475569",margin:"0 0 0.5rem"}},"Daftar SPPG"),
-      sppgList.map(function(s){
-        return React.createElement("div",{key:s.id,style:{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f8fafc"}},
-          React.createElement("div",null,
-            React.createElement("p",{style:{fontWeight:700,fontSize:"0.78rem",color:"#1e293b",margin:0}},s.nama),
-            React.createElement("p",{style:{fontSize:"0.65rem",color:"#94a3b8",margin:0}},(s.kecamatan?s.kecamatan+", ":"")+(s.kabupaten||""))
-          ),
-          React.createElement("span",{style:{fontSize:"0.68rem",color:"#64748b"}},s.hariOperasional+" hari")
-        );
-      })
+    p.sppgList.length>0&&React.createElement(Card,null,
+      React.createElement("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:"0 0 .5rem"}},"Daftar SPPG"),
+      p.sppgList.map(function(s){return React.createElement("div",{key:s.id,style:{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f8fafc"}},React.createElement("div",null,React.createElement("p",{style:{fontWeight:700,fontSize:".78rem",color:"#1e293b",margin:0}},s.nama),React.createElement("p",{style:{fontSize:".65rem",color:"#94a3b8",margin:0}},(s.kecamatan?s.kecamatan+", ":"")+(s.kabupaten||""))),React.createElement("span",{style:{fontSize:".68rem",color:"#64748b"}},s.hariOperasional+" hari"));})
     )
   );
 }
 
-
-// ─── EXPORT SYSTEM ───────────────────────────────────────────────────────────
-var EXPORT_PROGRESS_EL = null;
-
-function showExpProgress(msg){
-  var el=document.getElementById("exp-progress-el");
-  if(el){el.textContent=msg;el.style.display=msg?"block":"none";}
-}
-
-function doExportCSV(rows, headers, filename){
-  var lines=[headers.join(",")];
-  rows.forEach(function(r){
-    lines.push(r.map(function(c){
-      var s=c===null||c===undefined?"":String(c);
-      return s.includes(",")||s.includes('"')||s.includes("\n")?'"'+s.replace(/"/g,'""')+'"':s;
-    }).join(","));
-  });
-  var blob=new Blob(["\uFEFF"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=filename+".csv";
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
-}
-
-function doExportExcel(sheets, filename){
-  try{
-    var wb=XLSX.utils.book_new();
-    sheets.forEach(function(s){
-      var ws=XLSX.utils.aoa_to_sheet(s.data);
-      var maxCols=s.data.reduce(function(a,r){return Math.max(a,r.length);},0);
-      ws["!cols"]=[];
-      for(var c=0;c<maxCols;c++){
-        var maxW=s.data.reduce(function(a,r){return Math.max(a,r[c]?String(r[c]).length:4);},4);
-        ws["!cols"].push({wch:Math.min(maxW+2,40)});
-      }
-      XLSX.utils.book_append_sheet(wb,ws,s.name);
-    });
-    XLSX.writeFile(wb,filename+".xlsx");
-  }catch(e){alert("Excel error: "+e.message);}
-}
-
-function doExportPDF(elementId, filename){
-  showExpProgress("Membuat PDF...");
-  var el=document.getElementById(elementId);
-  if(!el){showExpProgress("");return alert("Elemen tidak ditemukan: "+elementId);}
-  html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#ffffff",logging:false,removeContainer:true}).then(function(canvas){
-    var jsPDF=window.jspdf.jsPDF;
-    var imgData=canvas.toDataURL("image/jpeg",0.92);
-    var pW=210,pH=297;
-    var imgW=pW-16;
-    var imgH=(canvas.height/canvas.width)*imgW;
-    var pdf=new jsPDF("p","mm",[pW,pH]);
-    var y=8;
-    while(y<imgH+8){
-      if(y>8)pdf.addPage();
-      var sy=((y-8)/imgH)*canvas.height;
-      var sh=Math.min(canvas.height-sy,(pH-16)/imgH*canvas.height);
-      var tempC=document.createElement("canvas");
-      tempC.width=canvas.width;tempC.height=sh;
-      var ctx=tempC.getContext("2d");
-      ctx.drawImage(canvas,0,sy,canvas.width,sh,0,0,canvas.width,sh);
-      var sliceData=tempC.toDataURL("image/jpeg",0.92);
-      var sliceH=(sh/canvas.height)*imgH;
-      pdf.addImage(sliceData,"JPEG",8,8,imgW,sliceH);
-      y+=(pH-16);
-    }
-    pdf.save(filename+".pdf");
-    showExpProgress("");
-  }).catch(function(e){showExpProgress("");alert("PDF gagal: "+e.message);});
-}
-
-function doExportImage(elementId, filename, type){
-  showExpProgress("Membuat gambar...");
-  var el=document.getElementById(elementId);
-  if(!el){showExpProgress("");return alert("Elemen tidak ditemukan: "+elementId);}
-  html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#ffffff",logging:false,removeContainer:true}).then(function(canvas){
-    var mime=type==="png"?"image/png":"image/jpeg";
-    canvas.toBlob(function(blob){
-      var a=document.createElement("a");
-      a.href=URL.createObjectURL(blob);
-      a.download=filename+(type==="png"?".png":".jpg");
-      document.body.appendChild(a);a.click();document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-      showExpProgress("");
-    },mime,0.93);
-  }).catch(function(e){showExpProgress("");alert("Gambar gagal: "+e.message);});
-}
-
-function doExportTXT(lines, filename){
-  var blob=new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8;"});
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=filename+".txt";
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
-}
-
-function ExportSheet({config,onClose}){
-  if(!config)return null;
-  var FMTS=[
-    {id:"csv",icon:"📄",label:"CSV",desc:"Tabel untuk Excel/Google Sheets",bg:"#f0fdf4",tc:"#16a34a"},
-    {id:"excel",icon:"🟢",label:"Excel (.xlsx)",desc:"Multi-sheet dengan format lengkap",bg:"#f0fdf4",tc:"#16a34a"},
-    {id:"pdf",icon:"🔴",label:"PDF",desc:"Dokumen siap cetak / share",bg:"#fef2f2",tc:"#dc2626"},
-    {id:"jpg",icon:"🖼️",label:"JPG",desc:"Gambar JPEG, mudah di-share WA",bg:"#fffbeb",tc:"#d97706"},
-    {id:"png",icon:"🖼️",label:"PNG",desc:"Gambar PNG kualitas tinggi",bg:"#fffbeb",tc:"#d97706"},
-    {id:"txt",icon:"📝",label:"Teks (.txt)",desc:"Laporan teks sederhana",bg:"#f8fafc",tc:"#64748b"},
-  ];
-  var avail=config.formats||FMTS.map(function(f){return f.id;});
-  function doIt(id){
-    onClose();
-    setTimeout(function(){
-      if(id==="csv")doExportCSV(config.csvRows,config.csvHeaders,config.filename);
-      else if(id==="excel")doExportExcel(config.excelSheets,config.filename);
-      else if(id==="pdf")doExportPDF(config.elementId,config.filename);
-      else if(id==="jpg")doExportImage(config.elementId,config.filename,"jpg");
-      else if(id==="png")doExportImage(config.elementId,config.filename,"png");
-      else if(id==="txt")doExportTXT(config.txtLines,config.filename);
-    },150);
-  }
-  return React.createElement("div",{className:"exp-sheet",onClick:function(e){if(e.target===e.currentTarget)onClose();}},
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+function showExpProgress(msg){var el=document.getElementById("exp-progress-el");if(el){el.textContent=msg;el.style.display=msg?"block":"none";}}
+function doExportCSV(rows,headers,filename){var lines=[headers.join(",")];rows.forEach(function(r){lines.push(r.map(function(c){var s=c===null||c===undefined?"":String(c);var hasSep=s.indexOf(",")>=0||s.indexOf('"')>=0||s.indexOf("\n")>=0;return hasSep?'"'+s.split('"').join('""')+'"':s;}).join(","));});var blob=new Blob(["\uFEFF"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename+".csv";document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);}
+function doExportExcel(sheets,filename){try{var wb=XLSX.utils.book_new();sheets.forEach(function(s){var ws=XLSX.utils.aoa_to_sheet(s.data);var maxCols=s.data.reduce(function(a,r){return Math.max(a,r.length);},0);ws["!cols"]=[];for(var c=0;c<maxCols;c++){var maxW=s.data.reduce(function(a,r){return Math.max(a,r[c]?String(r[c]).length:4);},4);ws["!cols"].push({wch:Math.min(maxW+2,40)});}XLSX.utils.book_append_sheet(wb,ws,s.name);});XLSX.writeFile(wb,filename+".xlsx");}catch(e){alert("Excel error: "+e.message);}}
+function doExportPDF(elementId,filename){showExpProgress("Membuat PDF...");var el=document.getElementById(elementId);if(!el){showExpProgress("");return alert("Elemen tidak ditemukan");}html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#ffffff",logging:false}).then(function(canvas){var jsPDF=window.jspdf.jsPDF;var imgData=canvas.toDataURL("image/jpeg",0.92);var pW=210,pH=297;var imgW=pW-16;var imgH=(canvas.height/canvas.width)*imgW;var pdf=new jsPDF("p","mm",[pW,pH]);if(imgH<=pH-16){pdf.addImage(imgData,"JPEG",8,8,imgW,imgH);}else{var y=0;while(y<imgH){if(y>0)pdf.addPage();var sh=Math.min(pH-16,imgH-y);var tempC=document.createElement("canvas");tempC.width=canvas.width;tempC.height=Math.round(sh/imgH*canvas.height);var ctx=tempC.getContext("2d");ctx.drawImage(canvas,0,Math.round(y/imgH*canvas.height),canvas.width,tempC.height,0,0,canvas.width,tempC.height);pdf.addImage(tempC.toDataURL("image/jpeg",0.92),"JPEG",8,8,imgW,sh);y+=sh;}}pdf.save(filename+".pdf");showExpProgress("");}).catch(function(e){showExpProgress("");alert("PDF gagal: "+e.message);});}
+function doExportImage(elementId,filename,type){showExpProgress("Membuat gambar...");var el=document.getElementById(elementId);if(!el){showExpProgress("");return alert("Elemen tidak ditemukan");}html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#ffffff",logging:false}).then(function(canvas){var mime=type==="png"?"image/png":"image/jpeg";canvas.toBlob(function(blob){var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename+(type==="png"?".png":".jpg");document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);showExpProgress("");},mime,0.93);}).catch(function(e){showExpProgress("");alert("Gambar gagal: "+e.message);});}
+function doExportTXT(lines,filename){var blob=new Blob([lines.join("\n")],{type:"text/plain;charset=utf-8;"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename+".txt";document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);}
+function ExportSheet(p){
+  if(!p.config)return null;
+  var FMTS=[{id:"csv",icon:"📄",label:"CSV",desc:"Tabel untuk Excel/Google Sheets",bg:"#f0fdf4",tc:"#16a34a"},{id:"excel",icon:"🟢",label:"Excel (.xlsx)",desc:"Multi-sheet, format lengkap",bg:"#f0fdf4",tc:"#16a34a"},{id:"pdf",icon:"🔴",label:"PDF",desc:"Dokumen siap cetak / share",bg:"#fef2f2",tc:"#dc2626"},{id:"jpg",icon:"🖼",label:"JPG",desc:"Gambar JPEG, mudah di-share WA",bg:"#fffbeb",tc:"#d97706"},{id:"png",icon:"🖼",label:"PNG",desc:"Gambar PNG kualitas tinggi",bg:"#fffbeb",tc:"#d97706"},{id:"txt",icon:"📝",label:"Teks (.txt)",desc:"Laporan teks sederhana",bg:"#f8fafc",tc:"#64748b"}];
+  var avail=p.config.formats||FMTS.map(function(f){return f.id;});
+  function doIt(id){p.onClose();setTimeout(function(){if(id==="csv")doExportCSV(p.config.csvRows,p.config.csvHeaders,p.config.filename);else if(id==="excel")doExportExcel(p.config.excelSheets,p.config.filename);else if(id==="pdf")doExportPDF(p.config.elementId,p.config.filename);else if(id==="jpg")doExportImage(p.config.elementId,p.config.filename,"jpg");else if(id==="png")doExportImage(p.config.elementId,p.config.filename,"png");else if(id==="txt")doExportTXT(p.config.txtLines,p.config.filename);},150);}
+  return React.createElement("div",{className:"exp-overlay",onClick:function(e){if(e.target===e.currentTarget)p.onClose();}},
     React.createElement("div",{className:"exp-inner"},
-      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.875rem"}},
-        React.createElement("div",null,
-          React.createElement("p",{style:{fontWeight:800,fontSize:"0.9rem",margin:0,color:"#1e293b"}},"Export Data"),
-          React.createElement("p",{style:{fontSize:"0.68rem",color:"#94a3b8",margin:0}},config.title||"Pilih format")
-        ),
-        React.createElement("button",{onClick:onClose,style:{background:"#f1f5f9",border:"none",borderRadius:"50%",width:"1.75rem",height:"1.75rem",cursor:"pointer",fontSize:"1rem",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center"}},"×")
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:".875rem"}},
+        React.createElement("div",null,React.createElement("p",{style:{fontWeight:800,fontSize:".9rem",margin:0,color:"#1e293b"}},"Export Data"),React.createElement("p",{style:{fontSize:".68rem",color:"#94a3b8",margin:0}},p.config.title||"Pilih format")),
+        React.createElement("button",{onClick:p.onClose,style:{background:"#f1f5f9",border:"none",borderRadius:"50%",width:"1.75rem",height:"1.75rem",cursor:"pointer",fontSize:"1rem",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center"}},"×")
       ),
-      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:"0.375rem"}},
-        FMTS.filter(function(f){return avail.indexOf(f.id)>=0;}).map(function(f){
-          return React.createElement("button",{key:f.id,className:"exp-btn",onClick:function(){doIt(f.id);}},
-            React.createElement("div",{className:"exp-icon",style:{background:f.bg,color:f.tc}},f.icon),
-            React.createElement("div",null,
-              React.createElement("div",null,f.label),
-              React.createElement("div",{className:"exp-desc"},f.desc)
-            ),
-            React.createElement("span",{style:{marginLeft:"auto",color:"#cbd5e1",fontSize:"1rem"}},"›")
-          );
-        })
+      React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:".375rem"}},
+        FMTS.filter(function(f){return avail.indexOf(f.id)>=0;}).map(function(f){return React.createElement("button",{key:f.id,className:"exp-btn",onClick:function(){doIt(f.id);}},React.createElement("div",{style:{width:"2.25rem",height:"2.25rem",borderRadius:".625rem",background:f.bg,color:f.tc,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.1rem",flexShrink:0}},f.icon),React.createElement("div",null,React.createElement("div",null,f.label),React.createElement("div",{style:{fontSize:".63rem",fontWeight:400,color:"#94a3b8",marginTop:"1px"}},f.desc)),React.createElement("span",{style:{marginLeft:"auto",color:"#cbd5e1",fontSize:"1rem"}},"›"));})
       )
     )
   );
 }
 
-
 // ─── APP ──────────────────────────────────────────────────────────────────────
 function App(){
-  var [tab,setTab]=useState("dashboard");
-  var [sppgList,setSppgList]=useLS("mbg_sppg",[]);
-  var [belanjaList,setBelanjaList]=useLS("mbg_belanja_v2",[]);
-  var [operasionalList,setOperasionalList]=useLS("mbg_operasional",[]);
-  var [hargaDB,setHargaDB]=useLS("mbg_hargadb",HARGA0);
-  var [menuTemplates,setMenuTemplates]=useLS("mbg_menus",[]);
-  var [menuHistory,setMenuHistory]=useLS("mbg_menu_history",[]);
-  var [modal,setModal]=useState(null);
-  var [exportCfg,setExportCfg]=useState(null);
-
-  function addSppg(s){setSppgList(function(p){return (Array.isArray(p)?p:[]).concat([s]);});}
-
+  var s1=useState("dashboard"),tab=s1[0],setTab=s1[1];
+  var s2=useLS("mbg_sppg",[]),sppgList=s2[0],setSppgList=s2[1];
+  var s3=useLS("mbg_belanja_v2",[]),belanjaList=s3[0],setBelanjaList=s3[1];
+  var s4=useLS("mbg_operasional",[]),operasionalList=s4[0],setOperasionalList=s4[1];
+  var s5=useLS("mbg_hargadb",HARGA0),hargaDB=s5[0],setHargaDB=s5[1];
+  var s6=useLS("mbg_menus",[]),menuTemplates=s6[0],setMenuTemplates=s6[1];
+  var s7=useLS("mbg_menu_history",[]),menuHistory=s7[0],setMenuHistory=s7[1];
+  var s8=useState(null),modal=s8[0],setModal=s8[1];
+  var s9=useState(null),exportCfg=s9[0],setExportCfg=s9[1];
+  function addSppg(s){setSppgList(function(prev){return (Array.isArray(prev)?prev:[]).concat([s]);});}
+  var safeSppg=Array.isArray(sppgList)?sppgList:[];
   var NAV=[
     {id:"dashboard",icon:"🏠",label:"Home"},
     {id:"belanja",icon:"🛒",label:"Belanja"},
     {id:"operasional",icon:"⚙️",label:"Ops"},
-    {id:"menu",icon:"🍽️",label:"Menu"},
+    {id:"menu",icon:"🍽",label:"Menu"},
+    {id:"harga",icon:"💹",label:"Harga"},
     {id:"estimasi",icon:"🧮",label:"Estimasi"},
   ];
-
-  return React.createElement("div",{style:{minHeight:"100vh",background:"#f9fafb",display:"flex",flexDirection:"column",maxWidth:"768px",margin:"0 auto",width:"100%"}},
-    React.createElement("div",{style:{background:"linear-gradient(to right,#2563eb,#1d4ed8)",color:"white",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:40,boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}},
-      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:"0.75rem"}},
-        React.createElement("div",{style:{width:"2rem",height:"2rem",background:"rgba(255,255,255,0.2)",borderRadius:"0.5rem",display:"flex",alignItems:"center",justifyContent:"center"}},"🍱"),
-        React.createElement("div",null,
-          React.createElement("p",{style:{fontWeight:"bold",fontSize:"0.875rem",margin:0}},"PantauBelanjaMBG"),
-          React.createElement("p",{style:{fontSize:"0.7rem",opacity:0.7,margin:0}},"Sistem Pemantauan Belanja Dapur SPPG")
-        )
+  function renderPage(){
+    if(tab==="dashboard")return React.createElement(PageDashboard,{sppgList:safeSppg,belanjaList:belanjaList,operasionalList:operasionalList,setModal:setModal,onExport:setExportCfg});
+    if(tab==="belanja")return React.createElement(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaDB,setHargaDB:setHargaDB,setModal:setModal,onExport:setExportCfg});
+    if(tab==="operasional")return React.createElement(PageOperasional,{sppgList:safeSppg,operasionalList:operasionalList,setOperasionalList:setOperasionalList,setModal:setModal,onExport:setExportCfg});
+    if(tab==="menu")return React.createElement(PageMenu,{menuTemplates:menuTemplates,setMenuTemplates:setMenuTemplates,menuHistory:menuHistory,setMenuHistory:setMenuHistory,hargaDB:hargaDB});
+    if(tab==="harga")return React.createElement(PageHarga,{hargaDB:hargaDB,setHargaDB:setHargaDB});
+    if(tab==="estimasi")return React.createElement(PageEstimasi,{sppgList:safeSppg,setModal:setModal});
+    return null;
+  }
+  return React.createElement("div",{className:"app-shell"},
+    React.createElement("div",{className:"topbar"},
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:".75rem"}},
+        React.createElement("div",{style:{width:"2rem",height:"2rem",background:"rgba(255,255,255,.2)",borderRadius:".5rem",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.1rem"}},"🍱"),
+        React.createElement("div",null,React.createElement("p",{style:{fontWeight:"bold",fontSize:".875rem",margin:0}},"PantauBelanjaMBG"),React.createElement("p",{style:{fontSize:".7rem",opacity:.7,margin:0}},"Sistem Pemantauan Belanja Dapur SPPG"))
       ),
-      React.createElement("span",{style:{fontSize:"0.72rem",opacity:0.8}},(Array.isArray(sppgList)?sppgList.length:0)+" SPPG")
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:".75rem"}},
+        React.createElement("span",{style:{fontSize:".72rem",opacity:.8}},safeSppg.length+" SPPG"),
+        React.createElement("span",{style:{fontSize:".7rem",background:"rgba(255,255,255,.15)",padding:"2px 8px",borderRadius:"12px",opacity:.9}},"📦 Lokal")
+      )
     ),
-    React.createElement("div",{style:{flex:1,padding:"clamp(0.75rem,3vw,1.25rem)",paddingBottom:"5rem",overflowY:"auto"}},
-      tab==="dashboard"&&React.createElement(PageDashboard,{sppgList:Array.isArray(sppgList)?sppgList:[],belanjaList:belanjaList,operasionalList:operasionalList,setModal:setModal,onExport:setExportCfg}),
-      tab==="belanja"&&React.createElement(PageBelanja,{sppgList:Array.isArray(sppgList)?sppgList:[],belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaDB,setHargaDB:setHargaDB,setModal:setModal,onExport:setExportCfg}),
-      tab==="operasional"&&React.createElement(PageOperasional,{sppgList:Array.isArray(sppgList)?sppgList:[],operasionalList:operasionalList,setOperasionalList:setOperasionalList,setModal:setModal,onExport:setExportCfg}),
-      tab==="menu"&&React.createElement(PageMenu,{menuTemplates:Array.isArray(menuTemplates)?menuTemplates:[],setMenuTemplates:setMenuTemplates,menuHistory:menuHistory,setMenuHistory:setMenuHistory,hargaDB:hargaDB}),
-      tab==="estimasi"&&React.createElement(PageEstimasi,{sppgList:Array.isArray(sppgList)?sppgList:[],setModal:setModal})
+    React.createElement("div",{className:"content-area"},
+      React.createElement("aside",{className:"sidebar"},
+        NAV.map(function(n){return React.createElement("button",{key:n.id,className:"sidebar-btn"+(tab===n.id?" active":""),onClick:function(){setTab(n.id);}},React.createElement("span",{className:"si"},n.icon),n.label);}),
+        React.createElement("div",{style:{marginTop:"auto",padding:".75rem",background:"#f8fafc",borderRadius:".625rem",fontSize:".68rem",color:"#94a3b8"}},"💾 Data tersimpan lokal di browser ini. Gunakan Export untuk backup/pindah device.")
+      ),
+      React.createElement("main",{className:"page-content"},renderPage())
     ),
-    React.createElement("nav",{style:{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"768px",background:"white",borderTop:"1px solid #f3f4f6",display:"flex",zIndex:40,boxShadow:"0 -1px 3px rgba(0,0,0,0.1)"}},
-      NAV.map(function(n){
-        return React.createElement("button",{key:n.id,onClick:function(){setTab(n.id);},style:{flex:1,padding:"0.6rem 0",display:"flex",flexDirection:"column",alignItems:"center",gap:"0.125rem",border:"none",background:"none",cursor:"pointer",color:tab===n.id?"#2563eb":"#9ca3af",minWidth:0}},
-          React.createElement("span",{style:{fontSize:"clamp(0.9rem,2.5vw,1.1rem)",lineHeight:1}},n.icon),
-          React.createElement("span",{style:{fontSize:"clamp(0.55rem,1.8vw,0.7rem)",fontWeight:500,whiteSpace:"nowrap"}},n.label)
-        );
-      })
+    React.createElement("nav",{className:"bottom-nav",style:{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:"900px",background:"white",borderTop:"1px solid #f3f4f6",display:"flex",zIndex:100,boxShadow:"0 -1px 3px rgba(0,0,0,.1)"}},
+      NAV.map(function(n){return React.createElement("button",{key:n.id,onClick:function(){setTab(n.id);},style:{flex:1,padding:".55rem 0",display:"flex",flexDirection:"column",alignItems:"center",gap:".125rem",border:"none",background:"none",cursor:"pointer",color:tab===n.id?"#2563eb":"#9ca3af",minWidth:0}},React.createElement("span",{style:{fontSize:"clamp(.9rem,2.5vw,1.1rem)",lineHeight:1}},n.icon),React.createElement("span",{style:{fontSize:"clamp(.48rem,1.6vw,.65rem)",fontWeight:500,whiteSpace:"nowrap"}},n.label));})
     ),
     modal==="sppg"&&React.createElement(ModalSPPG,{onSave:function(s){addSppg(s);setModal(null);},onClose:function(){setModal(null);}}),
     exportCfg&&React.createElement(ExportSheet,{config:exportCfg,onClose:function(){setExportCfg(null);}}),
@@ -1079,8 +766,7 @@ function App(){
   );
 }
 
-var root=ReactDOM.createRoot(document.getElementById("root"));
-root.render(React.createElement(App,null));
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App,null));
 </script>
 </body>
 </html>
