@@ -234,7 +234,7 @@ function ModalEditBelanja(p){
                   React.createElement("td",{key:"nama",style:{padding:"4px 6px",minWidth:"130px"}},React.createElement(BahanInput,{value:row.nama,onChange:function(v){updRow(row.id,"nama",v);},db:p.hargaDB,onSelect:function(h){selSugg(row.id,h);}})),
                   React.createElement("td",{key:"qty",style:{padding:"4px 5px",width:"60px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"54px",textAlign:"center",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.qty||"",placeholder:"0",onChange:function(e){updRow(row.id,"qty",e.target.value);}})),
                   React.createElement("td",{key:"sat",style:{padding:"4px 5px",width:"80px"}},React.createElement("input",{style:Object.assign({},iS,{width:"74px"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",placeholder:"kg/pcs/...",value:row.satuan,onChange:function(e){updRow(row.id,"satuan",e.target.value);}})),
-                  colVis.showSupplier!==false&&React.createElement("td",{key:"hs",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaSupplier",e.target.value);}})),
+                  React.createElement("td",{key:"hs",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaSupplier",e.target.value);}})),
                   React.createElement("td",{key:"hf",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaFinal||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaFinal",e.target.value);}})),
                   React.createElement("td",{key:"del",style:{padding:"4px 5px"}},React.createElement("button",{onClick:function(){delRow(row.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px",padding:"3px 5px",borderRadius:"5px"}},"✕"))
                 ];
@@ -434,7 +434,27 @@ function PageBelanja(p){
         React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#3b82f6",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Kecil @ Rp8.000"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#eff6ff"},placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})),
         React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#ea580c",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Besar @ Rp10.000"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#fff7ed"},placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}}))
       ),
-      budgetHarian>0&&React.createElement("div",{style:{marginTop:".5rem",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:".5rem",padding:"6px 10px",display:"flex",justifyContent:"space-between"}},React.createElement("span",{style:{fontSize:".7rem",color:"#166534"}},"Budget harian (porsi)"),React.createElement("b",{style:{fontSize:".8rem",color:"#15803d"}},fmt(budgetHarian)))
+      budgetHarian>0&&React.createElement("div",{style:{marginTop:".5rem",display:"flex",flexDirection:"column",gap:".375rem"}},
+        React.createElement("div",{style:{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:".5rem",padding:"6px 10px",display:"flex",justifyContent:"space-between"}},
+          React.createElement("span",{style:{fontSize:".7rem",color:"#166534"}},"Budget harian (porsi)"),
+          React.createElement("b",{style:{fontSize:".8rem",color:"#15803d"}},fmt(budgetHarian))
+        ),
+        React.createElement("div",{style:{
+          background:totalFinal===0?"#f8fafc":(budgetHarian-totalFinal)>budgetHarian*0.2?"#f0fdf4":(budgetHarian-totalFinal)>=0?"#fefce8":"#fef2f2",
+          border:"1px solid "+( totalFinal===0?"#e2e8f0":(budgetHarian-totalFinal)>budgetHarian*0.2?"#bbf7d0":(budgetHarian-totalFinal)>=0?"#fde047":"#fecaca"),
+          borderRadius:".5rem",padding:"6px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"
+        }},
+          React.createElement("span",{style:{fontSize:".7rem",fontWeight:600,color:totalFinal===0?"#94a3b8":(budgetHarian-totalFinal)>budgetHarian*0.2?"#166534":(budgetHarian-totalFinal)>=0?"#854d0e":"#991b1b"}},"Sisa Budget"),
+          React.createElement("div",{style:{textAlign:"right"}},
+            React.createElement("b",{style:{fontSize:".85rem",color:totalFinal===0?"#94a3b8":(budgetHarian-totalFinal)>budgetHarian*0.2?"#15803d":(budgetHarian-totalFinal)>=0?"#a16207":"#dc2626"}},
+              totalFinal===0?"—":fmt(budgetHarian-totalFinal)
+            ),
+            totalFinal>0&&React.createElement("span",{style:{display:"block",fontSize:".62rem",color:"#94a3b8",marginTop:"1px"}},
+              budgetHarian>0?Math.round((1-totalFinal/budgetHarian)*100)+"%":""
+            )
+          )
+        )
+      )
     ),
     React.createElement("div",{style:{display:"flex",gap:".375rem",alignItems:"center",flexWrap:"wrap"}},
       React.createElement("p",{style:{fontSize:".7rem",fontWeight:700,color:"#475569",margin:0,flex:1}},"Daftar Bahan"),
