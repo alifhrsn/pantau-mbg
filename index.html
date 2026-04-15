@@ -377,14 +377,14 @@ function PageBelanja(p){
     p.setHargaDB(Object.values(newDB));
     var entry={id:uid(),sppgId:selSppg,judul:judul,tanggal:tgl,porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,items:active,totalSupplier:totalSupplier,totalFinal:totalFinal,createdAt:new Date().toISOString()};
     p.setBelanjaList(function(prev){return [entry].concat(Array.isArray(prev)?prev:[]);});
-    if(typeof sbUpsert!=="undefined")sbUpsert("transaksi",[belanjaToTrx(entry)]).catch(function(){});
+    if(p.dbStatus==="online")sbUpsert("transaksi",[belanjaToTrx(entry)]).catch(function(e){console.warn("push belanja failed:",e);});
     var r=[];for(var i=0;i<8;i++)r.push(emptyRow());
     setRows(function(){return r;});
     setJudul("");setPk(0);setPb(0);
     setView("riwayat");
   }
-  function delBelanja(id){if(!confirm("Hapus data belanja ini?"))return;p.setBelanjaList(function(prev){return prev.filter(function(b){return b.id!==id;});});}
-  function saveEdit(updated){p.setBelanjaList(function(prev){return prev.map(function(b){return b.id===updated.id?updated:b;});});setEditEntry(null);}
+  function delBelanja(id){if(!confirm("Hapus data belanja ini?"))return;p.setBelanjaList(function(prev){return prev.filter(function(b){return b.id!==id;});});if(p.dbStatus==="online")sbDel("transaksi",id).catch(function(){});}
+  function saveEdit(updated){p.setBelanjaList(function(prev){return prev.map(function(b){return b.id===updated.id?updated:b;});});if(p.dbStatus==="online")sbUpsert("transaksi",[belanjaToTrx(updated)]).catch(function(){});setEditEntry(null);}
 
   var iS={width:"100%",border:"1px solid transparent",borderRadius:"6px",padding:"5px 7px",fontSize:".72rem",background:"transparent",fontFamily:"inherit"};
 
@@ -474,24 +474,27 @@ function PageBelanja(p){
         React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#3b82f6",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Kecil @ Rp8.000"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#eff6ff"},placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})),
         React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#ea580c",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Besar @ Rp10.000"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#fff7ed"},placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}}))
       ),
-      budgetHarian>0&&React.createElement("div",{style:{marginTop:".5rem",display:"flex",flexDirection:"column",gap:".375rem"}},
-        React.createElement("div",{style:{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:".5rem",padding:"6px 10px",display:"flex",justifyContent:"space-between"}},
-          React.createElement("span",{style:{fontSize:".7rem",color:"#166534"}},"Budget harian (porsi)"),
-          React.createElement("b",{style:{fontSize:".8rem",color:"#15803d"}},fmt(budgetHarian))
-        ),
-        React.createElement("div",{style:{
-          background:totalFinal===0?"#f8fafc":(budgetHarian-totalFinal)>budgetHarian*0.2?"#f0fdf4":(budgetHarian-totalFinal)>=0?"#fefce8":"#fef2f2",
-          border:"1px solid "+( totalFinal===0?"#e2e8f0":(budgetHarian-totalFinal)>budgetHarian*0.2?"#bbf7d0":(budgetHarian-totalFinal)>=0?"#fde047":"#fecaca"),
-          borderRadius:".5rem",padding:"6px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"
-        }},
-          React.createElement("span",{style:{fontSize:".7rem",fontWeight:600,color:totalFinal===0?"#94a3b8":(budgetHarian-totalFinal)>budgetHarian*0.2?"#166534":(budgetHarian-totalFinal)>=0?"#854d0e":"#991b1b"}},"Sisa Budget"),
-          React.createElement("div",{style:{textAlign:"right"}},
-            React.createElement("b",{style:{fontSize:".85rem",color:totalFinal===0?"#94a3b8":(budgetHarian-totalFinal)>budgetHarian*0.2?"#15803d":(budgetHarian-totalFinal)>=0?"#a16207":"#dc2626"}},
-              totalFinal===0?"—":fmt(budgetHarian-totalFinal)
-            ),
-            totalFinal>0&&React.createElement("span",{style:{display:"block",fontSize:".62rem",color:"#94a3b8",marginTop:"1px"}},
-              budgetHarian>0?Math.round((1-totalFinal/budgetHarian)*100)+"%":""
-            )
+      React.createElement("div",{style:{marginTop:".5rem",display:"flex",flexDirection:"column",gap:".375rem"}},
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".375rem"}},
+          React.createElement("div",{style:{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:".5rem",padding:"6px 10px"}},
+            React.createElement("p",{style:{fontSize:".62rem",fontWeight:600,color:"#166534",margin:"0 0 2px",textTransform:"uppercase",letterSpacing:".04em"}},"Budget Harian"),
+            React.createElement("p",{style:{fontSize:".875rem",fontWeight:800,color:"#15803d",margin:0}},budgetHarian>0?fmt(budgetHarian):"—"),
+            React.createElement("p",{style:{fontSize:".6rem",color:"#4ade80",margin:0}},(pk||0)>0||(pb||0)>0?""+((pk||0))+" kecil + "+((pb||0))+" besar":"isi porsi dulu")
+          ),
+          React.createElement("div",{style:{
+            borderRadius:".5rem",padding:"6px 10px",
+            background:budgetHarian===0?"#f8fafc":totalFinal===0?"#eff6ff":(budgetHarian-totalFinal)<0?"#fef2f2":(budgetHarian-totalFinal)<budgetHarian*0.15?"#fefce8":"#f0fdf4",
+            border:"1px solid "+(budgetHarian===0?"#e2e8f0":totalFinal===0?"#bfdbfe":(budgetHarian-totalFinal)<0?"#fecaca":(budgetHarian-totalFinal)<budgetHarian*0.15?"#fde047":"#bbf7d0")
+          }},
+            React.createElement("p",{style:{fontSize:".62rem",fontWeight:600,margin:"0 0 2px",textTransform:"uppercase",letterSpacing:".04em",
+              color:budgetHarian===0?"#94a3b8":totalFinal===0?"#3b82f6":(budgetHarian-totalFinal)<0?"#991b1b":(budgetHarian-totalFinal)<budgetHarian*0.15?"#854d0e":"#166534"
+            }},"Sisa Budget"),
+            React.createElement("p",{style:{fontSize:".875rem",fontWeight:800,margin:0,
+              color:budgetHarian===0?"#94a3b8":totalFinal===0?"#2563eb":(budgetHarian-totalFinal)<0?"#dc2626":(budgetHarian-totalFinal)<budgetHarian*0.15?"#d97706":"#15803d"
+            }},budgetHarian===0?"—":totalFinal===0?fmt(budgetHarian):fmt(budgetHarian-totalFinal)),
+            budgetHarian>0&&totalFinal>0&&React.createElement("p",{style:{fontSize:".6rem",margin:0,
+              color:(budgetHarian-totalFinal)<0?"#dc2626":(budgetHarian-totalFinal)<budgetHarian*0.15?"#d97706":"#4ade80"
+            }},(budgetHarian-totalFinal)<0?"⚠ Over "+fmt(totalFinal-budgetHarian):Math.round((1-totalFinal/budgetHarian)*100)+"% tersisa")
           )
         )
       )
@@ -571,7 +574,7 @@ function PageOperasional(p){
   var filtered=safeO.filter(function(o){return filterSppg==="semua"||o.sppgId===filterSppg;}).slice().sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
   var totalBln=safeO.filter(function(o){return o.tanggal&&o.tanggal.startsWith(bln)&&(filterSppg==="semua"||o.sppgId===filterSppg);}).reduce(function(a,o){return a+(o.jumlah||0);},0);
   var KATEGORI=["Operasional Dapur","Gas LPG","Kemasan","Transportasi","Peralatan","Kebersihan","Lainnya"];
-  function simpan(){if(!selSppg)return alert("Pilih SPPG!");if(!uraian||!jumlah)return alert("Isi uraian dan jumlah!");var nOp={id:uid(),sppgId:selSppg,tanggal:tgl,uraian:uraian,jumlah:parseInt(jumlah)||0,kategori:kat};setOperasionalList(function(prev){return [nOp].concat(Array.isArray(prev)?prev:[]);});if(typeof sbUpsert!=="undefined")sbUpsert("transaksi",[opToTrx(nOp)]).catch(function(){});setUraian("");setJumlah("");setShowForm(false);}
+  function simpan(){if(!selSppg)return alert("Pilih SPPG!");if(!uraian||!jumlah)return alert("Isi uraian dan jumlah!");var nOp={id:uid(),sppgId:selSppg,tanggal:tgl,uraian:uraian,jumlah:parseInt(jumlah)||0,kategori:kat};setOperasionalList(function(prev){return [nOp].concat(Array.isArray(prev)?prev:[]);});if(p.dbStatus==="online")sbUpsert("transaksi",[opToTrx(nOp)]).catch(function(e){console.warn("push ops failed:",e);});setUraian("");setJumlah("");setShowForm(false);}
   function del(id){if(confirm("Hapus?"))p.setOperasionalList(function(prev){return prev.filter(function(o){return o.id!==id;});});}
   return React.createElement("div",{id:"ops-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
     React.createElement(PageHeader,{title:"Operasional",sub:"Di luar budget harian porsi",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},filtered.length>0&&React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var csvH=["Tanggal","Uraian","Kategori","SPPG","Jumlah"];var csvR=filtered.map(function(o){var s=p.sppgList.find(function(x){return x.id===o.sppgId;});return[o.tanggal||"",o.uraian,o.kategori,s?s.nama:"",o.jumlah];});p.onExport({title:"Operasional",elementId:"ops-content",filename:"Operasional_MBG",csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Operasional",data:[csvH].concat(csvR)}],txtLines:["DATA OPERASIONAL MBG"].concat(csvR.map(function(r){return r.join(" | ");}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setShowForm(function(prev){return !prev;});},small:true},showForm?"Tutup":"+ Input"))}),
@@ -988,8 +991,8 @@ function App(){
   ];
   function renderPage(){
     if(tab==="dashboard")return React.createElement(PageDashboard,{sppgList:safeSppg,belanjaList:belanjaList,operasionalList:operasionalList,setModal:setModal,onExport:setExportCfg});
-    if(tab==="belanja")return React.createElement(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaDB,setHargaDB:setHargaDB,setModal:setModal,onExport:setExportCfg});
-    if(tab==="operasional")return React.createElement(PageOperasional,{sppgList:safeSppg,operasionalList:operasionalList,setOperasionalList:setOperasionalList,setModal:setModal,onExport:setExportCfg});
+    if(tab==="belanja")return React.createElement(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaDB,setHargaDB:setHargaDB,setModal:setModal,onExport:setExportCfg,dbStatus:dbStatus});
+    if(tab==="operasional")return React.createElement(PageOperasional,{sppgList:safeSppg,operasionalList:operasionalList,setOperasionalList:setOperasionalList,setModal:setModal,onExport:setExportCfg,dbStatus:dbStatus});
     if(tab==="menu")return React.createElement(PageMenu,{menuTemplates:menuTemplates,setMenuTemplates:setMenuTemplates,menuHistory:menuHistory,setMenuHistory:setMenuHistory,hargaDB:hargaDB});
     if(tab==="harga")return React.createElement(PageHarga,{hargaDB:hargaDB,setHargaDB:setHargaDB});
     if(tab==="estimasi")return React.createElement(PageEstimasi,{sppgList:safeSppg,setModal:setModal});
