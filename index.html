@@ -187,13 +187,16 @@ function DraggableRows(p){
 // ─── MODAL EDIT BELANJA ───────────────────────────────────────────────────────
 function ModalEditBelanja(p){
   // p.entry, p.onSave, p.onClose, p.hargaDB, p.sppgList
-  var entry=p.entry;
+  var entry=p.entry||{};
+  var rawItems=Array.isArray(entry.items)?entry.items:[];
+  var initItems=rawItems.map(function(it){return Object.assign({},it,{id:it.id||uid()});});
+  while(initItems.length<4)initItems.push({id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0});
   var s1=useState(entry.judul||""),judul=s1[0],setJudul=s1[1];
   var s2=useState(entry.tanggal||today()),tgl=s2[0],setTgl=s2[1];
   var s3=useState(entry.porsiKecil||0),pk=s3[0],setPk=s3[1];
   var s4=useState(entry.porsiBesar||0),pb=s4[0],setPb=s4[1];
-  var initItems=(entry.items||[]).map(function(it){return Object.assign({},it,{id:it.id||uid()});});
   var s5=useState(initItems),rows=s5[0],setRowsRaw=s5[1];
+  if(!p.entry)return null;
   function setRows(fn){setRowsRaw(function(prev){return fn(Array.isArray(prev)?prev:[]);});}
   function emptyRow(){return {id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0};}
   function updRow(id,field,val){setRows(function(prev){return prev.map(function(r){if(r.id!==id)return r;var v=(field==="qty"||field==="hargaSupplier"||field==="hargaFinal")?parseFloat(val)||0:val;return Object.assign({},r,{[field]:v});});});}
