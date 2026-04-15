@@ -310,6 +310,7 @@ function PageBelanja(p){
   var s7=useState(0),globalMargin=s7[0],setGlobalMargin=s7[1];
   var s8=useState("input"),view=s8[0],setView=s8[1];
   var s9=useState("semua"),filterSppg=s9[0],setFilterSppg=s9[1];
+  var s9b=useState(""),filterTgl=s9b[0],setFilterTgl=s9b[1];
   var s10=useState(null),openId=s10[0],setOpenId=s10[1];
   var s11=useState(null),editEntry=s11[0],setEditEntry=s11[1];
 
@@ -349,13 +350,18 @@ function PageBelanja(p){
   // ── RIWAYAT VIEW ──
   if(view==="riwayat"){
     var safeB=Array.isArray(p.belanjaList)?p.belanjaList:[];
-    var filtered2=safeB.filter(function(b){return filterSppg==="semua"||b.sppgId===filterSppg;}).slice().sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
+    var filtered2=safeB.filter(function(b){return (filterSppg==="semua"||b.sppgId===filterSppg)&&(!filterTgl||b.tanggal===filterTgl);}).slice().sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
+    var allDates=Array.from(new Set(safeB.map(function(b){return b.tanggal||""}).filter(Boolean))).sort(function(a,b){return b.localeCompare(a);});
     return React.createElement("div",{id:"riwayat-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
       React.createElement(PageHeader,{title:"Riwayat Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var filt=filtered2;var csvH=["Tanggal","Judul","SPPG","Porsi Kecil","Porsi Besar","Modal","Harga Jual","Margin"];var csvR=filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return[b.tanggal||"",b.judul||"",s?s.nama:"",b.porsiKecil||0,b.porsiBesar||0,b.totalSupplier||0,b.totalFinal||0,(b.totalFinal||0)-(b.totalSupplier||0)];});p.onExport({title:"Riwayat Belanja",elementId:"riwayat-content",filename:"Riwayat_Belanja",csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Ringkasan",data:[csvH].concat(csvR)}],txtLines:["RIWAYAT BELANJA MBG"].concat(filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return(b.tanggal||"")+" | "+(b.judul||"")+" | "+(s?s.nama:"")+" | "+fmtS(b.totalFinal||0);}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("input");},small:true},"+ Input"))}),
       React.createElement("div",{style:{display:"flex",gap:".375rem",alignItems:"center",flexWrap:"wrap"}},
         React.createElement("select",{style:{border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"5px 10px",fontSize:".72rem",background:"white",color:"#475569"},value:filterSppg,onChange:function(e){setFilterSppg(e.target.value);}},
           React.createElement("option",{value:"semua"},"Semua SPPG"),
           p.sppgList.map(function(s){return React.createElement("option",{key:s.id,value:s.id},s.nama);})),
+        React.createElement("select",{style:{border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"5px 10px",fontSize:".72rem",background:"white",color:"#475569"},value:filterTgl,onChange:function(e){setFilterTgl(e.target.value);}},
+          React.createElement("option",{value:""},"Semua Tanggal"),
+          allDates.map(function(d){return React.createElement("option",{key:d,value:d},new Date(d).toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short",year:"numeric"}));})),
+        filterTgl&&React.createElement("button",{onClick:function(){setFilterTgl("");},style:{background:"#fee2e2",color:"#dc2626",border:"none",borderRadius:".375rem",padding:"3px 8px",fontSize:".68rem",cursor:"pointer",whiteSpace:"nowrap"}},"✕ Reset"),
         React.createElement("span",{style:{fontSize:".7rem",color:"#94a3b8",marginLeft:"auto"}},filtered2.length+" entri")
       ),
       filtered2.length===0&&React.createElement("p",{style:{textAlign:"center",color:"#94a3b8",padding:"2rem 0",fontSize:".8rem"}},"Belum ada riwayat belanja"),
