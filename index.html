@@ -186,21 +186,30 @@ function DraggableRows(p){
 
 // ─── MODAL EDIT BELANJA ───────────────────────────────────────────────────────
 function ModalEditBelanja(p){
-  // p.entry, p.onSave, p.onClose, p.hargaDB, p.sppgList
   var entry=p.entry||{};
   var rawItems=Array.isArray(entry.items)?entry.items:[];
-  var initItems=rawItems.map(function(it){return Object.assign({},it,{id:it.id||uid()});});
-  while(initItems.length<4)initItems.push({id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0});
-  var s1=useState(entry.judul||""),judul=s1[0],setJudul=s1[1];
-  var s2=useState(entry.tanggal||today()),tgl=s2[0],setTgl=s2[1];
-  var s3=useState(entry.porsiKecil||0),pk=s3[0],setPk=s3[1];
-  var s4=useState(entry.porsiBesar||0),pb=s4[0],setPb=s4[1];
-  var s5=useState(initItems),rows=s5[0],setRowsRaw=s5[1];
+  var init=rawItems.length>0?rawItems.map(function(it){return {id:it.id||uid(),nama:it.nama||"",qty:it.qty||0,satuan:it.satuan||"",hargaSupplier:it.hargaSupplier||0,hargaFinal:it.hargaFinal||0};}):[];
+  while(init.length<4)init.push({id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0});
+  var r1=useState(entry.judul||""),judul=r1[0],setJudul=r1[1];
+  var r2=useState(entry.tanggal||today()),tgl=r2[0],setTgl=r2[1];
+  var r3=useState(entry.porsiKecil||0),pk=r3[0],setPk=r3[1];
+  var r4=useState(entry.porsiBesar||0),pb=r4[0],setPb=r4[1];
+  var r5=useState(init),rows=r5[0],setRows=r5[1];
   if(!p.entry)return null;
-  function setRows(fn){setRowsRaw(function(prev){return fn(Array.isArray(prev)?prev:[]);});}
-  function emptyRow(){return {id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0};}
-  function updRow(id,field,val){setRows(function(prev){return prev.map(function(r){if(r.id!==id)return r;var v=(field==="qty"||field==="hargaSupplier"||field==="hargaFinal")?parseFloat(val)||0:val;return Object.assign({},r,{[field]:v});});});}
-  function selSugg(rowId,h){setRows(function(prev){return prev.map(function(r){if(r.id!==rowId)return r;return Object.assign({},r,{nama:h.nama,satuan:h.satuan,hargaSupplier:h.harga,hargaFinal:h.harga});});});}
+  function upd(id,field,val){
+    setRows(function(prev){return prev.map(function(r){
+      if(r.id!==id)return r;
+      var v=(field==="qty"||field==="hargaSupplier"||field==="hargaFinal")?parseFloat(val)||0:val;
+      return Object.assign({},r,{[field]:v});
+    });});
+  }
+  function selSug(id,h){
+    setRows(function(prev){return prev.map(function(r){
+      if(r.id!==id)return r;
+      return Object.assign({},r,{nama:h.nama,satuan:h.satuan,hargaSupplier:h.harga,hargaFinal:h.harga});
+    });});
+  }
+  function addRow(){setRows(function(prev){return prev.concat([{id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0}]);});}
   function delRow(id){setRows(function(prev){return prev.filter(function(r){return r.id!==id;});});}
   function save(){
     var active=rows.filter(function(r){return r.nama&&r.qty>0;});
@@ -208,52 +217,80 @@ function ModalEditBelanja(p){
     var tf=active.reduce(function(a,r){return a+r.qty*(r.hargaFinal||0);},0);
     p.onSave(Object.assign({},entry,{judul:judul,tanggal:tgl,porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,items:active,totalSupplier:ts,totalFinal:tf}));
   }
-  var iS={width:"100%",border:"1px solid transparent",borderRadius:"6px",padding:"4px 6px",fontSize:".7rem",background:"transparent",fontFamily:"inherit"};
-  return React.createElement(Overlay,null,
-    React.createElement("div",{style:{background:"white",borderRadius:"1rem",width:"100%",maxWidth:"56rem",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 40px rgba(0,0,0,.2)"}},
-      React.createElement("div",{style:{padding:"1rem 1.25rem",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:"white",zIndex:10}},
-        React.createElement("p",{style:{fontWeight:700,fontSize:".9rem",margin:0}},"Edit Belanja"),
-        React.createElement("button",{onClick:p.onClose,style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"1.5rem",lineHeight:1}},"×")
+  var iStyle={width:"100%",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"5px 8px",fontSize:".75rem",fontFamily:"inherit"};
+  return React.createElement("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}},
+    React.createElement("div",{style:{background:"white",borderRadius:"1rem",width:"100%",maxWidth:"52rem",maxHeight:"92vh",display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}},
+      React.createElement("div",{style:{padding:".875rem 1.25rem",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}},
+        React.createElement("p",{style:{fontWeight:700,fontSize:".9rem",margin:0,color:"#1e293b"}},"✏️ Edit Belanja"),
+        React.createElement("button",{onClick:p.onClose,style:{background:"#f1f5f9",border:"none",borderRadius:"50%",width:"2rem",height:"2rem",cursor:"pointer",fontSize:"1.1rem",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center"}},"×")
       ),
-      React.createElement("div",{style:{padding:"1rem 1.25rem",display:"flex",flexDirection:"column",gap:".75rem"}},
+      React.createElement("div",{style:{padding:"1rem 1.25rem",overflowY:"auto",flex:1,display:"flex",flexDirection:"column",gap:".75rem"}},
         React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem"}},
-          React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Judul"),React.createElement("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:judul,onChange:function(e){setJudul(e.target.value);}})),
-          React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),React.createElement("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:tgl,onChange:function(e){setTgl(e.target.value);}}))
-        ),
-        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem"}},
-          React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#3b82f6",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Kecil"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #bfdbfe",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#eff6ff"},value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})),
-          React.createElement("div",null,React.createElement("label",{style:{fontSize:".68rem",color:"#ea580c",fontWeight:600,display:"block",marginBottom:"3px"}},"Porsi Besar"),React.createElement("input",{type:"number",style:{width:"100%",border:"1px solid #fed7aa",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"#fff7ed"},value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}}))
-        ),
-        React.createElement("div",{style:{overflowX:"auto"}},
-          React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".7rem",minWidth:"580px"}},
-            React.createElement("thead",null,React.createElement("tr",null,["","NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","H.FINAL",""].map(function(h,i){return React.createElement(TH,{key:i},h);}))),
-            React.createElement(DraggableRows,{
-              rows:rows,
-              onReorder:function(r){setRows(function(){return r;});},
-              renderRow:function(row,idx){
-                return [
-                  React.createElement("td",{key:"drag",style:{padding:"4px 4px",textAlign:"center"}},React.createElement("span",{className:"drag-handle",title:"Drag untuk pindah urutan"},"⠿")),
-                  React.createElement("td",{key:"no",style:{padding:"4px 8px",textAlign:"center",color:"#94a3b8",fontSize:".65rem",fontWeight:600}},idx+1),
-                  React.createElement("td",{key:"nama",style:{padding:"4px 6px",minWidth:"130px"}},React.createElement(BahanInput,{value:row.nama,onChange:function(v){updRow(row.id,"nama",v);},db:p.hargaDB,onSelect:function(h){selSugg(row.id,h);}})),
-                  React.createElement("td",{key:"qty",style:{padding:"4px 5px",width:"60px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"54px",textAlign:"center",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.qty||"",placeholder:"0",onChange:function(e){updRow(row.id,"qty",e.target.value);}})),
-                  React.createElement("td",{key:"sat",style:{padding:"4px 5px",width:"80px"}},React.createElement("input",{style:Object.assign({},iS,{width:"74px"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",placeholder:"kg/pcs/...",value:row.satuan,onChange:function(e){updRow(row.id,"satuan",e.target.value);}})),
-                  React.createElement("td",{key:"hs",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaSupplier",e.target.value);}})),
-                  React.createElement("td",{key:"hf",style:{padding:"4px 5px",width:"100px"}},React.createElement("input",{type:"number",style:Object.assign({},iS,{width:"94px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400 focus:bg-blue-50",value:row.hargaFinal||"",placeholder:"0",onChange:function(e){updRow(row.id,"hargaFinal",e.target.value);}})),
-                  React.createElement("td",{key:"del",style:{padding:"4px 5px"}},React.createElement("button",{onClick:function(){delRow(row.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px",padding:"3px 5px",borderRadius:"5px"}},"✕"))
-                ];
-              }
-            })
+          React.createElement("div",null,
+            React.createElement("label",{style:{fontSize:".68rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"3px"}},"Judul"),
+            React.createElement("input",{style:iStyle,value:judul,onChange:function(e){setJudul(e.target.value);}})
+          ),
+          React.createElement("div",null,
+            React.createElement("label",{style:{fontSize:".68rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"3px"}},"Tanggal"),
+            React.createElement("input",{type:"date",style:iStyle,value:tgl,onChange:function(e){setTgl(e.target.value);}})
           )
         ),
-        React.createElement("button",{onClick:function(){setRows(function(prev){return prev.concat([emptyRow()]);});},style:{border:"1px dashed #e2e8f0",borderRadius:".5rem",padding:"7px",background:"none",cursor:"pointer",fontSize:".72rem",color:"#94a3b8"}},"＋ Tambah Baris")
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem"}},
+          React.createElement("div",null,
+            React.createElement("label",{style:{fontSize:".68rem",fontWeight:600,color:"#3b82f6",display:"block",marginBottom:"3px"}},"Porsi Kecil"),
+            React.createElement("input",{type:"number",style:Object.assign({},iStyle,{background:"#eff6ff",borderColor:"#bfdbfe"}),value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})
+          ),
+          React.createElement("div",null,
+            React.createElement("label",{style:{fontSize:".68rem",fontWeight:600,color:"#ea580c",display:"block",marginBottom:"3px"}},"Porsi Besar"),
+            React.createElement("input",{type:"number",style:Object.assign({},iStyle,{background:"#fff7ed",borderColor:"#fed7aa"}),value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}})
+          )
+        ),
+        React.createElement("div",{style:{overflowX:"auto"}},
+          React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem",minWidth:"500px"}},
+            React.createElement("thead",null,
+              React.createElement("tr",null,
+                ["NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","H.FINAL",""].map(function(h,i){
+                  return React.createElement("th",{key:i,style:{padding:"6px 8px",textAlign:i>=4&&i<=5?"right":"left",color:"#94a3b8",fontWeight:700,fontSize:".62rem",textTransform:"uppercase",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},h);
+                })
+              )
+            ),
+            React.createElement("tbody",null,
+              rows.map(function(row,idx){
+                return React.createElement("tr",{key:row.id,style:{borderTop:"1px solid #f8fafc"}},
+                  React.createElement("td",{style:{padding:"5px 8px",textAlign:"center",color:"#94a3b8",fontSize:".65rem",fontWeight:600,width:"32px"}},idx+1),
+                  React.createElement("td",{style:{padding:"4px 6px",minWidth:"130px"}},
+                    React.createElement(BahanInput,{value:row.nama,onChange:function(v){upd(row.id,"nama",v);},db:p.hargaDB||[],onSelect:function(h){selSug(row.id,h);},placeholder:"Nama bahan..."})
+                  ),
+                  React.createElement("td",{style:{padding:"4px 5px",width:"60px"}},
+                    React.createElement("input",{type:"number",style:{width:"54px",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 6px",fontSize:".72rem",textAlign:"center",fontFamily:"monospace"},value:row.qty||"",placeholder:"0",onChange:function(e){upd(row.id,"qty",e.target.value);}})
+                  ),
+                  React.createElement("td",{style:{padding:"4px 5px",width:"80px"}},
+                    React.createElement("input",{style:{width:"74px",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 6px",fontSize:".72rem"},placeholder:"kg/pcs",value:row.satuan,onChange:function(e){upd(row.id,"satuan",e.target.value);}})
+                  ),
+                  React.createElement("td",{style:{padding:"4px 5px",width:"100px"}},
+                    React.createElement("input",{type:"number",style:{width:"94px",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 6px",fontSize:".72rem",fontFamily:"monospace"},value:row.hargaSupplier||"",placeholder:"0",onChange:function(e){upd(row.id,"hargaSupplier",e.target.value);}})
+                  ),
+                  React.createElement("td",{style:{padding:"4px 5px",width:"100px"}},
+                    React.createElement("input",{type:"number",style:{width:"94px",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 6px",fontSize:".72rem",fontFamily:"monospace"},value:row.hargaFinal||"",placeholder:"0",onChange:function(e){upd(row.id,"hargaFinal",e.target.value);}})
+                  ),
+                  React.createElement("td",{style:{padding:"4px 5px"}},
+                    React.createElement("button",{onClick:function(){delRow(row.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"14px",padding:"3px 6px",borderRadius:"5px"}},"✕")
+                  )
+                );
+              })
+            )
+          )
+        ),
+        React.createElement("button",{onClick:addRow,style:{border:"1px dashed #e2e8f0",borderRadius:".5rem",padding:"7px",background:"none",cursor:"pointer",fontSize:".72rem",color:"#94a3b8"}},"＋ Tambah Baris")
       ),
-      React.createElement("div",{style:{padding:".75rem 1.25rem",display:"flex",gap:".5rem",position:"sticky",bottom:0,background:"white",borderTop:"1px solid #f1f5f9"}},
-        React.createElement("button",{onClick:p.onClose,style:{flex:1,border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".5rem",fontSize:".8rem",background:"white",cursor:"pointer"}},"Batal"),
-        React.createElement(Btn,{onClick:save,style:{flex:1}},"Simpan Perubahan")
+      React.createElement("div",{style:{padding:".875rem 1.25rem",borderTop:"1px solid #f1f5f9",display:"flex",gap:".5rem",flexShrink:0}},
+        React.createElement("button",{onClick:p.onClose,style:{flex:1,border:"1px solid #e2e8f0",borderRadius:".625rem",padding:".6rem",fontSize:".82rem",background:"white",cursor:"pointer",fontWeight:600}},"Batal"),
+        React.createElement("button",{onClick:save,style:{flex:2,background:"#2563eb",color:"white",border:"none",borderRadius:".625rem",padding:".6rem",fontSize:".82rem",fontWeight:700,cursor:"pointer"}},"💾 Simpan Perubahan")
       )
     )
   );
 }
+
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function PageDashboard(p){
