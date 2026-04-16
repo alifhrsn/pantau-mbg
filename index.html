@@ -336,6 +336,224 @@ function PageDashboard(p){
 }
 
 // ─── BELANJA ──────────────────────────────────────────────────────────────────
+
+
+// ─── MODAL NOTA DRAFT (dari pilihan input belanja) ────────────────────────────────
+function ModalNotaDraft(p){
+  var s1=useState(p.defaultSppgId||""),nSppg=s1[0],setNSppg=s1[1];
+  var s2=useState(""),nJudul=s2[0],setNJudul=s2[1];
+  var s3=useState(p.defaultTgl||today()),nTgl=s3[0],setNTgl=s3[1];
+  var s4=useState(""),saveMsg=s4[0],setSaveMsg=s4[1];
+  var items=Array.isArray(p.items)?p.items:[];
+  var total=items.reduce(function(a,it){return a+it.qty*(it.hargaFinal||0);},0);
+  var nowStr=new Date().toLocaleString("id-ID");
+  var sp=p.sppgList.find(function(s){return s.id===nSppg;});
+  var sppgName=sp?sp.nama:"Tidak Diisi";
+  var tanggalStr="-";try{tanggalStr=new Date(nTgl).toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"});}catch(e){}
+  var thS={padding:"8px 12px",fontWeight:700,fontSize:".78rem",borderBottom:"2px solid #e2e8f0",borderRight:"1px solid #e2e8f0",background:"#f8fafc"};
+  var tdS={padding:"7px 12px",fontSize:".8rem",borderBottom:"1px solid #e2e8f0",borderRight:"1px solid #e2e8f0"};
+  function simpan(){
+    if(!nJudul)return alert("Isi judul nota terlebih dahulu!");
+    var nn={id:uid(),sppgId:nSppg,judul:nJudul,tanggal:nTgl,items:items.map(function(it){return {id:it.id||uid(),nama:it.nama,qty:it.qty,satuan:it.satuan,hargaFinal:it.hargaFinal||0};}),total:total,createdAt:new Date().toISOString()};
+    p.setNotaList(function(prev){return [nn].concat(Array.isArray(prev)?prev:[]);});
+    setSaveMsg("Nota berhasil disimpan ke menu Nota!");
+    setTimeout(function(){p.onClose();},1500);
+  }
+  function cetak(){
+    var win=window.open("","_blank","width=750,height=900");
+    if(!win){alert("Pop-up diblokir. Izinkan pop-up untuk mencetak.");return;}
+    var rows="";
+    items.forEach(function(it,i){rows+='<tr><td style="text-align:center;color:#94a3b8">'+(i+1)+'</td><td>'+it.qty+' '+it.satuan+'</td><td><strong>'+it.nama+'</strong></td><td style="text-align:right;font-family:monospace">'+fmt(it.hargaFinal||0)+'</td><td style="text-align:right;font-family:monospace;font-weight:700">'+fmt(it.qty*(it.hargaFinal||0))+'</td></tr>';});
+    win.document.write('<!DOCTYPE html><html><head><title>Nota Pembelian</title><style>body{font-family:-apple-system,sans-serif;padding:32px;color:#1e293b;max-width:660px;margin:0 auto}h2{text-align:center;font-size:20px;letter-spacing:4px;margin:0 0 6px}p{margin:2px 0;font-size:14px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #e2e8f0;padding:8px 12px;font-size:13px}th{background:#f8fafc;font-weight:700}tfoot td{background:#f8fafc;font-weight:700}@media print{.noprint{display:none}}</style></head><body>');
+    win.document.write('<div style="text-align:center;margin-bottom:20px"><h2>NOTA PEMBELIAN</h2><p><strong>Tanggal:</strong> '+tanggalStr+'</p><p><strong>SPPG:</strong> '+sppgName+'</p></div>');
+    win.document.write('<table><thead><tr><th>No</th><th>Banyaknya</th><th>Nama Barang</th><th style="text-align:right">Harga</th><th style="text-align:right">Jumlah</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="4" style="text-align:right">TOTAL:</td><td style="text-align:right;color:#2563eb;font-size:15px;font-weight:800">'+fmt(total)+'</td></tr></tfoot></table>');
+    win.document.write('<p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">Nota dibuat pada: '+nowStr+'</p>');
+    win.document.write('<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:8px 24px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">Print</button></div></body></html>');
+    win.document.close();win.focus();
+  }
+  function downloadPDF(){
+    var el=document.getElementById("nota-draft-area");
+    if(!el||!window.html2canvas||!window.jspdf){alert("Library PDF belum siap, coba lagi sebentar.");return;}
+    window.html2canvas(el,{scale:2,backgroundColor:"#ffffff",useCORS:true}).then(function(canvas){
+      var pdf=new window.jspdf.jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+      var pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight();
+      var scaledH=(canvas.height/canvas.width)*pw;
+      pdf.addImage(canvas.toDataURL("image/png"),"PNG",0,10,pw,Math.min(scaledH,ph-20));
+      pdf.save("Nota_"+(nJudul||nTgl)+".pdf");
+    }).catch(function(e){alert("Gagal generate PDF: "+e.message);});
+  }
+  return RC("div",{className:"sb-modal",onClick:function(e){if(e.target===e.currentTarget)p.onClose();}},
+    RC("div",{style:{background:"white",borderRadius:"1rem",width:"100%",maxWidth:"680px",maxHeight:"92vh",overflowY:"auto",boxShadow:"0 20px 40px rgba(0,0,0,.25)",display:"flex",flexDirection:"column"}},
+      RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:".875rem 1.25rem",borderBottom:"1px solid #f1f5f9",flexShrink:0}},
+        RC("div",null,
+          RC("p",{style:{fontWeight:700,fontSize:".9rem",margin:0}},"Buat Nota Pembelian"),
+          RC("p",{style:{fontSize:".65rem",color:"#94a3b8",margin:0}},items.length+" bahan dipilih")
+        ),
+        RC("button",{onClick:p.onClose,style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"1.5rem",lineHeight:1}},"×")
+      ),
+      RC("div",{style:{padding:"1rem 1.25rem",borderBottom:"1px solid #f8fafc",background:"#f8fafc"}},
+        RC("p",{style:{fontSize:".68rem",fontWeight:700,color:"#475569",margin:"0 0 .5rem",textTransform:"uppercase",letterSpacing:".04em"}},"Info Nota"),
+        RC(SppgSel,{list:p.sppgList,value:nSppg,onChange:setNSppg,onAdd:function(){}}),
+        RC("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginTop:".5rem"}},
+          RC("div",null,
+            RC("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Judul Nota"),
+            RC("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"white"},placeholder:"Nota Senin, Pasar X...",value:nJudul,onChange:function(e){setNJudul(e.target.value);}})
+          ),
+          RC("div",null,
+            RC("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),
+            RC("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem",background:"white"},value:nTgl,onChange:function(e){setNTgl(e.target.value);}})
+          )
+        )
+      ),
+      RC("div",{id:"nota-draft-area",style:{padding:"1.5rem 1.25rem",flex:1}},
+        RC("div",{style:{textAlign:"center",marginBottom:"1.25rem"}},
+          RC("h2",{style:{fontSize:"1.15rem",fontWeight:800,letterSpacing:".08em",margin:"0 0 .5rem",color:"#1e293b"}},"NOTA PEMBELIAN"),
+          RC("div",{style:{display:"inline-block",textAlign:"left",fontSize:".8rem",color:"#334155",lineHeight:1.9}},
+            RC("div",null,RC("strong",null,"Tanggal:")," ",tanggalStr),
+            RC("div",null,RC("strong",null,"SPPG:")," ",sppgName)
+          )
+        ),
+        RC("div",{style:{border:"1px solid #e2e8f0",borderRadius:".5rem",overflow:"hidden",marginBottom:"1rem"}},
+          RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".8rem"}},
+            RC("thead",null,RC("tr",null,
+              RC("th",{style:Object.assign({},thS,{textAlign:"center",width:"44px"})},"No"),
+              RC("th",{style:thS},"Banyaknya"),
+              RC("th",{style:thS},"Nama Barang"),
+              RC("th",{style:Object.assign({},thS,{textAlign:"right"})},"Harga"),
+              RC("th",{style:Object.assign({},thS,{textAlign:"right",borderRight:"none"})},"Jumlah")
+            )),
+            RC("tbody",null,
+              items.map(function(it,i){
+                return RC("tr",{key:i,style:{background:i%2===0?"white":"#fafafa"}},
+                  RC("td",{style:Object.assign({},tdS,{textAlign:"center",color:"#94a3b8"})},i+1),
+                  RC("td",{style:tdS},it.qty+" "+it.satuan),
+                  RC("td",{style:Object.assign({},tdS,{fontWeight:600})},it.nama),
+                  RC("td",{style:Object.assign({},tdS,{textAlign:"right",fontFamily:"monospace"})},fmt(it.hargaFinal||0)),
+                  RC("td",{style:Object.assign({},tdS,{textAlign:"right",fontFamily:"monospace",fontWeight:700,borderRight:"none"})},fmt(it.qty*(it.hargaFinal||0)))
+                );
+              }).concat([
+                RC("tr",{key:"total",style:{background:"#f8fafc"}},
+                  RC("td",{colSpan:4,style:{padding:"10px 12px",fontWeight:700,textAlign:"right",borderTop:"2px solid #e2e8f0",borderRight:"1px solid #e2e8f0"}},"TOTAL:"),
+                  RC("td",{style:{padding:"10px 12px",fontWeight:800,fontSize:"1rem",color:"#2563eb",textAlign:"right",borderTop:"2px solid #e2e8f0",fontFamily:"monospace",borderRight:"none"}},fmt(total))
+                )
+              ])
+            )
+          )
+        ),
+        RC("p",{style:{textAlign:"center",fontSize:".7rem",color:"#94a3b8",margin:0}},"Nota dibuat pada: "+nowStr)
+      ),
+      saveMsg&&RC("div",{style:{margin:"0 1.25rem .5rem",padding:"8px 12px",borderRadius:".625rem",background:"#f0fdf4",color:"#059669",fontSize:".78rem",fontWeight:600,textAlign:"center"}},"✅ "+saveMsg),
+      RC("div",{style:{padding:".875rem 1.25rem",borderTop:"1px solid #f1f5f9",display:"flex",gap:".5rem",flexWrap:"wrap",flexShrink:0}},
+        RC(Btn,{onClick:simpan,style:{flex:2}},"✔ Simpan Nota"),
+        RC(Btn,{onClick:cetak,color:"blue"},"🖨 Cetak"),
+        RC(Btn,{onClick:downloadPDF,color:"red"},"📥 PDF"),
+        RC(Btn,{onClick:p.onClose,color:"gray"},"Tutup")
+      )
+    )
+  );
+}
+
+// ─── MODAL NOTA PEMBELIAN ─────────────────────────────────────────────────────
+function ModalNota(p){
+  var entries=Array.isArray(p.entries)?p.entries:[];
+  var allItems=[];
+  entries.forEach(function(e){(e.items||[]).forEach(function(it){if(it.nama&&it.qty>0)allItems.push(it);});});
+  var sppgName="Tidak Diisi";
+  if(entries.length>0){
+    var ids=[];entries.forEach(function(e){if(ids.indexOf(e.sppgId)<0)ids.push(e.sppgId);});
+    if(ids.length===1){var sp=p.sppgList.find(function(s){return s.id===ids[0];});if(sp)sppgName=sp.nama;}
+    else{sppgName=ids.map(function(id){var sp=p.sppgList.find(function(s){return s.id===id;});return sp?sp.nama:"-";}).join(", ");}
+  }
+  var tanggalStr="-";
+  if(entries.length>0){
+    var dates=entries.map(function(e){return e.tanggal;}).filter(Boolean).sort();
+    if(dates.length>0){try{tanggalStr=new Date(dates[0]).toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"});}catch(ex){tanggalStr=dates[0];}}
+  }
+  var totalAll=allItems.reduce(function(a,it){return a+it.qty*(it.hargaFinal||0);},0);
+  var nowStr=new Date().toLocaleString("id-ID");
+  var thS={padding:"8px 12px",fontWeight:700,fontSize:".78rem",borderBottom:"2px solid #e2e8f0",borderRight:"1px solid #e2e8f0",background:"#f8fafc"};
+  var tdS={padding:"7px 12px",fontSize:".8rem",borderBottom:"1px solid #e2e8f0",borderRight:"1px solid #e2e8f0"};
+  function cetak(){
+    var win=window.open("","_blank","width=750,height=900");
+    if(!win){alert("Pop-up diblokir. Izinkan pop-up untuk mencetak.");return;}
+    var rows="";
+    allItems.forEach(function(it,i){
+      rows+='<tr><td style="text-align:center;color:#94a3b8">'+(i+1)+'</td><td>'+it.qty+' '+it.satuan+'</td><td><strong>'+it.nama+'</strong></td><td style="text-align:right;font-family:monospace">'+fmt(it.hargaFinal||0)+'</td><td style="text-align:right;font-family:monospace;font-weight:700">'+fmt(it.qty*(it.hargaFinal||0))+'</td></tr>';
+    });
+    win.document.write('<!DOCTYPE html><html><head><title>Nota Pembelian</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:32px;color:#1e293b;max-width:660px;margin:0 auto}h2{text-align:center;font-size:20px;letter-spacing:4px;margin:0 0 4px}p{margin:2px 0;font-size:14px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #e2e8f0;padding:8px 12px;font-size:13px}th{background:#f8fafc;font-weight:700}tfoot td{background:#f8fafc;font-weight:700}@media print{.noprint{display:none}}</style></head><body>');
+    win.document.write('<div style="text-align:center;margin-bottom:20px"><h2>NOTA PEMBELIAN</h2><p><strong>Tanggal:</strong> '+tanggalStr+'</p><p><strong>SPPG:</strong> '+sppgName+'</p></div>');
+    win.document.write('<table><thead><tr><th>No</th><th>Banyaknya</th><th>Nama Barang</th><th style="text-align:right">Harga</th><th style="text-align:right">Jumlah</th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td colspan="4" style="text-align:right">TOTAL:</td><td style="text-align:right;color:#2563eb;font-size:15px">'+fmt(totalAll)+'</td></tr></tfoot></table>');
+    win.document.write('<p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:20px">Nota dibuat pada: '+nowStr+'</p>');
+    win.document.write('<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:8px 24px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">Cetak / Print</button></div>');
+    win.document.write('</body></html>');
+    win.document.close();win.focus();
+  }
+  function downloadPDF(){
+    var el=document.getElementById("nota-content-area");
+    if(!el)return;
+    if(!window.html2canvas||!window.jspdf){alert("Library PDF belum siap, coba lagi sebentar.");return;}
+    window.html2canvas(el,{scale:2,backgroundColor:"#ffffff",useCORS:true}).then(function(canvas){
+      var imgData=canvas.toDataURL("image/png");
+      var pdf=new window.jspdf.jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+      var pw=pdf.internal.pageSize.getWidth();
+      var ph=pdf.internal.pageSize.getHeight();
+      var scaledH=(canvas.height/canvas.width)*pw;
+      pdf.addImage(imgData,"PNG",0,10,pw,Math.min(scaledH,ph-20));
+      pdf.save("NotaPembelian_"+(entries[0]?entries[0].tanggal:"nota")+".pdf");
+    }).catch(function(e){alert("Gagal generate PDF: "+e.message);});
+  }
+  return React.createElement("div",{className:"sb-modal",onClick:function(e){if(e.target===e.currentTarget)p.onClose();}},
+    React.createElement("div",{style:{background:"white",borderRadius:"1rem",width:"100%",maxWidth:"660px",maxHeight:"92vh",overflowY:"auto",boxShadow:"0 20px 40px rgba(0,0,0,.25)",display:"flex",flexDirection:"column"}},
+      RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:".875rem 1.25rem",borderBottom:"1px solid #f1f5f9",flexShrink:0}},
+        RC("p",{style:{fontWeight:700,fontSize:".9rem",margin:0}},"Nota Pembelian"),
+        RC("button",{onClick:p.onClose,style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"1.5rem",lineHeight:1}},"×")
+      ),
+      RC("div",{id:"nota-content-area",style:{padding:"2rem 2rem 1rem",flex:1}},
+        RC("div",{style:{textAlign:"center",marginBottom:"1.5rem"}},
+          RC("h2",{style:{fontSize:"1.25rem",fontWeight:800,letterSpacing:".08em",margin:"0 0 .75rem",color:"#1e293b"}},"NOTA PEMBELIAN"),
+          RC("div",{style:{display:"inline-block",textAlign:"left",fontSize:".83rem",color:"#334155",lineHeight:1.9}},
+            RC("div",null,RC("strong",null,"Tanggal:")," ",tanggalStr),
+            RC("div",null,RC("strong",null,"SPPG:")," ",sppgName)
+          )
+        ),
+        RC("div",{style:{border:"1px solid #e2e8f0",borderRadius:".5rem",overflow:"hidden",marginBottom:"1.5rem"}},
+          RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".8rem"}},
+            RC("thead",null,RC("tr",null,
+              RC("th",{style:Object.assign({},thS,{textAlign:"center",width:"44px"})},"No"),
+              RC("th",{style:thS},"Banyaknya"),
+              RC("th",{style:thS},"Nama Barang"),
+              RC("th",{style:Object.assign({},thS,{textAlign:"right"})},"Harga"),
+              RC("th",{style:Object.assign({},thS,{textAlign:"right",borderRight:"none"})},"Jumlah")
+            )),
+            RC("tbody",null,
+              allItems.map(function(it,i){
+                return RC("tr",{key:i,style:{background:i%2===0?"white":"#fafafa"}},
+                  RC("td",{style:Object.assign({},tdS,{textAlign:"center",color:"#94a3b8"})},i+1),
+                  RC("td",{style:tdS},it.qty+" "+it.satuan),
+                  RC("td",{style:Object.assign({},tdS,{fontWeight:600})},it.nama),
+                  RC("td",{style:Object.assign({},tdS,{textAlign:"right",fontFamily:"monospace"})},fmt(it.hargaFinal||0)),
+                  RC("td",{style:Object.assign({},tdS,{textAlign:"right",fontFamily:"monospace",fontWeight:700,borderRight:"none"})},fmt(it.qty*(it.hargaFinal||0)))
+                );
+              }).concat([
+                RC("tr",{key:"total",style:{background:"#f8fafc"}},
+                  RC("td",{colSpan:4,style:{padding:"10px 12px",fontWeight:700,fontSize:".85rem",textAlign:"right",borderTop:"2px solid #e2e8f0",borderRight:"1px solid #e2e8f0"}},"TOTAL:"),
+                  RC("td",{style:{padding:"10px 12px",fontWeight:800,fontSize:"1rem",color:"#2563eb",textAlign:"right",borderTop:"2px solid #e2e8f0",fontFamily:"monospace",borderRight:"none"}},fmt(totalAll))
+                )
+              ])
+            )
+          )
+        ),
+        RC("p",{style:{textAlign:"center",fontSize:".7rem",color:"#94a3b8",margin:0}},"Nota dibuat pada: "+nowStr)
+      ),
+      RC("div",{style:{padding:".875rem 1.25rem",borderTop:"1px solid #f1f5f9",display:"flex",gap:".5rem",justifyContent:"center",flexWrap:"wrap",flexShrink:0}},
+        RC(Btn,{onClick:cetak,color:"blue"},"🖼 Cetak Nota"),
+        RC(Btn,{onClick:downloadPDF,color:"red"},"📥 Download PDF"),
+        RC(Btn,{onClick:p.onClose,color:"gray"},"Tutup")
+      )
+    )
+  );
+}
+
 function PageBelanja(p){
   function emptyRow(){return {id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0};}
   var initRows=(function(){var r=[];for(var i=0;i<8;i++)r.push(emptyRow());return r;})();
@@ -353,7 +571,46 @@ function PageBelanja(p){
   var s9=useState("semua"),filterSppg=s9[0],setFilterSppg=s9[1];
   var s9b=useState(""),filterTgl=s9b[0],setFilterTgl=s9b[1];
   var s10=useState(null),openId=s10[0],setOpenId=s10[1];
-  var s11=useState(null),editEntry=s11[0],setEditEntry=s11[1];
+  var s11=useState(null),editEntry=s11[0],setEditEntry=s11[1];var s12=useState(false),notaMode=s12[0],setNotaMode=s12[1];var s13=useState([]),selectedNota=s13[0],setSelectedNota=s13[1];var s14=useState(false),showNota=s14[0],setShowNota=s14[1];
+  var sba=useState([]),selectedBahanIds=sba[0],setSelectedBahanIds=sba[1];var sbb=useState(false),showNotaDraft=sbb[0],setShowNotaDraft=sbb[1];var sbc=useState(false),notaInputMode=sbc[0],setNotaInputMode=sbc[1];
+  // Nota state
+  function mkNR(){return {id:uid(),nama:"",qty:0,satuan:"",hargaFinal:0};}
+  var initNR=(function(){var r=[];for(var i=0;i<6;i++)r.push(mkNR());return r;})();
+  var sna=useState(p.sppgList[0]?p.sppgList[0].id:""),nSppg=sna[0],setNSppg=sna[1];
+  var snb=useState(""),nJudul=snb[0],setNJudul=snb[1];
+  var snc=useState(today()),nTgl=snc[0],setNTgl=snc[1];
+  var snd=useState(null),editNotaId=snd[0],setEditNotaId=snd[1];
+  var sne=useState(null),notaOpenId=sne[0],setNotaOpenId=sne[1];
+  var snf=useState(null),previewNota=snf[0],setPreviewNota=snf[1];
+  var sng=useState(initNR),notaRows=sng[0],setNotaRows=sng[1];
+  function updNR(id,field,val){setNotaRows(function(prev){return prev.map(function(r){if(r.id!==id)return r;var v=(field==="qty"||field==="hargaFinal")?parseFloat(val)||0:val;return Object.assign({},r,{[field]:v});});});}
+  function selNSugg(id,h){setNotaRows(function(prev){return prev.map(function(r){if(r.id!==id)return r;return Object.assign({},r,{nama:h.nama,satuan:h.satuan,hargaFinal:h.harga});});});}
+  function addNR(){setNotaRows(function(prev){return prev.concat([mkNR()]);});}
+  function delNR(id){setNotaRows(function(prev){return prev.length>1?prev.filter(function(r){return r.id!==id;}):prev;});}
+  function resetNotaForm(){var r=[];for(var i=0;i<6;i++)r.push(mkNR());setNotaRows(r);setNJudul("");setEditNotaId(null);}
+  function simpanNota(){
+    if(!nSppg)return alert("Pilih SPPG!");
+    if(!nJudul)return alert("Isi judul nota!");
+    var active=notaRows.filter(function(r){return r.nama&&r.qty>0;});
+    if(active.length===0)return alert("Minimal 1 item diisi!");
+    var total=active.reduce(function(a,r){return a+r.qty*(r.hargaFinal||0);},0);
+    if(editNotaId){
+      var upd={id:editNotaId,sppgId:nSppg,judul:nJudul,tanggal:nTgl,items:active,total:total,updatedAt:new Date().toISOString()};
+      p.setNotaList(function(prev){return (Array.isArray(prev)?prev:[]).map(function(n){return n.id===editNotaId?upd:n;});});
+    } else {
+      var nn={id:uid(),sppgId:nSppg,judul:nJudul,tanggal:nTgl,items:active,total:total,createdAt:new Date().toISOString()};
+      p.setNotaList(function(prev){return [nn].concat(Array.isArray(prev)?prev:[]);});
+    }
+    resetNotaForm();
+  }
+  function hapusNota(id){if(!confirm("Hapus nota ini?"))return;p.setNotaList(function(prev){return prev.filter(function(n){return n.id!==id;});});}
+  function startEditNota(nota){
+    setEditNotaId(nota.id);setNSppg(nota.sppgId||"");setNJudul(nota.judul||"");setNTgl(nota.tanggal||today());
+    var rows=(nota.items||[]).map(function(it){return Object.assign({},it,{id:it.id||uid()});});
+    while(rows.length<6)rows.push(mkNR());
+    setNotaRows(rows);
+    setView("nota");
+  }
 
   var totalSupplier=safeRows.reduce(function(a,r){return a+r.qty*(r.hargaSupplier||0);},0);
   var totalFinal=safeRows.reduce(function(a,r){return a+r.qty*(r.hargaFinal||0);},0);
@@ -394,7 +651,7 @@ function PageBelanja(p){
     var tglOf=function(t){return t?(t.substring?t.substring(0,10):String(t).substring(0,10)):"";};var filtered2=safeB.filter(function(b){return (filterSppg==="semua"||b.sppgId===filterSppg)&&(!filterTgl||tglOf(b.tanggal)===filterTgl);}).slice().sort(function(a,b){return tglOf(b.tanggal).localeCompare(tglOf(a.tanggal));});
     var allDates=Array.from(new Set(safeB.map(function(b){return tglOf(b.tanggal)}).filter(Boolean))).sort(function(a,b){return b.localeCompare(a);});
     return React.createElement("div",{id:"riwayat-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
-      React.createElement(PageHeader,{title:"Riwayat Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var filt=filtered2;var csvH=["Tanggal","Judul","SPPG","Porsi Kecil","Porsi Besar","Modal","Harga Jual","Margin"];var csvR=filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return[b.tanggal||"",b.judul||"",s?s.nama:"",b.porsiKecil||0,b.porsiBesar||0,b.totalSupplier||0,b.totalFinal||0,(b.totalFinal||0)-(b.totalSupplier||0)];});p.onExport({title:"Riwayat Belanja",elementId:"riwayat-content",filename:"Riwayat_Belanja",csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Ringkasan",data:[csvH].concat(csvR)}],txtLines:["RIWAYAT BELANJA MBG"].concat(filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return(b.tanggal||"")+" | "+(b.judul||"")+" | "+(s?s.nama:"")+" | "+fmt(b.totalFinal||0);}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("input");},small:true},"+ Input"))}),
+      React.createElement(PageHeader,{title:"Riwayat Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var filt=filtered2;var csvH=["Tanggal","Judul","SPPG","Porsi Kecil","Porsi Besar","Modal","Harga Jual","Margin"];var csvR=filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return[b.tanggal||"",b.judul||"",s?s.nama:"",b.porsiKecil||0,b.porsiBesar||0,b.totalSupplier||0,b.totalFinal||0,(b.totalFinal||0)-(b.totalSupplier||0)];});p.onExport({title:"Riwayat Belanja",elementId:"riwayat-content",filename:"Riwayat_Belanja",csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Ringkasan",data:[csvH].concat(csvR)}],txtLines:["RIWAYAT BELANJA MBG"].concat(filt.map(function(b){var s=p.sppgList.find(function(x){return x.id===b.sppgId;});return(b.tanggal||"")+" | "+(b.judul||"")+" | "+(s?s.nama:"")+" | "+fmt(b.totalFinal||0);}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("input");},small:true},"+ Input"),React.createElement(Btn,{onClick:function(){setNotaInputMode(function(x){var n=!x;if(!n)setSelectedBahanIds([]);return n;});},small:true,color:notaInputMode?"gray":"blue"},notaInputMode?"× Mode Nota":"⊕ Mode Nota"),React.createElement(Btn,{onClick:function(){setView("nota");},small:true},"📄 Nota"))}),
       React.createElement("div",{style:{display:"flex",gap:".375rem",alignItems:"center",flexWrap:"wrap"}},
         React.createElement("select",{style:{border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"5px 10px",fontSize:".72rem",background:"white",color:"#475569"},value:filterSppg,onChange:function(e){setFilterSppg(e.target.value);}},
           React.createElement("option",{value:"semua"},"Semua SPPG"),
@@ -411,8 +668,9 @@ function PageBelanja(p){
         var mg=(b.totalFinal||0)-(b.totalSupplier||0);
         var mgPct2=b.totalSupplier>0?((mg/b.totalSupplier)*100).toFixed(1):0;
         var isOpen=openId===b.id;
-        return React.createElement("div",{key:b.id,style:{background:"white",border:"1px solid #f1f5f9",borderRadius:".75rem",overflow:"hidden"}},
+        return React.createElement("div",{key:b.id,style:{background:"white",border:"2px solid "+(notaMode&&selectedNota.indexOf(b.id)>=0?"#2563eb":"#f1f5f9"),borderRadius:".75rem",overflow:"hidden"}},
           React.createElement("div",{style:{padding:".75rem .875rem",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"},onClick:function(){setOpenId(isOpen?null:b.id);}},
+            notaMode&&RC("div",{style:{display:"flex",alignItems:"center",paddingRight:".5rem",flexShrink:0},onClick:function(e){e.stopPropagation();setSelectedNota(function(prev){var idx=prev.indexOf(b.id);return idx>=0?prev.filter(function(id){return id!==b.id;}):prev.concat([b.id]);});}},RC("input",{type:"checkbox",readOnly:true,checked:selectedNota.indexOf(b.id)>=0,style:{width:"1.1rem",height:"1.1rem",cursor:"pointer",accentColor:"#2563eb"}})),
             React.createElement("div",null,
               React.createElement("p",{style:{fontWeight:700,fontSize:".8rem",color:"#1e293b",margin:0}},b.judul||"(tanpa judul)"),
               React.createElement("p",{style:{fontSize:".65rem",color:"#94a3b8",margin:0}},(s?s.nama:"?")+" · "+(b.tanggal?new Date(b.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"2-digit"}):"")+" · "+((b.items||[]).length)+" bahan")
@@ -444,13 +702,108 @@ function PageBelanja(p){
           )
         );
       }),
-      editEntry&&React.createElement(ModalEditBelanja,{entry:editEntry,onSave:saveEdit,onClose:function(){setEditEntry(null);},hargaDB:p.hargaDB,sppgList:p.sppgList})
+      editEntry&&React.createElement(ModalEditBelanja,{entry:editEntry,onSave:saveEdit,onClose:function(){setEditEntry(null);},hargaDB:p.hargaDB,sppgList:p.sppgList}),
+      notaMode&&selectedNota.length>0&&RC("div",{style:{position:"sticky",bottom:"5.5rem",display:"flex",justifyContent:"center",zIndex:50,marginTop:".5rem",pointerEvents:"none"}},
+        RC("div",{style:{pointerEvents:"auto"},onClick:function(){setShowNota(true);}},
+          RC(Btn,null,"Buat Nota ("+selectedNota.length+" dipilih)")
+        )
+      ),
+      showNota&&RC(ModalNota,{entries:(Array.isArray(p.belanjaList)?p.belanjaList:[]).filter(function(b){return selectedNota.indexOf(b.id)>=0;}),sppgList:p.sppgList,onClose:function(){setShowNota(false);}})
+    );
+  }
+
+  if(view==="nota"){
+    var safeNotas=Array.isArray(p.notaList)?p.notaList:[];
+    var nTot=notaRows.reduce(function(a,r){return a+r.qty*(r.hargaFinal||0);},0);
+    var isEd=editNotaId!==null;
+    var iS2={width:"100%",border:"1px solid transparent",borderRadius:"6px",padding:"5px 7px",fontSize:".72rem",background:"transparent",fontFamily:"inherit"};
+    return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:".875rem"}},
+      RC(PageHeader,{title:isEd?"Edit Nota":"Nota Pembelian",sub:"Buat dan kelola nota pembelian SPPG",action:
+        RC("div",{style:{display:"flex",gap:".375rem"}},
+          isEd&&RC("button",{onClick:function(){resetNotaForm();},style:{border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"4px 12px",fontSize:".72rem",background:"white",cursor:"pointer",fontWeight:600}},"Batal Edit"),
+          RC(Btn,{onClick:function(){setView("input");},small:true,color:"gray"},"← Input"),
+          RC(Btn,{onClick:function(){setView("riwayat");},small:true,color:"gray"},"📋 Riwayat")
+        )
+      }),
+      RC(Card,null,
+        RC("p",{style:{fontSize:".7rem",fontWeight:700,color:isEd?"#d97706":"#475569",margin:"0 0 .5rem",textTransform:"uppercase",letterSpacing:".04em"}},isEd?"✏️ Edit: "+editNotaId:"Buat Nota Baru"),
+        RC(SppgSel,{list:p.sppgList,value:nSppg,onChange:setNSppg,onAdd:function(){p.setModal("sppg");}}),
+        RC("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginTop:".5rem"}},
+          RC("div",null,
+            RC("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Judul Nota"),
+            RC("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},placeholder:"Nota Senin...",value:nJudul,onChange:function(e){setNJudul(e.target.value);}})
+          ),
+          RC("div",null,
+            RC("label",{style:{fontSize:".68rem",color:"#64748b",fontWeight:600,display:"block",marginBottom:"3px"}},"Tanggal"),
+            RC("input",{type:"date",style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",fontSize:".78rem"},value:nTgl,onChange:function(e){setNTgl(e.target.value);}})
+          )
+        ),
+        RC("div",{style:{marginTop:".75rem",overflowX:"auto"}},
+          RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem",minWidth:"420px"}},
+            RC("thead",null,RC("tr",null,
+              RC(TH,null,"No"),RC(TH,null,"Nama Barang"),RC(TH,{right:true},"Qty"),RC(TH,null,"Satuan"),RC(TH,{right:true},"Harga (Rp)"),RC(TH,{right:true},"Jumlah"),RC(TH,null,"")
+            )),
+            RC("tbody",null,notaRows.map(function(row,idx){
+              var jml=row.qty*(row.hargaFinal||0);
+              return RC("tr",{key:row.id,style:{borderTop:"1px solid #f8fafc"}},
+                RC("td",{style:{padding:"4px 8px",textAlign:"center",color:"#94a3b8",fontSize:".65rem",fontWeight:600}},idx+1),
+                RC("td",{style:{padding:"4px 8px",minWidth:"140px"}},RC(BahanInput,{value:row.nama,onChange:function(v){updNR(row.id,"nama",v);},db:p.hargaDB,onSelect:function(h){selNSugg(row.id,h);}})),
+                RC("td",{style:{padding:"4px 5px"}},RC("input",{type:"number",style:Object.assign({},iS2,{width:"56px",textAlign:"center",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400",value:row.qty||"",placeholder:"0",onChange:function(e){updNR(row.id,"qty",e.target.value);}})),
+                RC("td",{style:{padding:"4px 5px"}},RC("input",{style:Object.assign({},iS2,{width:"72px"}),className:"hover:border-gray-300 focus:border-blue-400",placeholder:"kg/pcs",value:row.satuan,onChange:function(e){updNR(row.id,"satuan",e.target.value);}})),
+                RC("td",{style:{padding:"4px 5px"}},RC("input",{type:"number",style:Object.assign({},iS2,{width:"100px",fontFamily:"monospace"}),className:"hover:border-gray-300 focus:border-blue-400",value:row.hargaFinal||"",placeholder:"0",onChange:function(e){updNR(row.id,"hargaFinal",e.target.value);}})),
+                RC("td",{style:{padding:"4px 8px",textAlign:"right",fontFamily:"monospace",fontWeight:600,color:"#059669",whiteSpace:"nowrap"}},jml>0?fmt(jml):"—"),
+                RC("td",{style:{padding:"4px 5px"}},RC("button",{onClick:function(){delNR(row.id);},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"13px",padding:"3px 5px",borderRadius:"5px"}},"✕"))
+              );
+            }))
+          )
+        ),
+        RC("button",{onClick:addNR,style:{width:"100%",padding:"8px",background:"none",border:"none",borderTop:"1px dashed #e2e8f0",cursor:"pointer",fontSize:".72rem",fontWeight:600,color:"#94a3b8",marginTop:"4px"},onMouseOver:function(e){e.currentTarget.style.color="#2563eb";e.currentTarget.style.background="#eff6ff";},onMouseOut:function(e){e.currentTarget.style.color="#94a3b8";e.currentTarget.style.background="none";}},"＋ Tambah Baris"),
+        nTot>0&&RC("div",{style:{display:"flex",justifyContent:"flex-end",padding:"8px 12px",borderTop:"1px solid #e2e8f0",marginTop:"4px"}},
+          RC("span",{style:{fontWeight:700,fontSize:".85rem",color:"#2563eb"}},"Total: "+fmt(nTot))
+        ),
+        RC("div",{style:{display:"flex",gap:".5rem",marginTop:".75rem"}},
+          RC(Btn,{onClick:simpanNota,style:{flex:1}},isEd?"✔ Simpan Perubahan":"✔ Simpan Nota")
+        )
+      ),
+      safeNotas.length===0&&!isEd&&RC("p",{style:{textAlign:"center",color:"#94a3b8",padding:"1.5rem 0",fontSize:".8rem"}},"Belum ada nota tersimpan — buat nota pertama di atas"),
+      safeNotas.length>0&&RC("div",{style:{display:"flex",flexDirection:"column",gap:".5rem"}},
+        RC("p",{style:{fontSize:".7rem",fontWeight:700,color:"#475569",margin:0,textTransform:"uppercase",letterSpacing:".04em"}},"Nota Tersimpan ("+safeNotas.length+")"),
+        safeNotas.slice().sort(function(a,b){return (b.createdAt||b.tanggal||"").localeCompare(a.createdAt||a.tanggal||"");}).map(function(nota){
+          var sp=p.sppgList.find(function(s){return s.id===nota.sppgId;});
+          var isOpen=notaOpenId===nota.id;
+          return RC("div",{key:nota.id,style:{background:"white",border:"1px solid "+(editNotaId===nota.id?"#f59e0b":"#f1f5f9"),borderRadius:".75rem",overflow:"hidden"}},
+            RC("div",{style:{padding:".75rem .875rem",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"},onClick:function(){setNotaOpenId(isOpen?null:nota.id);}},
+              RC("div",null,
+                RC("p",{style:{fontWeight:700,fontSize:".8rem",color:"#1e293b",margin:0}},nota.judul||"(tanpa judul)"),
+                RC("p",{style:{fontSize:".65rem",color:"#94a3b8",margin:0}},(sp?sp.nama:"?")+" · "+(nota.tanggal?new Date(nota.tanggal).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"2-digit"}):"-")+" · "+((nota.items||[]).length)+" item")
+              ),
+              RC("div",{style:{textAlign:"right"}},RC("p",{style:{fontWeight:700,fontSize:".85rem",color:"#2563eb",margin:0}},fmt(nota.total||0)))
+            ),
+            isOpen&&RC("div",{style:{borderTop:"1px solid #f8fafc"}},
+              RC("div",{style:{overflowX:"auto"}},
+                RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".68rem",minWidth:"320px"}},
+                  RC("thead",null,RC("tr",null,RC(TH,null,"Nama Barang"),RC(TH,{right:true},"Qty"),RC(TH,null,"Satuan"),RC(TH,{right:true},"Harga"),RC(TH,{right:true},"Jumlah"))),
+                  RC("tbody",null,(nota.items||[]).map(function(it,i){
+                    return RC("tr",{key:i},RC(TD,{style:{fontWeight:600}},it.nama),RC(TD,{style:{textAlign:"right"}},it.qty),RC(TD,null,it.satuan),RC(TD,{style:{textAlign:"right"}},fmt(it.hargaFinal||0)),RC(TD,{style:{textAlign:"right",color:"#059669",fontWeight:600}},fmt(it.qty*(it.hargaFinal||0))));
+                  }))
+                )
+              ),
+              RC("div",{style:{padding:"6px 12px",background:"#f8fafc",display:"flex",gap:".375rem",flexWrap:"wrap",alignItems:"center"}},
+                RC("button",{onClick:function(){setPreviewNota(nota);},style:{background:"#2563eb",color:"white",border:"none",borderRadius:"6px",padding:"5px 12px",fontSize:".68rem",cursor:"pointer",fontWeight:600}},"🖨 Cetak / PDF"),
+                RC("button",{onClick:function(){startEditNota(nota);},style:{background:"none",border:"1px solid #bfdbfe",color:"#2563eb",borderRadius:"6px",padding:"4px 10px",fontSize:".68rem",cursor:"pointer",fontWeight:600}},"✏️ Edit"),
+                RC("button",{onClick:function(){hapusNota(nota.id);},style:{background:"none",border:"1px solid #fca5a5",color:"#dc2626",borderRadius:"6px",padding:"4px 10px",fontSize:".68rem",cursor:"pointer"}},"Hapus")
+              )
+            )
+          );
+        })
+      ),
+      previewNota&&RC(ModalNota,{entries:[previewNota],sppgList:p.sppgList,onClose:function(){setPreviewNota(null);}})
     );
   }
 
   // ── INPUT VIEW ──
   return React.createElement("div",{id:"input-belanja-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
-    React.createElement(PageHeader,{title:"Input Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var actR=safeRows.filter(function(r){return r.nama&&r.qty>0;});(function(){var csvH=["No","Nama Bahan","QTY","Satuan"];if(colVis.showSupplier!==false)csvH.push("H.Supplier");if(colVis.showTotSupplier!==false)csvH.push("Total Supplier");csvH.push("H.Final","Total Final");if(colVis.showMargin!==false)csvH.push("Margin");var csvR=actR.map(function(r,i){var ts=r.qty*(r.hargaSupplier||0),tf=r.qty*(r.hargaFinal||0);var row=[i+1,r.nama,r.qty,r.satuan];if(colVis.showSupplier!==false)row.push(r.hargaSupplier||0);if(colVis.showTotSupplier!==false)row.push(ts);row.push(r.hargaFinal||0,tf);if(colVis.showMargin!==false)row.push(tf-ts);return row;});p.onExport({title:"Draft: "+(judul||""),elementId:"input-belanja-content",filename:"Draft_Belanja_"+(judul||tgl||""),csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Draft",data:[csvH].concat(csvR)}],txtLines:["DRAFT BELANJA","Judul: "+(judul||"-"),"Tgl: "+(tgl||"-")].concat(actR.map(function(r){return r.nama+" | "+r.qty+" "+r.satuan+" | "+fmtS(r.hargaFinal||0);}))});})();}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("riwayat");},small:true,color:"gray"},"📋 Riwayat"))}),
+    React.createElement(PageHeader,{title:"Input Belanja",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var actR=safeRows.filter(function(r){return r.nama&&r.qty>0;});(function(){var csvH=["No","Nama Bahan","QTY","Satuan"];if(colVis.showSupplier!==false)csvH.push("H.Supplier");if(colVis.showTotSupplier!==false)csvH.push("Total Supplier");csvH.push("H.Final","Total Final");if(colVis.showMargin!==false)csvH.push("Margin");var csvR=actR.map(function(r,i){var ts=r.qty*(r.hargaSupplier||0),tf=r.qty*(r.hargaFinal||0);var row=[i+1,r.nama,r.qty,r.satuan];if(colVis.showSupplier!==false)row.push(r.hargaSupplier||0);if(colVis.showTotSupplier!==false)row.push(ts);row.push(r.hargaFinal||0,tf);if(colVis.showMargin!==false)row.push(tf-ts);return row;});p.onExport({title:"Draft: "+(judul||""),elementId:"input-belanja-content",filename:"Draft_Belanja_"+(judul||tgl||""),csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Draft",data:[csvH].concat(csvR)}],txtLines:["DRAFT BELANJA","Judul: "+(judul||"-"),"Tgl: "+(tgl||"-")].concat(actR.map(function(r){return r.nama+" | "+r.qty+" "+r.satuan+" | "+fmtS(r.hargaFinal||0);}))});})();}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setView("riwayat");},small:true,color:"gray"},"📋 Riwayat"),React.createElement(Btn,{onClick:function(){setView("nota");},small:true},"📄 Nota"))}),
     React.createElement(Card,null,
       React.createElement("p",{style:{fontSize:".7rem",fontWeight:700,color:"#475569",margin:"0 0 .5rem",textTransform:"uppercase",letterSpacing:".04em"}},"Info Belanja"),
       React.createElement(SppgSel,{list:p.sppgList,value:selSppg,onChange:setSelSppg,onAdd:function(){p.setModal("sppg");}}),
@@ -525,7 +878,7 @@ function PageBelanja(p){
     React.createElement("div",{key:tgl,style:{background:"white",border:"1px solid #f1f5f9",borderRadius:".75rem",overflow:"hidden"}},
       React.createElement("div",{style:{overflowX:"auto"}},
         React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",minWidth:"640px",fontSize:".72rem"}},
-          React.createElement("thead",null,React.createElement("tr",null,(function(){var cols=["","NO","NAMA BAHAN","QTY","SATUAN"];if(colVis.showSupplier!==false)cols.push("H.SUPPLIER");if(colVis.showTotSupplier!==false)cols.push("TOT. SUPPLIER");cols.push("H.FINAL","TOT. FINAL");if(colVis.showMargin!==false)cols.push("MARGIN");cols.push("");return cols;})().map(function(h,i){return React.createElement(TH,{key:i,right:i>=5},h);}))),
+          React.createElement("thead",null,React.createElement("tr",null,(function(){var cols=notaInputMode?["✓","","NO","NAMA BAHAN","QTY","SATUAN"]:["","NO","NAMA BAHAN","QTY","SATUAN"];if(colVis.showSupplier!==false)cols.push("H.SUPPLIER");if(colVis.showTotSupplier!==false)cols.push("TOT. SUPPLIER");cols.push("H.FINAL","TOT. FINAL");if(colVis.showMargin!==false)cols.push("MARGIN");cols.push("");return cols;})().map(function(h,i){return React.createElement(TH,{key:i,right:notaInputMode?i>=6:i>=5},h);}))),
           React.createElement(DraggableRows,{
             rows:safeRows,
             onReorder:function(r){setRows(function(){return r;});},
@@ -533,6 +886,7 @@ function PageBelanja(p){
               var ts=row.qty*(row.hargaSupplier||0),tf=row.qty*(row.hargaFinal||0),mg=tf-ts;
               var mgPct3=ts>0?((mg/ts)*100).toFixed(1):null;
               return [
+                notaInputMode&&React.createElement("td",{key:"chk",style:{padding:"4px 6px",textAlign:"center",width:"28px",verticalAlign:"middle"}},React.createElement("input",{type:"checkbox",checked:selectedBahanIds.indexOf(row.id)>=0,onChange:function(e){setSelectedBahanIds(function(prev){return e.target.checked?prev.concat([row.id]):prev.filter(function(id){return id!==row.id;});});},style:{width:"1rem",height:"1rem",cursor:"pointer",accentColor:"#2563eb",verticalAlign:"middle"}})),
                 React.createElement("td",{key:"drag",style:{padding:"4px 4px",textAlign:"center"}},React.createElement("span",{className:"drag-handle",title:"Drag untuk ubah urutan"},"⠿")),
                 React.createElement("td",{key:"no",style:{padding:"4px 8px",textAlign:"center",color:"#94a3b8",fontSize:".65rem",fontWeight:600}},idx+1),
                 React.createElement("td",{key:"nama",style:{padding:"4px 8px",minWidth:"140px"}},React.createElement(BahanInput,{value:row.nama,onChange:function(v){updRow(row.id,"nama",v);},db:p.hargaDB,onSelect:function(h){selSugg(row.id,h);}})),
@@ -556,6 +910,14 @@ function PageBelanja(p){
         colVis.showMargin!==false&&React.createElement("span",null,"Margin: ",React.createElement("b",{style:{color:totalMargin>=0?"#ea580c":"#dc2626"}},fmt(totalMargin)+" ("+marginPct+"%)"))
       )
     ),
+    selectedBahanIds.length>0&&RC("div",{style:{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:".75rem",padding:".625rem 1rem",display:"flex",justifyContent:"space-between",alignItems:"center",gap:".5rem",flexWrap:"wrap"}},
+      RC("span",{style:{fontSize:".78rem",fontWeight:600,color:"#1d4ed8"}},"✓ "+selectedBahanIds.length+" bahan dipilih untuk nota"),
+      RC("div",{style:{display:"flex",gap:".375rem"}},
+        RC("button",{onClick:function(){setSelectedBahanIds([]);},style:{background:"none",border:"1px solid #93c5fd",color:"#3b82f6",borderRadius:".5rem",padding:"4px 10px",fontSize:".68rem",cursor:"pointer",fontWeight:600}},"Batal"),
+        RC(Btn,{onClick:function(){setShowNotaDraft(true);}},"→ Buat Nota")
+      )
+    ),
+    showNotaDraft&&RC(ModalNotaDraft,{items:safeRows.filter(function(r){return selectedBahanIds.indexOf(r.id)>=0&&r.nama&&r.qty>0;}),sppgList:p.sppgList,defaultSppgId:selSppg,defaultTgl:tgl,setNotaList:p.setNotaList,onClose:function(){setShowNotaDraft(false);setSelectedBahanIds([]);}}),
     React.createElement(Btn,{onClick:simpan,style:{width:"100%",padding:".75rem",fontSize:".875rem"}},"💾 Simpan Belanja")
   );
 }
@@ -911,6 +1273,7 @@ function App(){
   var s1=useState("dashboard"),tab=s1[0],setTab=s1[1];
   var s2=useLS("mbg_sppg",[]),sppgList=s2[0],setSppgList=s2[1];
   var s3=useLS("mbg_belanja_v2",[]),belanjaList=s3[0],setBelanjaList=s3[1];
+  var s3b=useLS("mbg_notas",[]),notaList=s3b[0],setNotaList=s3b[1];
   var s4=useLS("mbg_operasional",[]),operasionalList=s4[0],setOperasionalList=s4[1];
   var s5=useLS("mbg_hargadb",HARGA0),hargaDB=s5[0],setHargaDB=s5[1];
   var s6=useLS("mbg_menus",[]),menuTemplates=s6[0],setMenuTemplates=s6[1];
@@ -949,6 +1312,21 @@ function App(){
       .finally(function(){setLoading(false);clearTimeout(timer);});
     return function(){clearTimeout(timer);ctrl.abort();};
   },[]);
+
+  // Auto-refresh setiap 30 detik saat terhubung ke Supabase
+  useEffect(function(){
+    if(dbStatus!=="online")return;
+    var iv=setInterval(function(){
+      Promise.all([sbGet("sppg"),sbGet("transaksi","komponen=eq.bahan_baku"),sbGet("transaksi","komponen=eq.operasional"),sbGet("harga_survei")])
+        .then(function(res){
+          if(Array.isArray(res[0])&&res[0].length>0)setSppgList(res[0].map(sbToSppg));
+          if(Array.isArray(res[1])&&res[1].length>0)setBelanjaList(res[1].map(trxToBelanja));
+          if(Array.isArray(res[2])&&res[2].length>0)setOperasionalList(res[2].map(trxToOp));
+          if(Array.isArray(res[3])&&res[3].length>0)setHargaDB(res[3].map(sbToHarga));
+        }).catch(function(){});
+    },30000);
+    return function(){clearInterval(iv);};
+  },[dbStatus]);
 
   // Auto-refresh setiap 30 detik saat terhubung ke Supabase
   useEffect(function(){
@@ -1010,7 +1388,7 @@ function App(){
   ];
   function renderPage(){
     if(tab==="dashboard")return React.createElement(PageDashboard,{sppgList:safeSppg,belanjaList:belanjaList,operasionalList:operasionalList,setModal:setModal,onExport:setExportCfg});
-    if(tab==="belanja")return React.createElement(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaDB,setHargaDB:setHargaDB,setModal:setModal,onExport:setExportCfg,dbStatus:dbStatus});
+    if(tab==="belanja")return React.createElement(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaDB,setHargaDB:setHargaDB,setModal:setModal,onExport:setExportCfg,dbStatus:dbStatus,notaList:notaList,setNotaList:setNotaList});
     if(tab==="operasional")return React.createElement(PageOperasional,{sppgList:safeSppg,operasionalList:operasionalList,setOperasionalList:setOperasionalList,setModal:setModal,onExport:setExportCfg,dbStatus:dbStatus});
     if(tab==="menu")return React.createElement(PageMenu,{menuTemplates:menuTemplates,setMenuTemplates:setMenuTemplates,menuHistory:menuHistory,setMenuHistory:setMenuHistory,hargaDB:hargaDB});
     if(tab==="harga")return React.createElement(PageHarga,{hargaDB:hargaDB,setHargaDB:setHargaDB,dbStatus:dbStatus});
