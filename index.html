@@ -377,7 +377,7 @@ function PageBelanja(p){
     p.setHargaDB(Object.values(newDB));
     var entry={id:uid(),sppgId:selSppg,judul:judul,tanggal:tgl,porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,items:active,totalSupplier:totalSupplier,totalFinal:totalFinal,createdAt:new Date().toISOString()};
     p.setBelanjaList(function(prev){return [entry].concat(Array.isArray(prev)?prev:[]);});
-    if(p.dbStatus==="online")sbUpsert("transaksi",[belanjaToTrx(entry)]).catch(function(e){console.warn("push belanja failed:",e);});
+    if(p.dbStatus==="online"){sbUpsert("transaksi",[belanjaToTrx(entry)]).catch(function(e){console.warn("push belanja failed:",e);});sbUpsert("harga_survei",Object.values(newDB).map(hargaToSB)).catch(function(){});}
     var r=[];for(var i=0;i<8;i++)r.push(emptyRow());
     setRows(function(){return r;});
     setJudul("");setPk(0);setPb(0);
@@ -575,7 +575,7 @@ function PageOperasional(p){
   var totalBln=safeO.filter(function(o){return o.tanggal&&o.tanggal.startsWith(bln)&&(filterSppg==="semua"||o.sppgId===filterSppg);}).reduce(function(a,o){return a+(o.jumlah||0);},0);
   var KATEGORI=["Operasional Dapur","Gas LPG","Kemasan","Transportasi","Peralatan","Kebersihan","Lainnya"];
   function simpan(){if(!selSppg)return alert("Pilih SPPG!");if(!uraian||!jumlah)return alert("Isi uraian dan jumlah!");var nOp={id:uid(),sppgId:selSppg,tanggal:tgl,uraian:uraian,jumlah:parseInt(jumlah)||0,kategori:kat};setOperasionalList(function(prev){return [nOp].concat(Array.isArray(prev)?prev:[]);});if(p.dbStatus==="online")sbUpsert("transaksi",[opToTrx(nOp)]).catch(function(e){console.warn("push ops failed:",e);});setUraian("");setJumlah("");setShowForm(false);}
-  function del(id){if(confirm("Hapus?"))p.setOperasionalList(function(prev){return prev.filter(function(o){return o.id!==id;});});}
+  function del(id){if(!confirm("Hapus?"))return;p.setOperasionalList(function(prev){return prev.filter(function(o){return o.id!==id;});});if(p.dbStatus==="online")sbDel("transaksi",id).catch(function(){});}
   return React.createElement("div",{id:"ops-content",style:{display:"flex",flexDirection:"column",gap:".875rem"}},
     React.createElement(PageHeader,{title:"Operasional",sub:"Di luar budget harian porsi",action:React.createElement("div",{style:{display:"flex",gap:".375rem"}},filtered.length>0&&React.createElement("button",{className:"xbtn",onClick:function(){if(!p.onExport)return;var csvH=["Tanggal","Uraian","Kategori","SPPG","Jumlah"];var csvR=filtered.map(function(o){var s=p.sppgList.find(function(x){return x.id===o.sppgId;});return[o.tanggal||"",o.uraian,o.kategori,s?s.nama:"",o.jumlah];});p.onExport({title:"Operasional",elementId:"ops-content",filename:"Operasional_MBG",csvHeaders:csvH,csvRows:csvR,excelSheets:[{name:"Operasional",data:[csvH].concat(csvR)}],txtLines:["DATA OPERASIONAL MBG"].concat(csvR.map(function(r){return r.join(" | ");}))});}},"\u2b07 Export"),React.createElement(Btn,{onClick:function(){setShowForm(function(prev){return !prev;});},small:true},showForm?"Tutup":"+ Input"))}),
     showForm&&React.createElement(Card,null,
@@ -619,15 +619,19 @@ function PageHarga(p){
     if(!form.nama||!form.satuan||!form.harga)return alert("Lengkapi semua field!");
     var harga=parseInt(form.harga)||0;
     if(editId){
-      p.setHargaDB(function(prev){return prev.map(function(h){return h.id===editId?Object.assign({},h,{nama:form.nama,satuan:form.satuan,harga:harga}):h;});});
+      var updated={id:editId,nama:form.nama,satuan:form.satuan,harga:harga};
+      p.setHargaDB(function(prev){return prev.map(function(h){return h.id===editId?Object.assign({},h,updated):h;});});
+      if(p.dbStatus==="online")sbUpsert("harga_survei",[hargaToSB(updated)]).catch(function(){});
       setEditId(null);
     } else {
-      p.setHargaDB(function(prev){return (Array.isArray(prev)?prev:[]).concat([{id:"h"+uid(),nama:form.nama,satuan:form.satuan,harga:harga}]);});
+      var newH={id:"h"+uid(),nama:form.nama,satuan:form.satuan,harga:harga};
+      p.setHargaDB(function(prev){return (Array.isArray(prev)?prev:[]).concat([newH]);});
+      if(p.dbStatus==="online")sbUpsert("harga_survei",[hargaToSB(newH)]).catch(function(){});
     }
     setForm({nama:"",satuan:"",harga:""});setShowForm(false);
   }
   function startEdit(h){setEditId(h.id);setForm({nama:h.nama,satuan:h.satuan,harga:String(h.harga)});setShowForm(true);}
-  function del(id){if(confirm("Hapus data harga ini?"))p.setHargaDB(function(prev){return prev.filter(function(h){return h.id!==id;});});}
+  function del(id){if(!confirm("Hapus data harga ini?"))return;p.setHargaDB(function(prev){return prev.filter(function(h){return h.id!==id;});});if(p.dbStatus==="online")sbDel("harga_survei",id).catch(function(){});}
   return React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:".875rem"}},
     React.createElement(PageHeader,{title:"Database Harga",sub:"Referensi harga bahan — diperbarui otomatis saat input belanja",action:React.createElement(Btn,{onClick:function(){setEditId(null);setForm({nama:"",satuan:"",harga:""});setShowForm(function(prev){return !prev;});},small:true},showForm?"Tutup":"+ Tambah")}),
     showForm&&React.createElement(Card,null,
@@ -946,6 +950,21 @@ function App(){
     return function(){clearTimeout(timer);ctrl.abort();};
   },[]);
 
+  // Auto-refresh setiap 30 detik saat terhubung ke Supabase
+  useEffect(function(){
+    if(dbStatus!=="online")return;
+    var iv=setInterval(function(){
+      Promise.all([sbGet("sppg"),sbGet("transaksi","komponen=eq.bahan_baku"),sbGet("transaksi","komponen=eq.operasional"),sbGet("harga_survei")])
+        .then(function(results){
+          if(Array.isArray(results[0])&&results[0].length>0)setSppgList(results[0].map(sbToSppg));
+          if(Array.isArray(results[1])&&results[1].length>0)setBelanjaList(results[1].map(trxToBelanja));
+          if(Array.isArray(results[2])&&results[2].length>0)setOperasionalList(results[2].map(trxToOp));
+          if(Array.isArray(results[3])&&results[3].length>0)setHargaDB(results[3].map(sbToHarga));
+        }).catch(function(){});
+    },30000);
+    return function(){clearInterval(iv);};
+  },[dbStatus]);
+
   function syncFromSB(){
     setSyncMsg("Mengambil data dari Supabase...");
     Promise.all([
@@ -994,7 +1013,7 @@ function App(){
     if(tab==="belanja")return React.createElement(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaDB,setHargaDB:setHargaDB,setModal:setModal,onExport:setExportCfg,dbStatus:dbStatus});
     if(tab==="operasional")return React.createElement(PageOperasional,{sppgList:safeSppg,operasionalList:operasionalList,setOperasionalList:setOperasionalList,setModal:setModal,onExport:setExportCfg,dbStatus:dbStatus});
     if(tab==="menu")return React.createElement(PageMenu,{menuTemplates:menuTemplates,setMenuTemplates:setMenuTemplates,menuHistory:menuHistory,setMenuHistory:setMenuHistory,hargaDB:hargaDB});
-    if(tab==="harga")return React.createElement(PageHarga,{hargaDB:hargaDB,setHargaDB:setHargaDB});
+    if(tab==="harga")return React.createElement(PageHarga,{hargaDB:hargaDB,setHargaDB:setHargaDB,dbStatus:dbStatus});
     if(tab==="estimasi")return React.createElement(PageEstimasi,{sppgList:safeSppg,setModal:setModal});
     return null;
   }
@@ -1057,7 +1076,7 @@ function App(){
             React.createElement("span",{style:{fontWeight:700,fontSize:".85rem",color:"#1e293b"}},dbStatus==="online"?"Terhubung ke Supabase":dbStatus==="connecting"?"Menghubungkan...":"Koneksi gagal / offline"),
             React.createElement("span",{style:{fontSize:".7rem",color:"#94a3b8",marginLeft:"auto"}},SB_URL.replace("https://","").split(".")[0])
           ),
-          React.createElement("p",{style:{fontSize:".7rem",color:"#64748b",margin:0}},"Project: ozxuvjhotrzwhmjivwgm.supabase.co"),
+          React.createElement("p",{style:{fontSize:".7rem",color:"#64748b",margin:0}},"Project: "+SB_URL.replace("https://","")),
           React.createElement("p",{style:{fontSize:".68rem",color:"#94a3b8",margin:"4px 0 0"}},"Data sync otomatis dengan Supabase. Semua device yang buka file ini akan terhubung ke database yang sama.")
         ),
         syncMsg&&React.createElement("div",{style:{padding:"8px 12px",borderRadius:".625rem",background:syncMsg.indexOf("agal")>=0?"#fef2f2":"#f0fdf4",color:syncMsg.indexOf("agal")>=0?"#dc2626":"#059669",fontSize:".78rem",fontWeight:600,marginBottom:".75rem",display:"flex",alignItems:"center",gap:"6px"}},
