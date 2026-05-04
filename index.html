@@ -181,7 +181,7 @@ function belanjaToTrx(b){
     komponen:"bahan_baku", uraian:b.judul||"", jumlah:b.totalFinal||0, sumber:"app",
     kategori:JSON.stringify({judul:b.judul||"",items:b.items||[],
       totalSupplier:b.totalSupplier||0,totalFinal:b.totalFinal||0,
-      porsiKecil:b.porsiKecil||0,porsiBesar:b.porsiBesar||0})};
+      porsiKecil:b.porsiKecil||0,porsiBesar:b.porsiBesar||0,notaNo:b.notaNo||""})};
 }
 function trxToBelanja(t){
   var d={};
@@ -189,7 +189,8 @@ function trxToBelanja(t){
   return {id:t.id,sppgId:t.sppg_id||"",judul:d.judul||t.uraian||"",
     tanggal:t.tanggal||"",items:d.items||[],
     totalSupplier:d.totalSupplier||0,totalFinal:t.jumlah||d.totalFinal||0,
-    porsiKecil:d.porsiKecil||0,porsiBesar:d.porsiBesar||0,createdAt:t.created_at||""};
+    porsiKecil:d.porsiKecil||0,porsiBesar:d.porsiBesar||0,
+    notaNo:d.notaNo||"",createdAt:t.created_at||""};
 }
 function opToTrx(o){
   return {id:o.id,sppg_id:o.sppgId||"",tanggal:o.tanggal,
@@ -215,6 +216,18 @@ function sbToHarga(r){
 // ─── DB STATUS HELPER ────────────────────────────────────────────────────────
 // Kembalikan true jika status = "online" ATAU "realtime" (keduanya berarti terhubung)
 function dbOK(status){ return status==="online" || status==="realtime"; }
+
+// ─── NOMOR NOTA OTOMATIS ──────────────────────────────────────────────────────
+// Format: MBG/YYYY/MM/NNN — counter per bulan disimpan di localStorage
+function getNextNotaNo(){
+  var now=new Date();
+  var yr=now.getFullYear();
+  var mo=String(now.getMonth()+1).padStart(2,'0');
+  var key='mbg_nota_seq_'+yr+'_'+mo;
+  var seq=(parseInt(localStorage.getItem(key))||0)+1;
+  localStorage.setItem(key,String(seq));
+  return 'MBG/'+yr+'/'+mo+'/'+String(seq).padStart(3,'0');
+}
 
 // ─── SUPABASE REALTIME CLIENT ─────────────────────────────────────────────────
 // Lazy-init: dibuat sekali, dipakai ulang
@@ -657,7 +670,9 @@ function PageBelanja(p){
       +'.total-row td{font-weight:800;background:#eff6ff}'
       +'@media print{.noprint{display:none!important}}</style></head><body>');
     win.document.write('<h2>NOTA PEMBELIAN BAHAN</h2>');
-    win.document.write('<p class="sub">Program Makan Bergizi Gratis (MBG)</p><hr>');
+    win.document.write('<p class="sub">Program Makan Bergizi Gratis (MBG)</p>');
+    if(b.notaNo) win.document.write('<p class="sub" style="font-weight:700;color:#2563eb;letter-spacing:1px">No. Nota: '+b.notaNo+'</p>');
+    win.document.write('<hr>');
     win.document.write('<table style="border:none;margin-top:0"><tr>'
       +'<td style="border:none;padding:3px 0;width:50%"><b>SPPG:</b> '+sppgName+'</td>'
       +'<td style="border:none;padding:3px 0;text-align:right"><b>Tanggal:</b> '+tanggalStr+'</td></tr>');
@@ -728,6 +743,30 @@ function PageBelanja(p){
     if(editId===id) setEditId(null);
   }
 
+  // Cetak nota: generate nomor nota otomatis jika belum ada, lalu simpan + cetak
+  function doNotaCetak(b){
+    var chk=(b.items||[]).filter(function(it,i){return notaChecked[i]!==false;});
+    if(!chk.length){alert("Pilih minimal 1 bahan untuk nota!");return;}
+    var notaNo=b.notaNo;
+    var bFinal=b;
+    if(!notaNo){
+      notaNo=getNextNotaNo();
+      bFinal=Object.assign({},b,{notaNo:notaNo});
+      p.setBelanjaList(function(prev){
+        return (Array.isArray(prev)?prev:[]).map(function(x){return x.id===b.id?bFinal:x;});
+      });
+      if(dbOK(p.dbStatus)){
+        sbUpsert("transaksi",[belanjaToTrx(bFinal)]).catch(function(e){console.warn(e);});
+      }
+    }
+    cetakNota(Object.assign({},bFinal,{
+      items:chk,
+      totalFinal:chk.reduce(function(a,it){return a+(it.qty||0)*(it.hargaFinal||0);},0),
+      totalSupplier:chk.reduce(function(a,it){return a+(it.qty||0)*(it.hargaSupplier||0);},0)
+    }));
+    setNotaId(null);
+  }
+
   // history filters
   var filtered=safeB.filter(function(b){
     if(filterSppg&&b.sppgId!==filterSppg) return false;
@@ -789,32 +828,102 @@ function PageBelanja(p){
             recordsForDate.map(function(b){
               var sp=(p.sppgList||[]).find(function(x){return x.id===b.sppgId;});
               var isEditing=editId===b.id;
-              return RC("div",{key:b.id,style:{
-                display:"flex",alignItems:"center",gap:".5rem",padding:".5rem .75rem",
-                background:isEditing?"#fffbeb":"#f8fafc",
-                border:"1px solid "+(isEditing?"#fcd34d":"#e2e8f0"),
-                borderRadius:".5rem"
-              }},
-                RC("div",{style:{flex:1,minWidth:0}},
-                  RC("div",{style:{fontWeight:600,fontSize:".78rem",color:"#1e293b",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},
-                    (isEditing?"✏️ ":"")+( b.judul||"(tanpa judul)")
+              var notaOpen=notaId===b.id;
+              return RC("div",{key:b.id,style:{display:"flex",flexDirection:"column",gap:0}},
+                // ── Card row ──
+                RC("div",{style:{
+                  display:"flex",alignItems:"center",gap:".5rem",padding:".5rem .75rem",
+                  background:isEditing?"#fffbeb":notaOpen?"#eff6ff":"#f8fafc",
+                  border:"1px solid "+(isEditing?"#fcd34d":notaOpen?"#bfdbfe":"#e2e8f0"),
+                  borderRadius:notaOpen?".5rem .5rem 0 0":".5rem"
+                }},
+                  RC("div",{style:{flex:1,minWidth:0}},
+                    RC("div",{style:{fontWeight:600,fontSize:".78rem",color:"#1e293b",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},
+                      (isEditing?"✏️ ":"")+(b.judul||"(tanpa judul)")
+                    ),
+                    RC("div",{style:{fontSize:".65rem",color:"#94a3b8",display:"flex",gap:".375rem",alignItems:"center"}},
+                      (sp?sp.nama:"—")+" · "+(b.items||[]).length+" bahan",
+                      b.notaNo&&RC("span",{style:{background:"#dbeafe",color:"#1d4ed8",borderRadius:"3px",padding:"0 4px",fontWeight:700,fontSize:".6rem"}},b.notaNo)
+                    )
                   ),
-                  RC("div",{style:{fontSize:".65rem",color:"#94a3b8"}},
-                    (sp?sp.nama:"—")+" · "+(b.items||[]).length+" bahan"
+                  RC("div",{style:{fontFamily:"monospace",fontWeight:700,fontSize:".78rem",color:"#2563eb",flexShrink:0}},fmt(b.totalFinal||0)),
+                  RC("button",{onClick:function(e){
+                    e.stopPropagation();
+                    if(notaOpen){setNotaId(null);return;}
+                    var chk={};(b.items||[]).forEach(function(it,i){chk[i]=true;});
+                    setNotaChecked(chk);setNotaId(b.id);
+                  },style:{
+                    background:notaOpen?"#2563eb":"none",
+                    color:notaOpen?"white":"#2563eb",
+                    border:"1px solid "+(notaOpen?"#2563eb":"#bfdbfe"),
+                    borderRadius:"4px",padding:"2px 8px",fontSize:".68rem",
+                    cursor:"pointer",fontWeight:600,flexShrink:0,whiteSpace:"nowrap"
+                  }},notaOpen?"✕ Nota":"🖨 Nota"),
+                  RC("button",{onClick:function(){startEdit(b);},
+                    style:{background:isEditing?"#fef3c7":"none",border:"1px solid "+(isEditing?"#fcd34d":"#e2e8f0"),borderRadius:"4px",padding:"2px 6px",fontSize:".72rem",cursor:"pointer",flexShrink:0}},
+                    "✏️"
+                  ),
+                  RC("button",{onClick:function(){hapusBelanja(b.id);},
+                    style:{background:"none",border:"1px solid #fecaca",borderRadius:"4px",padding:"2px 6px",fontSize:".72rem",cursor:"pointer",color:"#ef4444",flexShrink:0}},
+                    "🗑"
                   )
                 ),
-                RC("div",{style:{fontFamily:"monospace",fontWeight:700,fontSize:".78rem",color:"#2563eb",flexShrink:0}},fmt(b.totalFinal||0)),
-                RC("button",{onClick:function(e){e.stopPropagation();
-                  var chk={};(b.items||[]).forEach(function(it,i){chk[i]=true;});
-                  setNotaChecked(chk);setNotaId(b.id);
-                },style:{background:"none",border:"1px solid #e2e8f0",borderRadius:"4px",padding:"2px 6px",fontSize:".65rem",cursor:"pointer",color:"#2563eb",flexShrink:0}},"🖨"),
-                RC("button",{onClick:function(){startEdit(b);},
-                  style:{background:isEditing?"#fef3c7":"none",border:"1px solid "+(isEditing?"#fcd34d":"#e2e8f0"),borderRadius:"4px",padding:"2px 6px",fontSize:".72rem",cursor:"pointer",flexShrink:0}},
-                  isEditing?"✏️":"✏️"
-                ),
-                RC("button",{onClick:function(){hapusBelanja(b.id);},
-                  style:{background:"none",border:"1px solid #fecaca",borderRadius:"4px",padding:"2px 6px",fontSize:".72rem",cursor:"pointer",color:"#ef4444",flexShrink:0}},
-                  "🗑"
+                // ── Inline nota checklist (muncul saat tombol Nota diklik) ──
+                notaOpen&&RC("div",{style:{background:"#f0f9ff",border:"1px solid #bfdbfe",borderTop:"none",borderRadius:"0 0 .5rem .5rem",overflow:"hidden"}},
+                  RC("div",{style:{overflowX:"auto"}},
+                    RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".68rem",minWidth:"340px"}},
+                      RC("thead",null,RC("tr",null,
+                        ["","Bahan","Qty","Satuan","H.Final","Subtotal"].map(function(h,i){
+                          return RC("th",{key:i,style:{
+                            padding:"5px 8px",textAlign:i>=4?"right":"left",
+                            color:i===0?"#2563eb":"#64748b",
+                            fontWeight:700,fontSize:".6rem",textTransform:"uppercase",
+                            background:"#e0f2fe",borderBottom:"1px solid #bae6fd",
+                            width:i===0?"32px":"auto"
+                          }},
+                            i===0
+                              ? RC("input",{type:"checkbox",
+                                  checked:(b.items||[]).every(function(it,idx){return notaChecked[idx]!==false;}),
+                                  onChange:function(e){
+                                    var chk={};(b.items||[]).forEach(function(it,idx){chk[idx]=e.target.checked;});
+                                    setNotaChecked(chk);
+                                  },
+                                  style:{cursor:"pointer",width:"14px",height:"14px"}})
+                              : h
+                          );
+                        })
+                      )),
+                      RC("tbody",null,(b.items||[]).map(function(it,i){
+                        var isChk=notaChecked[i]!==false;
+                        return RC("tr",{key:i,style:{borderTop:"1px solid #e0f2fe",background:i%2===0?"white":"#f0f9ff",opacity:isChk?1:.45}},
+                          RC("td",{style:{padding:"5px 8px",textAlign:"center",width:"32px"}},
+                            RC("input",{type:"checkbox",checked:isChk,
+                              onChange:(function(idx){return function(e){
+                                setNotaChecked(function(prev){var n=Object.assign({},prev);n[idx]=e.target.checked;return n;});
+                              };})(i),
+                              style:{cursor:"pointer",width:"14px",height:"14px"}})
+                          ),
+                          RC("td",{style:{padding:"5px 8px",fontWeight:600,color:"#1e293b"}},it.nama),
+                          RC("td",{style:{padding:"5px 8px",textAlign:"right",color:"#475569"}},it.qty),
+                          RC("td",{style:{padding:"5px 8px",color:"#94a3b8"}},it.satuan),
+                          RC("td",{style:{padding:"5px 8px",textAlign:"right",fontFamily:"monospace",color:"#64748b"}},fmt(it.hargaFinal||0)),
+                          RC("td",{style:{padding:"5px 8px",textAlign:"right",fontFamily:"monospace",fontWeight:700,color:isChk?"#059669":"#94a3b8"}},fmt((it.qty||0)*(it.hargaFinal||0)))
+                        );
+                      }))
+                    )
+                  ),
+                  RC("div",{style:{padding:".5rem .75rem",background:"#e0f2fe",borderTop:"1px solid #bae6fd",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+                    RC("span",{style:{fontSize:".72rem",color:"#1e40af",fontWeight:600}},
+                      (function(){
+                        var chk=(b.items||[]).filter(function(it,i){return notaChecked[i]!==false;});
+                        return chk.length+" bahan dipilih · "+fmt(chk.reduce(function(a,it){return a+(it.qty||0)*(it.hargaFinal||0);},0));
+                      })()
+                    ),
+                    RC("button",{
+                      onClick:function(){doNotaCetak(b);},
+                      style:{background:"#2563eb",color:"white",border:"none",borderRadius:".375rem",padding:"5px 16px",fontSize:".72rem",fontWeight:700,cursor:"pointer"}
+                    },"🖨 Cetak Nota")
+                  )
                 )
               );
             })
@@ -1116,16 +1225,7 @@ function PageBelanja(p){
                             })()
                           ),
                           RC("button",{
-                            onClick:function(){
-                              var chk=(b.items||[]).filter(function(it,i){return notaChecked[i]!==false;});
-                              if(!chk.length){alert("Pilih minimal 1 bahan!");return;}
-                              cetakNota(Object.assign({},b,{
-                                items:chk,
-                                totalFinal:chk.reduce(function(a,it){return a+(it.qty||0)*(it.hargaFinal||0);},0),
-                                totalSupplier:chk.reduce(function(a,it){return a+(it.qty||0)*(it.hargaSupplier||0);},0)
-                              }));
-                              setNotaId(null);
-                            },
+                            onClick:function(){doNotaCetak(b);},
                             style:{background:"#2563eb",color:"white",border:"none",borderRadius:".375rem",padding:"5px 14px",fontSize:".72rem",fontWeight:700,cursor:"pointer"}
                           },"🖨 Cetak Nota")
                         )
