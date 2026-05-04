@@ -460,11 +460,12 @@ function PageDashboard(p){
     var bBln=bl.filter(function(b){return b.tanggal&&b.tanggal.startsWith(bln);});
     return {id:s.id,nama:s.nama,blnTotal:bBln.reduce(function(a,b){return a+(b.totalFinal||0);},0),total:bl.reduce(function(a,b){return a+(b.totalFinal||0);},0),count:bl.length};
   });
+  var sisaBudget=budgetHarian-totalBlnIni;
   var cards=[
     {l:"Belanja Bulan Ini",v:fmtS(totalBlnIni),c:"#2563eb",bg:"#eff6ff",bd:"#bfdbfe",icon:"🛒"},
-    {l:"Budget Porsi",v:fmtS(budgetHarian),c:"#7c3aed",bg:"#f5f3ff",bd:"#ddd6fe",icon:"🍱"},
+    {l:"Maks. Budget (Porsi)",v:fmtS(budgetHarian),c:"#7c3aed",bg:"#f5f3ff",bd:"#ddd6fe",icon:"🍱",sub:"Kecil×8rb + Besar×10rb"},
     {l:"Operasional",v:fmtS(totalOp),c:"#ea580c",bg:"#fff7ed",bd:"#fed7aa",icon:"⚙️"},
-    {l:"Selisih Harga",v:fmtS(marginBln),c:marginBln>=0?"#059669":"#dc2626",bg:marginBln>=0?"#f0fdf4":"#fef2f2",bd:marginBln>=0?"#bbf7d0":"#fecaca",icon:marginBln>=0?"📈":"📉"},
+    {l:sisaBudget>=0?"Sisa Budget":"Melebihi Budget",v:(sisaBudget>=0?"+":"")+fmtS(Math.abs(sisaBudget)),c:budgetHarian>0?(sisaBudget>=0?"#059669":"#dc2626"):"#94a3b8",bg:budgetHarian>0?(sisaBudget>=0?"#f0fdf4":"#fef2f2"):"#f8fafc",bd:budgetHarian>0?(sisaBudget>=0?"#bbf7d0":"#fecaca"):"#e2e8f0",icon:budgetHarian>0?(sisaBudget>=0?"✅":"⚠️"):"—"},
   ];
   return RC("div",{style:{display:"flex",flexDirection:"column",gap:".875rem"}},
     RC(PageHeader,{title:"Dashboard",sub:"Rekap "+monthLabel(bln),
@@ -473,7 +474,10 @@ function PageDashboard(p){
       cards.map(function(x){
         return RC("div",{key:x.l,style:{background:x.bg,border:"1px solid "+x.bd,borderRadius:".75rem",padding:".75rem"}},
           RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
-            RC("p",{style:{fontSize:".62rem",fontWeight:700,color:"#64748b",margin:0,textTransform:"uppercase",letterSpacing:".04em"}},x.l),
+            RC("div",null,
+              RC("p",{style:{fontSize:".62rem",fontWeight:700,color:"#64748b",margin:0,textTransform:"uppercase",letterSpacing:".04em"}},x.l),
+              x.sub&&RC("p",{style:{fontSize:".58rem",color:"#94a3b8",margin:0}},x.sub)
+            ),
             RC("span",null,x.icon)
           ),
           RC("p",{style:{fontSize:"1.05rem",fontWeight:800,color:x.c,margin:"4px 0 0"}},x.v)
@@ -541,13 +545,14 @@ function PageBelanja(p){
   function emptyRow(){return {id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0};}
   var initRows=(function(){var r=[];for(var i=0;i<8;i++)r.push(emptyRow());return r;})();
 
-  var s1=useState("input"),view=s1[0],setView=s1[1];
-  var s2=useState(p.sppgList[0]?p.sppgList[0].id:""),selSppg=s2[0],setSelSppg=s2[1];
-  var s3=useState(""),judul=s3[0],setJudul=s3[1];
-  var s4=useState(today()),tgl=s4[0],setTgl=s4[1];
-  var s5=useState(0),pk=s5[0],setPk=s5[1];
-  var s6=useState(0),pb=s6[0],setPb=s6[1];
-  var s7=useState(initRows),rows=s7[0],setRowsRaw=s7[1];
+  // ── State disimpan ke localStorage agar tidak hilang saat pindah menu ──
+  var s1=useLS("mbg_draft_view","input"),view=s1[0],setView=s1[1];
+  var s2=useLS("mbg_draft_sppg",""),selSppg=s2[0],setSelSppg=s2[1];
+  var s3=useLS("mbg_draft_judul",""),judul=s3[0],setJudul=s3[1];
+  var s4=useLS("mbg_draft_tgl",today()),tgl=s4[0],setTgl=s4[1];
+  var s5=useLS("mbg_draft_pk",0),pk=s5[0],setPk=s5[1];
+  var s6=useLS("mbg_draft_pb",0),pb=s6[0],setPb=s6[1];
+  var s7=useLS("mbg_draft_rows",initRows),rows=s7[0],setRowsRaw=s7[1];
   var s8=useState(null),editEntry=s8[0],setEditEntry=s8[1];
   var s9=useState(""),filterSppg=s9[0],setFilterSppg=s9[1];
   var s10=useState(""),filterBulan=s10[0],setFilterBulan=s10[1];
@@ -561,6 +566,13 @@ function PageBelanja(p){
   var activeRows=safeRows.filter(function(r){return r.nama&&r.qty>0;});
   var totalSupplier=activeRows.reduce(function(a,r){return a+r.qty*(r.hargaSupplier||0);},0);
   var totalFinal=activeRows.reduce(function(a,r){return a+r.qty*(r.hargaFinal||0);},0);
+
+  // ── Kalkulasi budget porsi ──
+  var budgetPk=(parseInt(pk)||0)*8000;
+  var budgetPb=(parseInt(pb)||0)*10000;
+  var budgetTotal=budgetPk+budgetPb;
+  var selisih=budgetTotal-totalFinal;
+  var adaBudget=budgetTotal>0;
 
   function upd(id,field,val){
     setRows(function(prev){return prev.map(function(r){
@@ -588,9 +600,10 @@ function PageBelanja(p){
     if(p.dbStatus==="online"){
       sbUpsert("transaksi",[belanjaToTrx(entry)]).catch(function(){});
     }
-    // reset
+    // reset form (termasuk localStorage draft)
     var r2=[];for(var i=0;i<8;i++)r2.push(emptyRow());
-    setRows(function(){return r2;});setJudul("");setPk(0);setPb(0);
+    setRows(function(){return r2;});
+    setJudul(""); setPk(0); setPb(0); setTgl(today());
     setSaving(false);
     alert("✅ Belanja berhasil disimpan!");
   }
@@ -710,13 +723,69 @@ function PageBelanja(p){
             RC("div",{style:{fontSize:".85rem",fontWeight:700,color:"#475569",fontFamily:"monospace"}},fmt(totalSupplier))
           ),
           RC("div",{style:{textAlign:"right"}},
-            RC("div",{style:{fontSize:".62rem",color:"#94a3b8",fontWeight:600}},"TOTAL FINAL"),
+            RC("div",{style:{fontSize:".62rem",color:"#94a3b8",fontWeight:600}},"TOTAL BELANJA"),
             RC("div",{style:{fontSize:".95rem",fontWeight:800,color:"#2563eb",fontFamily:"monospace"}},fmt(totalFinal))
           )
         )
       ),
+
+      // ── KALKULASI BUDGET PORSI ──
+      RC(Card,{style:{
+        background: adaBudget?(selisih>=0?"#f0fdf4":"#fef2f2"):"#f8fafc",
+        border:"1px solid "+(adaBudget?(selisih>=0?"#bbf7d0":"#fecaca"):"#e2e8f0")
+      }},
+        RC("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:"0 0 .625rem"}},"🧮 Kalkulasi Budget Porsi"),
+        RC("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:".5rem"}},
+          // Porsi Kecil
+          RC("div",{style:{background:"#eff6ff",borderRadius:".5rem",padding:".625rem .75rem"}},
+            RC("div",{style:{fontSize:".62rem",fontWeight:700,color:"#3b82f6",textTransform:"uppercase",marginBottom:"4px"}},"Porsi Kecil"),
+            RC("div",{style:{fontSize:".78rem",color:"#1e293b"}},
+              RC("span",{style:{fontWeight:700,fontSize:".95rem",fontFamily:"monospace"}},parseInt(pk)||0),
+              RC("span",{style:{color:"#64748b",margin:"0 4px"}}," × Rp8.000 ="),
+              RC("span",{style:{fontWeight:800,color:"#2563eb",fontFamily:"monospace"}},fmt(budgetPk))
+            )
+          ),
+          // Porsi Besar
+          RC("div",{style:{background:"#fff7ed",borderRadius:".5rem",padding:".625rem .75rem"}},
+            RC("div",{style:{fontSize:".62rem",fontWeight:700,color:"#ea580c",textTransform:"uppercase",marginBottom:"4px"}},"Porsi Besar"),
+            RC("div",{style:{fontSize:".78rem",color:"#1e293b"}},
+              RC("span",{style:{fontWeight:700,fontSize:".95rem",fontFamily:"monospace"}},parseInt(pb)||0),
+              RC("span",{style:{color:"#64748b",margin:"0 4px"}}," × Rp10.000 ="),
+              RC("span",{style:{fontWeight:800,color:"#ea580c",fontFamily:"monospace"}},fmt(budgetPb))
+            )
+          ),
+          // Total Budget
+          RC("div",{style:{background:"#f5f3ff",borderRadius:".5rem",padding:".625rem .75rem"}},
+            RC("div",{style:{fontSize:".62rem",fontWeight:700,color:"#7c3aed",textTransform:"uppercase",marginBottom:"4px"}},"Maks. Budget Harian"),
+            RC("div",{style:{fontWeight:800,fontSize:"1rem",color:"#7c3aed",fontFamily:"monospace"}},fmt(budgetTotal)),
+            RC("div",{style:{fontSize:".62rem",color:"#94a3b8",marginTop:"2px"}},"(Porsi Kecil + Porsi Besar)")
+          ),
+          // Total Belanja
+          RC("div",{style:{background:"white",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".625rem .75rem"}},
+            RC("div",{style:{fontSize:".62rem",fontWeight:700,color:"#64748b",textTransform:"uppercase",marginBottom:"4px"}},"Total Belanja"),
+            RC("div",{style:{fontWeight:800,fontSize:"1rem",color:"#1e293b",fontFamily:"monospace"}},fmt(totalFinal))
+          ),
+          // Selisih
+          RC("div",{style:{
+            background:adaBudget?(selisih>=0?"#f0fdf4":"#fef2f2"):"#f8fafc",
+            border:"1px solid "+(adaBudget?(selisih>=0?"#bbf7d0":"#fecaca"):"#e2e8f0"),
+            borderRadius:".5rem",padding:".625rem .75rem"
+          }},
+            RC("div",{style:{fontSize:".62rem",fontWeight:700,color:adaBudget?(selisih>=0?"#059669":"#dc2626"):"#94a3b8",textTransform:"uppercase",marginBottom:"4px"}},
+              selisih>=0?"✅ Sisa":"⚠️ Melebihi Budget"
+            ),
+            RC("div",{style:{fontWeight:800,fontSize:"1rem",fontFamily:"monospace",color:adaBudget?(selisih>=0?"#059669":"#dc2626"):"#94a3b8"}},
+              adaBudget?(selisih>=0?"+":"")+fmt(Math.abs(selisih)):"—"
+            ),
+            adaBudget&&RC("div",{style:{fontSize:".62rem",color:"#94a3b8",marginTop:"2px"}},
+              selisih>=0?"Budget masih aman":"Lebih "+fmt(Math.abs(selisih))+" dari budget"
+            )
+          )
+        ),
+        !adaBudget&&RC("p",{style:{fontSize:".72rem",color:"#94a3b8",margin:".5rem 0 0",textAlign:"center"}},"Isi Porsi Kecil dan/atau Porsi Besar di atas untuk melihat kalkulasi budget")
+      ),
       RC("div",{style:{display:"flex",gap:".5rem"}},
-        RC("button",{onClick:function(){var r2=[];for(var i=0;i<8;i++)r2.push(emptyRow());setRows(function(){return r2;});setJudul("");setPk(0);setPb(0);},style:{border:"1px solid #e2e8f0",borderRadius:".625rem",padding:".65rem 1rem",fontSize:".8rem",background:"white",cursor:"pointer",fontWeight:600,color:"#64748b"}},"🔄 Reset"),
+        RC("button",{onClick:function(){var r2=[];for(var i=0;i<8;i++)r2.push(emptyRow());setRows(function(){return r2;});setJudul("");setPk(0);setPb(0);setTgl(today());},style:{border:"1px solid #e2e8f0",borderRadius:".625rem",padding:".65rem 1rem",fontSize:".8rem",background:"white",cursor:"pointer",fontWeight:600,color:"#64748b"}},"🔄 Reset"),
         RC(Btn,{onClick:simpan,disabled:saving,style:{flex:1}},saving?"Menyimpan...":"💾 Simpan Belanja")
       )
     ),
@@ -748,8 +817,8 @@ function PageBelanja(p){
           RC("div",{style:{overflowX:"auto"}},
             RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem",minWidth:"480px"}},
               RC("thead",null,RC("tr",null,
-                ["Tanggal","SPPG","Judul","Porsi K","Porsi B","Total","Aksi"].map(function(h,i){
-                  return RC(TH,{key:h,right:i>=3&&i<=5},h);
+                ["Tanggal","SPPG","Judul","Porsi K","Porsi B","Budget","Total Belanja","Selisih","Aksi"].map(function(h,i){
+                  return RC(TH,{key:h,right:i>=3&&i<=7},h);
                 })
               )),
               RC("tbody",null,filtered.map(function(b){
@@ -760,10 +829,20 @@ function PageBelanja(p){
                     onClick:function(){setDetailId(isOpen?null:b.id);}},
                     RC(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap"}},shortDate(b.tanggal)),
                     RC(TD,{style:{color:"#64748b",maxWidth:"80px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},sp?sp.nama:"—"),
-                    RC(TD,{style:{fontWeight:600,maxWidth:"150px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},b.judul||"(tanpa judul)"),
+                    RC(TD,{style:{fontWeight:600,maxWidth:"130px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},b.judul||"(tanpa judul)"),
                     RC(TD,{style:{textAlign:"right",color:"#3b82f6"}},b.porsiKecil||0),
                     RC(TD,{style:{textAlign:"right",color:"#ea580c"}},b.porsiBesar||0),
-                    RC(TD,{style:{textAlign:"right",fontWeight:700,color:"#2563eb",whiteSpace:"nowrap"}},fmt(b.totalFinal||0)),
+                    RC(TD,{style:{textAlign:"right",fontWeight:600,color:"#7c3aed",whiteSpace:"nowrap",fontFamily:"monospace"}},
+                      (((b.porsiKecil||0)*8000)+((b.porsiBesar||0)*10000))>0 ? fmt(((b.porsiKecil||0)*8000)+((b.porsiBesar||0)*10000)) : "—"
+                    ),
+                    RC(TD,{style:{textAlign:"right",fontWeight:700,color:"#2563eb",whiteSpace:"nowrap",fontFamily:"monospace"}},fmt(b.totalFinal||0)),
+                    RC(TD,{style:{textAlign:"right",fontWeight:700,whiteSpace:"nowrap",fontFamily:"monospace",
+                      color:(((b.porsiKecil||0)*8000)+((b.porsiBesar||0)*10000))>0 ?
+                        ((((b.porsiKecil||0)*8000)+((b.porsiBesar||0)*10000))-(b.totalFinal||0)>=0?"#059669":"#dc2626") : "#94a3b8"}},
+                      (((b.porsiKecil||0)*8000)+((b.porsiBesar||0)*10000))>0 ?
+                        ((((b.porsiKecil||0)*8000)+((b.porsiBesar||0)*10000))-(b.totalFinal||0)>=0?"+":"")+
+                        fmt(Math.abs((((b.porsiKecil||0)*8000)+((b.porsiBesar||0)*10000))-(b.totalFinal||0))) : "—"
+                    ),
                     RC("td",{style:{padding:"6px 8px",whiteSpace:"nowrap"},onClick:function(e){e.stopPropagation();}},
                       RC("button",{onClick:function(e){e.stopPropagation();setEditEntry(b);},style:{background:"none",border:"none",cursor:"pointer",fontSize:".8rem",marginRight:"4px",padding:"2px 5px",borderRadius:"4px",color:"#2563eb"}},
                         "✏️"
@@ -774,7 +853,7 @@ function PageBelanja(p){
                     )
                   ),
                   isOpen&&(b.items||[]).length>0&&RC("tr",null,
-                    RC("td",{colSpan:7,style:{padding:"0 0 .75rem 0",borderTop:"none"}},
+                    RC("td",{colSpan:9,style:{padding:"0 0 .75rem 0",borderTop:"none"}},
                       RC("div",{style:{margin:"0 .75rem",background:"#f8fafc",borderRadius:".5rem",overflow:"hidden",border:"1px solid #e2e8f0"}},
                         RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".68rem"}},
                           RC("thead",null,RC("tr",null,
