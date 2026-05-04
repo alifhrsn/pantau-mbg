@@ -695,8 +695,8 @@ function PageBelanja(p){
         RC("div",{style:{overflowX:"auto"}},
           RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem",minWidth:"480px"}},
             RC("thead",null,RC("tr",null,
-              ["NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","H.FINAL",""].map(function(h,i){
-                return RC("th",{key:i,style:{padding:"7px 8px",textAlign:i>=4&&i<=5?"right":"left",color:"#94a3b8",fontWeight:700,fontSize:".6rem",textTransform:"uppercase",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},h);
+              ["NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","H.FINAL","TOTAL",""].map(function(h,i){
+                return RC("th",{key:i,style:{padding:"7px 8px",textAlign:i>=4&&i<=6?"right":"left",color:i===6?"#059669":"#94a3b8",fontWeight:700,fontSize:".6rem",textTransform:"uppercase",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},h);
               })
             )),
             RC("tbody",null,safeRows.map(function(row,idx){
@@ -716,6 +716,11 @@ function PageBelanja(p){
                 ),
                 RC("td",{style:{padding:"3px 4px",width:"96px"}},
                   RC("input",{type:"number",style:{width:"90px",border:"1px solid #e2e8f0",borderRadius:"5px",padding:"4px 5px",fontSize:".72rem",fontFamily:"monospace"},value:row.hargaFinal||"",placeholder:"0",onChange:function(e){upd(row.id,"hargaFinal",e.target.value);}})
+                ),
+                RC("td",{style:{padding:"3px 8px",width:"90px",textAlign:"right",fontFamily:"monospace",fontWeight:700,
+                  color:(row.qty>0&&row.hargaFinal>0)?"#059669":"#cbd5e1",
+                  fontSize:".72rem",whiteSpace:"nowrap"}},
+                  (row.qty>0&&row.hargaFinal>0) ? fmt((parseFloat(row.qty)||0)*(parseFloat(row.hargaFinal)||0)) : "—"
                 ),
                 RC("td",{style:{padding:"3px 4px"}},
                   RC("button",{onClick:function(){setRows(function(prev){return prev.filter(function(r){return r.id!==row.id;});});},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:".95rem"}},"✕")
@@ -968,8 +973,8 @@ function ModalEditBelanja(p){
         RC("div",{style:{overflowX:"auto"}},
           RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem",minWidth:"500px"}},
             RC("thead",null,RC("tr",null,
-              ["NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","H.FINAL",""].map(function(h,i){
-                return RC("th",{key:i,style:{padding:"6px 8px",textAlign:i>=4&&i<=5?"right":"left",color:"#94a3b8",fontWeight:700,fontSize:".62rem",textTransform:"uppercase",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},h);
+              ["NO","NAMA BAHAN","QTY","SATUAN","H.SUPPLIER","H.FINAL","TOTAL",""].map(function(h,i){
+                return RC("th",{key:i,style:{padding:"6px 8px",textAlign:i>=4&&i<=6?"right":"left",color:i===6?"#059669":"#94a3b8",fontWeight:700,fontSize:".62rem",textTransform:"uppercase",background:"#f8fafc",borderBottom:"1px solid #e2e8f0"}},h);
               })
             )),
             RC("tbody",null,rows.map(function(row,idx){
@@ -989,6 +994,11 @@ function ModalEditBelanja(p){
                 ),
                 RC("td",{style:{padding:"3px 4px",width:"100px"}},
                   RC("input",{type:"number",style:{width:"94px",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"4px 5px",fontSize:".72rem",fontFamily:"monospace"},value:row.hargaFinal||"",placeholder:"0",onChange:function(e){upd(row.id,"hargaFinal",e.target.value);}})
+                ),
+                RC("td",{style:{padding:"3px 8px",width:"90px",textAlign:"right",fontFamily:"monospace",fontWeight:700,
+                  color:(row.qty>0&&row.hargaFinal>0)?"#059669":"#cbd5e1",
+                  fontSize:".72rem",whiteSpace:"nowrap"}},
+                  (row.qty>0&&row.hargaFinal>0) ? fmt((parseFloat(row.qty)||0)*(parseFloat(row.hargaFinal)||0)) : "—"
                 ),
                 RC("td",{style:{padding:"3px 4px"}},
                   RC("button",{onClick:function(){setRows(function(prev){return prev.filter(function(r){return r.id!==row.id;});});},style:{background:"none",border:"none",cursor:"pointer",color:"#fca5a5",fontSize:"1rem",padding:"3px 6px"}},"✕")
