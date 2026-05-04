@@ -592,6 +592,77 @@ function PageBelanja(p){
     });});
   }
 
+  function cetakNota(b){
+    var sp=(p.sppgList||[]).find(function(x){return x.id===b.sppgId;});
+    var sppgName=sp?sp.nama:"—";
+    var tanggalStr="";
+    try{tanggalStr=new Date(b.tanggal).toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"});}catch(e){tanggalStr=b.tanggal;}
+    var rowsHtml="";
+    (b.items||[]).forEach(function(it,i){
+      rowsHtml+='<tr>'
+        +'<td style="text-align:center;color:#94a3b8;border:1px solid #e2e8f0;padding:7px 10px">'+(i+1)+'</td>'
+        +'<td style="border:1px solid #e2e8f0;padding:7px 10px">'+it.qty+' '+it.satuan+'</td>'
+        +'<td style="border:1px solid #e2e8f0;padding:7px 10px;font-weight:600">'+it.nama+'</td>'
+        +'<td style="text-align:right;font-family:monospace;border:1px solid #e2e8f0;padding:7px 10px">'+fmt(it.hargaFinal||0)+'</td>'
+        +'<td style="text-align:right;font-family:monospace;font-weight:700;color:#059669;border:1px solid #e2e8f0;padding:7px 10px">'+fmt((it.qty||0)*(it.hargaFinal||0))+'</td>'
+        +'</tr>';
+    });
+    var total=(b.items||[]).reduce(function(a,it){return a+(it.qty||0)*(it.hargaFinal||0);},0);
+    var budgetInfo="";
+    if((b.porsiKecil||0)+(b.porsiBesar||0)>0){
+      var bgt=(b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000;
+      var sls=bgt-total;
+      budgetInfo='<div style="margin-top:12px;padding:8px 12px;background:'+(sls>=0?'#f0fdf4':'#fef2f2')+';border-radius:6px;font-size:13px">'
+        +'<b>Budget Porsi:</b> '+fmt(bgt)+' &nbsp;|&nbsp; '
+        +'<b>Total Belanja:</b> '+fmt(total)+' &nbsp;|&nbsp; '
+        +'<b style="color:'+(sls>=0?'#059669':'#dc2626')+'">'+(sls>=0?'Sisa: +':'Lebih: ')+fmt(Math.abs(sls))+'</b>'
+        +'</div>';
+    }
+    var win=window.open("","_blank","width=760,height=950");
+    if(!win){alert("Pop-up diblokir browser. Izinkan pop-up untuk mencetak.");return;}
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Nota Pembelian - '+b.judul+'</title>'
+      +'<style>*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:32px 36px;color:#1e293b;max-width:680px;margin:0 auto}'
+      +'h2{text-align:center;font-size:1.3rem;letter-spacing:3px;margin:0 0 4px;color:#1e293b}'
+      +'.sub{text-align:center;color:#64748b;font-size:13px;margin:2px 0}'
+      +'hr{border:none;border-top:2px solid #e2e8f0;margin:14px 0}'
+      +'table{width:100%;border-collapse:collapse;margin-top:12px}'
+      +'th{background:#f8fafc;border:1px solid #e2e8f0;padding:8px 10px;font-size:12px;font-weight:700;color:#475569}'
+      +'td{border:1px solid #e2e8f0;padding:7px 10px;font-size:13px}'
+      +'.total-row td{font-weight:800;background:#eff6ff}'
+      +'@media print{.noprint{display:none!important}}</style></head><body>');
+    win.document.write('<h2>NOTA PEMBELIAN BAHAN</h2>');
+    win.document.write('<p class="sub">Program Makan Bergizi Gratis (MBG)</p><hr>');
+    win.document.write('<table style="border:none;margin-top:0"><tr>'
+      +'<td style="border:none;padding:3px 0;width:50%"><b>SPPG:</b> '+sppgName+'</td>'
+      +'<td style="border:none;padding:3px 0;text-align:right"><b>Tanggal:</b> '+tanggalStr+'</td></tr>');
+    if(b.judul) win.document.write('<tr><td colspan="2" style="border:none;padding:3px 0"><b>Keterangan:</b> '+b.judul+'</td></tr>');
+    if((b.porsiKecil||0)+(b.porsiBesar||0)>0){
+      win.document.write('<tr><td style="border:none;padding:3px 0"><b>Porsi Kecil:</b> '+(b.porsiKecil||0)+' porsi</td>'
+        +'<td style="border:none;padding:3px 0;text-align:right"><b>Porsi Besar:</b> '+(b.porsiBesar||0)+' porsi</td></tr>');
+    }
+    win.document.write('</table><hr>');
+    win.document.write('<table><thead><tr>'
+      +'<th style="text-align:center;width:36px">No</th>'
+      +'<th>Banyaknya</th>'
+      +'<th>Nama Barang</th>'
+      +'<th style="text-align:right">Harga Satuan</th>'
+      +'<th style="text-align:right">Jumlah</th>'
+      +'</tr></thead><tbody>'+rowsHtml+'</tbody>'
+      +'<tfoot><tr class="total-row">'
+      +'<td colspan="4" style="text-align:right;font-size:14px">TOTAL BELANJA:</td>'
+      +'<td style="text-align:right;font-size:15px;color:#2563eb;font-family:monospace">'+fmt(total)+'</td>'
+      +'</tr></tfoot></table>');
+    if(budgetInfo) win.document.write(budgetInfo);
+    win.document.write('<div style="margin-top:24px;display:flex;justify-content:space-between;font-size:12px;color:#94a3b8">'
+      +'<span>Dicetak: '+new Date().toLocaleString("id-ID")+'</span>'
+      +'<span>PantauBelanjaMBG · SPPG Citeureup</span></div>');
+    win.document.write('<div class="noprint" style="text-align:center;margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0">'
+      +'<button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:9px 28px;border-radius:7px;cursor:pointer;font-size:14px;font-weight:700;margin-right:8px">🖨 Cetak</button>'
+      +'<button onclick="window.close()" style="background:#f1f5f9;color:#475569;border:none;padding:9px 20px;border-radius:7px;cursor:pointer;font-size:14px;font-weight:600">Tutup</button>'
+      +'</div></body></html>');
+    win.document.close();win.focus();
+  }
+
   function simpan(){
     if(!selSppg) return alert("Pilih SPPG terlebih dahulu!");
     if(!judul) return alert("Isi judul belanja!");
@@ -612,7 +683,8 @@ function PageBelanja(p){
     setRows(function(){return r2;});
     setJudul(""); setPk(0); setPb(0); setTgl(today());
     setSaving(false);
-    alert(cloudOK ? "✅ Belanja berhasil disimpan ke Supabase!" : "💾 Disimpan lokal (offline — tidak terhubung ke Supabase)");
+    var msg = cloudOK ? "✅ Belanja berhasil disimpan ke Supabase!" : "💾 Disimpan lokal (offline)";
+    if(window.confirm(msg+"\n\nCetak nota sekarang?")){ cetakNota(entry); }
   }
 
   function hapusBelanja(id){
@@ -856,6 +928,9 @@ function PageBelanja(p){
                         fmt(Math.abs((((b.porsiKecil||0)*8000)+((b.porsiBesar||0)*10000))-(b.totalFinal||0))) : "—"
                     ),
                     RC("td",{style:{padding:"6px 8px",whiteSpace:"nowrap"},onClick:function(e){e.stopPropagation();}},
+                      RC("button",{onClick:function(e){e.stopPropagation();cetakNota(b);},style:{background:"#2563eb",color:"white",border:"none",cursor:"pointer",fontSize:".68rem",fontWeight:600,marginRight:"4px",padding:"3px 8px",borderRadius:"4px"}},
+                        "🖨 Nota"
+                      ),
                       RC("button",{onClick:function(e){e.stopPropagation();setEditEntry(b);},style:{background:"none",border:"none",cursor:"pointer",fontSize:".8rem",marginRight:"4px",padding:"2px 5px",borderRadius:"4px",color:"#2563eb"}},
                         "✏️"
                       ),
