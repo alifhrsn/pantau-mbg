@@ -565,7 +565,7 @@ function PageBelanja(p){
   var s12=useState(null),detailId=s12[0],setDetailId=s12[1];
   var s13=useState(false),saving=s13[0],setSaving=s13[1];
   var s14=useState(true),showSupplier=s14[0],setShowSupplier=s14[1];
-  var s15=useState(null),notaEntry=s15[0],setNotaEntry=s15[1];
+  var s15=useState(null),notaId=s15[0],setNotaId=s15[1];
   var s16=useState({}),notaChecked=s16[0],setNotaChecked=s16[1];
 
   var safeRows=Array.isArray(rows)?rows:initRows;
@@ -806,7 +806,7 @@ function PageBelanja(p){
                 RC("div",{style:{fontFamily:"monospace",fontWeight:700,fontSize:".78rem",color:"#2563eb",flexShrink:0}},fmt(b.totalFinal||0)),
                 RC("button",{onClick:function(e){e.stopPropagation();
                   var chk={};(b.items||[]).forEach(function(it,i){chk[i]=true;});
-                  setNotaChecked(chk);setNotaEntry(b);
+                  setNotaChecked(chk);setNotaId(b.id);
                 },style:{background:"none",border:"1px solid #e2e8f0",borderRadius:"4px",padding:"2px 6px",fontSize:".65rem",cursor:"pointer",color:"#2563eb",flexShrink:0}},"🖨"),
                 RC("button",{onClick:function(){startEdit(b);},
                   style:{background:isEditing?"#fef3c7":"none",border:"1px solid "+(isEditing?"#fcd34d":"#e2e8f0"),borderRadius:"4px",padding:"2px 6px",fontSize:".72rem",cursor:"pointer",flexShrink:0}},
@@ -1040,12 +1040,17 @@ function PageBelanja(p){
                     RC("td",{style:{padding:"6px 8px",whiteSpace:"nowrap"},onClick:function(e){e.stopPropagation();}},
                       RC("button",{onClick:function(e){
                         e.stopPropagation();
-                        var checked={};
-                        (b.items||[]).forEach(function(it,i){checked[i]=true;});
-                        setNotaChecked(checked);
-                        setNotaEntry(b);
-                      },style:{background:"#2563eb",color:"white",border:"none",cursor:"pointer",fontSize:".68rem",fontWeight:600,marginRight:"4px",padding:"3px 8px",borderRadius:"4px"}},
-                        "🖨 Nota"
+                        if(notaId===b.id){ setNotaId(null); }
+                        else {
+                          var chk={};(b.items||[]).forEach(function(it,i){chk[i]=true;});
+                          setNotaChecked(chk);
+                          setNotaId(b.id);
+                          setDetailId(b.id);
+                        }
+                      },style:{background:notaId===b.id?"#eff6ff":"#2563eb",color:notaId===b.id?"#2563eb":"white",
+                        border:notaId===b.id?"1px solid #bfdbfe":"none",
+                        cursor:"pointer",fontSize:".68rem",fontWeight:600,marginRight:"4px",padding:"3px 8px",borderRadius:"4px"}},
+                        notaId===b.id?"✕ Nota":"🖨 Nota"
                       ),
                       RC("button",{onClick:function(e){e.stopPropagation();startEdit(b);},style:{background:"none",border:"none",cursor:"pointer",fontSize:".8rem",marginRight:"4px",padding:"2px 5px",borderRadius:"4px",color:"#2563eb"}},
                         "✏️"
@@ -1057,23 +1062,72 @@ function PageBelanja(p){
                   ),
                   isOpen&&(b.items||[]).length>0&&RC("tr",null,
                     RC("td",{colSpan:9,style:{padding:"0 0 .75rem 0",borderTop:"none"}},
-                      RC("div",{style:{margin:"0 .75rem",background:"#f8fafc",borderRadius:".5rem",overflow:"hidden",border:"1px solid #e2e8f0"}},
+                      RC("div",{style:{margin:"0 .75rem",background:"#f8fafc",borderRadius:".5rem",overflow:"hidden",border:"1px solid "+(notaId===b.id?"#bfdbfe":"#e2e8f0")}},
                         RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".68rem"}},
                           RC("thead",null,RC("tr",null,
-                            ["Bahan","Qty","Satuan","H.Supplier","H.Final","Subtotal"].map(function(h,i){
-                              return RC("th",{key:h,style:{padding:"5px 8px",textAlign:i>=3?"right":"left",color:"#94a3b8",fontWeight:700,fontSize:".6rem",textTransform:"uppercase",background:"#f1f5f9",borderBottom:"1px solid #e2e8f0"}},h);
+                            [notaId===b.id?"✓":"","Bahan","Qty","Satuan","H.Supplier","H.Final","Subtotal"].map(function(h,i){
+                              return RC("th",{key:i,style:{
+                                padding:"5px 8px",
+                                textAlign:i>=4?"right":"left",
+                                color:i===0?"#2563eb":"#94a3b8",
+                                fontWeight:700,fontSize:".6rem",textTransform:"uppercase",
+                                background:notaId===b.id?"#eff6ff":"#f1f5f9",
+                                borderBottom:"1px solid #e2e8f0",
+                                width:i===0?"32px":""
+                              }},
+                              i===0&&notaId===b.id
+                                ? RC("input",{type:"checkbox",
+                                    checked:(b.items||[]).every(function(it,idx){return notaChecked[idx]!==false;}),
+                                    onChange:function(e){
+                                      var chk={};(b.items||[]).forEach(function(it,idx){chk[idx]=e.target.checked;});
+                                      setNotaChecked(chk);
+                                    },
+                                    style:{cursor:"pointer"}})
+                                : h
+                              );
                             })
                           )),
-                          RC("tbody",null,b.items.map(function(it,i){
-                            return RC("tr",{key:i,style:{borderTop:"1px solid #f8fafc"}},
+                          RC("tbody",null,(b.items||[]).map(function(it,i){
+                            var isChecked=notaId===b.id ? notaChecked[i]!==false : true;
+                            return RC("tr",{key:i,style:{borderTop:"1px solid #f8fafc",opacity:notaId===b.id&&!isChecked?.45:1}},
+                              RC("td",{style:{padding:"5px 8px",width:"32px",textAlign:"center"}},
+                                notaId===b.id
+                                  ? RC("input",{type:"checkbox",checked:isChecked,
+                                      onChange:(function(idx){return function(e){
+                                        setNotaChecked(function(prev){var n=Object.assign({},prev);n[idx]=e.target.checked;return n;});
+                                      };})(i),
+                                      style:{cursor:"pointer",width:"14px",height:"14px"}})
+                                  : null
+                              ),
                               RC("td",{style:{padding:"5px 8px",fontWeight:600}},it.nama),
                               RC("td",{style:{padding:"5px 8px",textAlign:"right",color:"#475569"}},it.qty),
                               RC("td",{style:{padding:"5px 8px",color:"#94a3b8"}},it.satuan),
                               RC("td",{style:{padding:"5px 8px",textAlign:"right",fontFamily:"monospace",color:"#64748b"}},fmt(it.hargaSupplier||0)),
                               RC("td",{style:{padding:"5px 8px",textAlign:"right",fontFamily:"monospace",color:"#64748b"}},fmt(it.hargaFinal||0)),
-                              RC("td",{style:{padding:"5px 8px",textAlign:"right",fontFamily:"monospace",fontWeight:700,color:"#059669"}},fmt((it.qty||0)*(it.hargaFinal||0)))
+                              RC("td",{style:{padding:"5px 8px",textAlign:"right",fontFamily:"monospace",fontWeight:700,color:isChecked?"#059669":"#94a3b8"}},fmt((it.qty||0)*(it.hargaFinal||0)))
                             );
                           }))
+                        ),
+                        notaId===b.id&&RC("div",{style:{padding:".5rem .75rem",background:"#eff6ff",borderTop:"1px solid #bfdbfe",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+                          RC("span",{style:{fontSize:".72rem",color:"#1e40af",fontWeight:600}},
+                            (function(){
+                              var chk=(b.items||[]).filter(function(it,i){return notaChecked[i]!==false;});
+                              return chk.length+" bahan · "+fmt(chk.reduce(function(a,it){return a+(it.qty||0)*(it.hargaFinal||0);},0));
+                            })()
+                          ),
+                          RC("button",{
+                            onClick:function(){
+                              var chk=(b.items||[]).filter(function(it,i){return notaChecked[i]!==false;});
+                              if(!chk.length){alert("Pilih minimal 1 bahan!");return;}
+                              cetakNota(Object.assign({},b,{
+                                items:chk,
+                                totalFinal:chk.reduce(function(a,it){return a+(it.qty||0)*(it.hargaFinal||0);},0),
+                                totalSupplier:chk.reduce(function(a,it){return a+(it.qty||0)*(it.hargaSupplier||0);},0)
+                              }));
+                              setNotaId(null);
+                            },
+                            style:{background:"#2563eb",color:"white",border:"none",borderRadius:".375rem",padding:"5px 14px",fontSize:".72rem",fontWeight:700,cursor:"pointer"}
+                          },"🖨 Cetak Nota")
                         )
                       )
                     )
@@ -1086,88 +1140,6 @@ function PageBelanja(p){
     ),
 
 
-    // ── MODAL NOTA CHECKLIST ──
-    notaEntry&&(function(){
-      var items=notaEntry.items||[];
-      var sp=(p.sppgList||[]).find(function(x){return x.id===notaEntry.sppgId;});
-      var checkedItems=items.filter(function(it,i){return notaChecked[i]!==false;});
-      var totalChecked=checkedItems.reduce(function(a,it){return a+(it.qty||0)*(it.hargaFinal||0);},0);
-      var allChecked=items.every(function(it,i){return notaChecked[i]!==false;});
-      return RC("div",{className:"modal-overlay",onClick:function(e){if(e.target===e.currentTarget)setNotaEntry(null);}},
-        RC("div",{className:"modal-box",style:{maxWidth:"26rem"}},
-          // Header
-          RC("div",{style:{padding:".875rem 1.25rem",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}},
-            RC("div",null,
-              RC("p",{style:{fontWeight:700,fontSize:".9rem",margin:"0 0 1px"}},"🖨 Buat Nota"),
-              RC("p",{style:{fontSize:".68rem",color:"#94a3b8",margin:0}},
-                (sp?sp.nama:"—")+" · "+(notaEntry.judul||"")+" · "+shortDate(notaEntry.tanggal)
-              )
-            ),
-            RC("button",{onClick:function(){setNotaEntry(null);},style:{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",fontSize:"1.4rem",lineHeight:1}},"×")
-          ),
-          // Sub-header: pilih semua
-          RC("div",{style:{padding:".5rem 1.25rem",background:"#f8fafc",borderBottom:"1px solid #f1f5f9",display:"flex",justifyContent:"space-between",alignItems:"center"}},
-            RC("label",{style:{display:"flex",alignItems:"center",gap:".5rem",fontSize:".72rem",fontWeight:700,color:"#475569",cursor:"pointer"}},
-              RC("input",{type:"checkbox",checked:allChecked,onChange:function(e){
-                var next={};
-                items.forEach(function(it,i){next[i]=e.target.checked;});
-                setNotaChecked(next);
-              },style:{width:"14px",height:"14px",cursor:"pointer"}}),
-              "Pilih Semua ("+items.length+" bahan)"
-            ),
-            RC("span",{style:{fontSize:".68rem",color:"#2563eb",fontWeight:700}},checkedItems.length+" dipilih")
-          ),
-          // Daftar bahan checklist
-          RC("div",{style:{overflowY:"auto",maxHeight:"320px",padding:".5rem 0"}},
-            items.length===0
-              ? RC("p",{style:{textAlign:"center",color:"#94a3b8",fontSize:".78rem",padding:"1.5rem"}},"Tidak ada data bahan")
-              : items.map(function(it,i){
-                var checked=notaChecked[i]!==false;
-                var subtotal=(it.qty||0)*(it.hargaFinal||0);
-                return RC("label",{key:i,style:{
-                  display:"flex",alignItems:"center",gap:".625rem",padding:".5rem 1.25rem",
-                  cursor:"pointer",borderBottom:"1px solid #f8fafc",
-                  background:checked?"white":"#fafafa",
-                  opacity:checked?1:.55,transition:"all .1s"
-                }},
-                  RC("input",{type:"checkbox",checked:checked,onChange:(function(idx){return function(e){
-                    setNotaChecked(function(prev){var next=Object.assign({},prev);next[idx]=e.target.checked;return next;});
-                  };})(i),style:{width:"15px",height:"15px",cursor:"pointer",flexShrink:0}}),
-                  RC("div",{style:{flex:1,minWidth:0}},
-                    RC("div",{style:{fontWeight:600,fontSize:".78rem",color:"#1e293b",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},it.nama||"—"),
-                    RC("div",{style:{fontSize:".65rem",color:"#94a3b8"}},
-                      (it.qty||0)+" "+(it.satuan||"")+" × "+fmt(it.hargaFinal||0)
-                    )
-                  ),
-                  RC("div",{style:{fontFamily:"monospace",fontWeight:700,fontSize:".75rem",color:checked?"#059669":"#cbd5e1",flexShrink:0}},
-                    fmt(subtotal)
-                  )
-                );
-              })
-          ),
-          // Footer: total + cetak
-          RC("div",{style:{padding:".75rem 1.25rem",borderTop:"1px solid #f1f5f9",flexShrink:0}},
-            RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:".625rem"}},
-              RC("span",{style:{fontSize:".72rem",color:"#64748b",fontWeight:600}},
-                "Total "+checkedItems.length+" bahan terpilih:"
-              ),
-              RC("span",{style:{fontFamily:"monospace",fontWeight:800,fontSize:"1rem",color:"#2563eb"}},fmt(totalChecked))
-            ),
-            RC("div",{style:{display:"flex",gap:".5rem"}},
-              RC("button",{onClick:function(){setNotaEntry(null);},style:{flex:1,border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".55rem",fontSize:".8rem",background:"white",cursor:"pointer",fontWeight:600}},"Batal"),
-              RC(Btn,{disabled:checkedItems.length===0,onClick:function(){
-                cetakNota(Object.assign({},notaEntry,{items:checkedItems,
-                  totalFinal:totalChecked,totalSupplier:checkedItems.reduce(function(a,it){return a+(it.qty||0)*(it.hargaSupplier||0);},0)
-                }));
-                setNotaEntry(null);
-              },style:{flex:2}},
-                "🖨 Cetak Nota ("+checkedItems.length+")"
-              )
-            )
-          )
-        )
-      );
-    })()
   );
 }
 
