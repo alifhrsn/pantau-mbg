@@ -212,6 +212,10 @@ function sbToHarga(r){
     tanggal:r.tanggal||"",pasar:r.pasar||""};
 }
 
+// ─── DB STATUS HELPER ────────────────────────────────────────────────────────
+// Kembalikan true jika status = "online" ATAU "realtime" (keduanya berarti terhubung)
+function dbOK(status){ return status==="online" || status==="realtime"; }
+
 // ─── SUPABASE REALTIME CLIENT ─────────────────────────────────────────────────
 // Lazy-init: dibuat sekali, dipakai ulang
 var _sbClient = null;
@@ -597,25 +601,28 @@ function PageBelanja(p){
       porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,
       items:activeRows,totalSupplier:totalSupplier,totalFinal:totalFinal,createdAt:new Date().toISOString()};
     p.setBelanjaList(function(prev){return (Array.isArray(prev)?prev:[]).concat([entry]);});
-    if(p.dbStatus==="online"){
-      sbUpsert("transaksi",[belanjaToTrx(entry)]).catch(function(){});
+    var cloudOK = dbOK(p.dbStatus);
+    if(cloudOK){
+      sbUpsert("transaksi",[belanjaToTrx(entry)])
+        .then(function(){ })
+        .catch(function(e){ console.warn("Simpan belanja gagal:",e); });
     }
     // reset form (termasuk localStorage draft)
     var r2=[];for(var i=0;i<8;i++)r2.push(emptyRow());
     setRows(function(){return r2;});
     setJudul(""); setPk(0); setPb(0); setTgl(today());
     setSaving(false);
-    alert("✅ Belanja berhasil disimpan!");
+    alert(cloudOK ? "✅ Belanja berhasil disimpan ke Supabase!" : "💾 Disimpan lokal (offline — tidak terhubung ke Supabase)");
   }
 
   function hapusBelanja(id){
     if(!window.confirm("Hapus data belanja ini?")) return;
     p.setBelanjaList(function(prev){return (Array.isArray(prev)?prev:[]).filter(function(b){return b.id!==id;});});
-    if(p.dbStatus==="online") sbDelete("transaksi",id).catch(function(){});
+    if(dbOK(p.dbStatus)) sbDelete("transaksi",id).catch(function(){});
   }
   function saveEdit(updated){
     p.setBelanjaList(function(prev){return (Array.isArray(prev)?prev:[]).map(function(b){return b.id===updated.id?updated:b;});});
-    if(p.dbStatus==="online") sbUpsert("transaksi",[belanjaToTrx(updated)]).catch(function(){});
+    if(dbOK(p.dbStatus)) sbUpsert("transaksi",[belanjaToTrx(updated)]).catch(function(){});
     setEditEntry(null);
   }
 
@@ -1036,7 +1043,7 @@ function PageHarga(p){
       return (Array.isArray(prev)?prev:[]).map(function(h){return h.id===item.id?updated:h;});
     });
     p.setHargaHistory(function(prev){return (Array.isArray(prev)?prev:[]).concat([histRecord]);});
-    if(p.dbStatus==="online"){
+    if(dbOK(p.dbStatus)){
       sbUpsert("harga_survei",[hargaToSB(updated)]).catch(function(){});
       sbInsert("harga_survei",[hargaToSB(histRecord)]).catch(function(){});
     }
@@ -1049,7 +1056,7 @@ function PageHarga(p){
     var histRec=Object.assign({},item,{id:uid()});
     p.setHargaList(function(prev){return (Array.isArray(prev)?prev:[]).concat([item]);});
     p.setHargaHistory(function(prev){return (Array.isArray(prev)?prev:[]).concat([histRec]);});
-    if(p.dbStatus==="online"){
+    if(dbOK(p.dbStatus)){
       sbInsert("harga_survei",[hargaToSB(item),hargaToSB(histRec)]).catch(function(){});
     }
     setNewItem({nama:"",satuan:"",harga:""});
@@ -1059,7 +1066,7 @@ function PageHarga(p){
   function delHarga(id){
     if(!window.confirm("Hapus data harga ini?")) return;
     p.setHargaList(function(prev){return (Array.isArray(prev)?prev:[]).filter(function(h){return h.id!==id;});});
-    if(p.dbStatus==="online") sbDelete("harga_survei",id).catch(function(){});
+    if(dbOK(p.dbStatus)) sbDelete("harga_survei",id).catch(function(){});
   }
 
   var is={width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".45rem .75rem",fontSize:".8rem",fontFamily:"inherit"};
@@ -1182,17 +1189,17 @@ function PageOperasional(p){
     if(!jml) return alert("Isi jumlah!");
     var entry={id:uid(),sppgId:selSppg,tanggal:tgl,uraian:uraian,jumlah:jml,kategori:kat,createdAt:new Date().toISOString()};
     p.setOperasionalList(function(prev){return (Array.isArray(prev)?prev:[]).concat([entry]);});
-    if(p.dbStatus==="online") sbUpsert("transaksi",[opToTrx(entry)]).catch(function(){});
+    if(dbOK(p.dbStatus)) sbUpsert("transaksi",[opToTrx(entry)]).catch(function(){});
     setUraian("");setJumlahStr("");
   }
   function hapus(id){
     if(!window.confirm("Hapus data ini?")) return;
     p.setOperasionalList(function(prev){return (Array.isArray(prev)?prev:[]).filter(function(o){return o.id!==id;});});
-    if(p.dbStatus==="online") sbDelete("transaksi",id).catch(function(){});
+    if(dbOK(p.dbStatus)) sbDelete("transaksi",id).catch(function(){});
   }
   function saveEdit(item){
     p.setOperasionalList(function(prev){return (Array.isArray(prev)?prev:[]).map(function(o){return o.id===item.id?item:o;});});
-    if(p.dbStatus==="online") sbUpsert("transaksi",[opToTrx(item)]).catch(function(){});
+    if(dbOK(p.dbStatus)) sbUpsert("transaksi",[opToTrx(item)]).catch(function(){});
     setEditOp(null);
   }
 
@@ -1601,7 +1608,7 @@ function App(){
 
   function addSppg(s){
     setSppgList(function(prev){return (Array.isArray(prev)?prev:[]).concat([s]);});
-    if(dbStatus==="online") sbUpsert("sppg",[sppgToSB(s)]).catch(function(){});
+    if(dbOK(dbStatus)) sbUpsert("sppg",[sppgToSB(s)]).catch(function(){});
   }
 
   var NAV=[
@@ -1621,8 +1628,8 @@ function App(){
     return null;
   }
 
-  var stC={online:"#4ade80",realtime:"#34d399",connecting:"#60a5fa",error:"#f87171",local:"#facc15",idle:"#94a3b8"};
-  var stL={online:"Live",realtime:"⚡ Realtime",connecting:"...",error:"Error",local:"Lokal",idle:"Lokal"};
+  var stC={online:"#4ade80",realtime:"#34d399",connecting:"#60a5fa",error:"#f87171",local:"#f87171",idle:"#f87171"};
+  var stL={online:"Live",realtime:"⚡ Realtime",connecting:"...",error:"Offline",local:"Offline",idle:"Offline"};
 
   return RC("div",{className:"app-shell"},
     // TOPBAR
@@ -1664,7 +1671,8 @@ function App(){
         }),
         RC("div",{className:"sidebar-note",style:{marginTop:"auto",padding:".625rem",background:"#f8fafc",borderRadius:".5rem",fontSize:".65rem",color:"#94a3b8",lineHeight:1.5}},
           dbStatus==="realtime"?"⚡ Realtime aktif — data sync otomatis":
-          dbStatus==="online"?"☁️ Tersambung ke Supabase":"💾 Data lokal. Klik status di topbar."
+          dbStatus==="online"?"☁️ Tersambung ke Supabase":
+          dbStatus==="connecting"?"🔄 Menghubungkan ke Supabase...":"🔴 Offline — data tidak tersimpan ke cloud"
         )
       ),
       RC("main",{className:"page-content"},renderPage())
@@ -1695,8 +1703,8 @@ function App(){
             RC("span",{className:"status-dot",style:{width:"10px",height:"10px",background:stC[dbStatus]||"#94a3b8"}}),
             RC("span",{style:{fontWeight:700,fontSize:".85rem",color:"#1e293b"}},
               dbStatus==="realtime"?"⚡ Realtime Aktif":
-              dbStatus==="online"?"Terhubung ke Supabase":
-              dbStatus==="connecting"?"Menghubungkan...":"Koneksi gagal / offline"
+              dbStatus==="online"?"✅ Terhubung ke Supabase":
+              dbStatus==="connecting"?"🔄 Menghubungkan...":"🔴 Tidak terkoneksi — data hanya lokal"
             )
           ),
           RC("p",{style:{fontSize:".7rem",color:"#64748b",margin:0}},SB_URL.replace("https://","")),
