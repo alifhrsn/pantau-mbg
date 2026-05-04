@@ -584,6 +584,20 @@ function PageBelanja(p){
   var safeRows=Array.isArray(rows)?rows:initRows;
   function setRows(fn){setRowsRaw(function(prev){var p2=Array.isArray(prev)?prev:initRows;return fn(p2);});}
 
+  // Reset form saat tanggal berubah (kecuali sedang mode edit)
+  var prevTglRef=useRef(tgl);
+  useEffect(function(){
+    if(prevTglRef.current!==tgl){
+      prevTglRef.current=tgl;
+      if(!editId){
+        var r2=[];for(var i=0;i<4;i++)r2.push(emptyRow());
+        setRows(function(){return r2;});
+        setJudul("");setPk(0);setPb(0);
+        setNotaId(null);
+      }
+    }
+  },[tgl]);
+
   var activeRows=safeRows.filter(function(r){return r.nama&&r.qty>0;});
   var totalSupplier=activeRows.reduce(function(a,r){return a+r.qty*(r.hargaSupplier||0);},0);
   var totalFinal=activeRows.reduce(function(a,r){return a+r.qty*(r.hargaFinal||0);},0);
@@ -594,8 +608,8 @@ function PageBelanja(p){
   var adaBudget=budgetTotal>0;
 
   var safeB=Array.isArray(p.belanjaList)?p.belanjaList:[];
-  // Belanja pada tanggal yang sedang dipilih
-  var recordsForDate=safeB.filter(function(b){return b.tanggal===tgl;}).sort(function(a,b){return (a.createdAt||"").localeCompare(b.createdAt||"");});
+  // Belanja pada tanggal yang sedang dipilih (slice(0,10) agar aman jika ada ISO timestamp)
+  var recordsForDate=safeB.filter(function(b){return (b.tanggal||"").slice(0,10)===tgl;}).sort(function(a,b){return (a.createdAt||"").localeCompare(b.createdAt||"");});
 
   function upd(id,field,val){
     setRows(function(prev){return prev.map(function(r){
