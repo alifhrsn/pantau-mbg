@@ -306,10 +306,28 @@ function BahanInput(p){
     }),
     open&&sugg.length>0&&RC("div",{className:"suggest-list"},
       sugg.map(function(h){
-        return RC("div",{key:h.id||h.nama,className:"suggest-item",
-          onMouseDown:function(e){e.preventDefault();p.onSelect(h);setOpen(false);}},
-          RC("span",{style:{fontWeight:600,color:"#1e293b"}},h.nama),
-          RC("span",{style:{color:"#3b82f6",fontSize:".65rem"}},fmt(h.harga)+"/"+h.satuan)
+        return RC("div",{key:h.id||h.nama,className:"suggest-item",style:{flexDirection:"column",alignItems:"stretch",gap:0,padding:"6px 10px"}},
+          // Baris atas: nama + tombol pakai harga
+          RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",gap:"6px"}},
+            RC("span",{
+              style:{fontWeight:600,color:"#1e293b",cursor:"pointer",flex:1},
+              onMouseDown:function(e){e.preventDefault();p.onSelect(h,false);setOpen(false);}
+            },h.nama),
+            h.harga>0&&RC("button",{
+              onMouseDown:function(e){e.preventDefault();p.onSelect(h,true);setOpen(false);},
+              style:{background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe",borderRadius:"4px",
+                padding:"2px 7px",fontSize:".6rem",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}
+            },"Pakai harga ini")
+          ),
+          // Baris bawah: info harga + tanggal (referensi saja)
+          h.harga>0&&RC("div",{style:{display:"flex",gap:"6px",alignItems:"center",marginTop:"2px"}},
+            RC("span",{style:{color:"#2563eb",fontSize:".65rem",fontWeight:700,fontFamily:"monospace"}},
+              fmt(h.harga)+"/"+h.satuan
+            ),
+            h.tanggal&&RC("span",{style:{color:"#94a3b8",fontSize:".6rem"}},
+              "· "+shortDate(h.tanggal)
+            )
+          )
         );
       })
     )
@@ -618,10 +636,16 @@ function PageBelanja(p){
       return Object.assign({},r,{[field]:v});
     });});
   }
-  function selSug(id,h){
+  // useHarga=false → isi nama+satuan saja (harga tetap dikosongkan, user isi sendiri)
+  // useHarga=true  → klik "Pakai harga ini", isi nama+satuan+harga sekaligus
+  function selSug(id,h,useHarga){
     setRows(function(prev){return prev.map(function(r){
       if(r.id!==id) return r;
-      return Object.assign({},r,{nama:h.nama,satuan:h.satuan,hargaSupplier:h.harga,hargaFinal:h.harga});
+      if(useHarga){
+        return Object.assign({},r,{nama:h.nama,satuan:h.satuan,hargaSupplier:h.harga,hargaFinal:h.harga});
+      } else {
+        return Object.assign({},r,{nama:h.nama,satuan:h.satuan,hargaSupplier:0,hargaFinal:0});
+      }
     });});
   }
 
@@ -718,6 +742,28 @@ function PageBelanja(p){
     win.document.close();win.focus();
   }
 
+  // Simpan harga terbaru dari bahan ke hargaList (autocomplete DB)
+  function updateHargaDB(rows, tanggal){
+    if(!p.setHargaList) return;
+    rows.forEach(function(row){
+      if(!row.nama || !(row.hargaFinal>0)) return;
+      p.setHargaList(function(prev){
+        var list=Array.isArray(prev)?prev:[];
+        var ex=list.find(function(h){return h.nama===row.nama;});
+        // Selalu update ke harga yang paling baru diinput
+        var updated={
+          id:ex?ex.id:uid(),
+          nama:row.nama,
+          satuan:row.satuan||(ex?ex.satuan:"")||"",
+          harga:row.hargaFinal,
+          tanggal:tanggal
+        };
+        if(!ex) return list.concat([updated]);
+        return list.map(function(h){return h.nama===row.nama?updated:h;});
+      });
+    });
+  }
+
   function simpan(){
     if(!selSppg) return alert("Pilih SPPG terlebih dahulu!");
     if(!judul) return alert("Isi judul belanja!");
@@ -734,6 +780,7 @@ function PageBelanja(p){
         p.setBelanjaList(function(prev){return (Array.isArray(prev)?prev:[]).map(function(b){return b.id===editId?updated:b;});});
         if(cloudOK) sbUpsert("transaksi",[belanjaToTrx(updated)]).catch(function(e){console.warn(e);});
       }
+      updateHargaDB(activeRows, tgl);
       setEditId(null);
       setSaving(false);
       alert("✅ Perubahan berhasil disimpan!");
@@ -744,6 +791,7 @@ function PageBelanja(p){
         items:activeRows,totalSupplier:totalSupplier,totalFinal:totalFinal,createdAt:new Date().toISOString()};
       p.setBelanjaList(function(prev){return (Array.isArray(prev)?prev:[]).concat([entry]);});
       if(cloudOK) sbUpsert("transaksi",[belanjaToTrx(entry)]).catch(function(e){console.warn(e);});
+      updateHargaDB(activeRows, tgl);
       setSaving(false);
       // ⚠️ Form TIDAK di-reset — user bisa langsung tambah lagi atau edit
       alert(cloudOK?"✅ Berhasil disimpan ke Supabase!":"💾 Disimpan lokal (offline)");
@@ -999,7 +1047,7 @@ function PageBelanja(p){
               return RC("tr",{key:row.id,style:{borderTop:"1px solid #f8fafc",background:idx%2===0?"white":"#fafbfc"}},
                 RC("td",{style:{padding:"4px 8px",textAlign:"center",color:"#94a3b8",fontSize:".65rem",fontWeight:600,width:"32px"}},idx+1),
                 RC("td",{style:{padding:"3px 5px",minWidth:"130px"}},
-                  RC(BahanInput,{value:row.nama,onChange:function(v){upd(row.id,"nama",v);},db:p.hargaDB||[],onSelect:function(h){selSug(row.id,h);},placeholder:"Nama bahan..."})
+                  RC(BahanInput,{value:row.nama,onChange:function(v){upd(row.id,"nama",v);},db:p.hargaDB||[],onSelect:function(h,useHarga){selSug(row.id,h,useHarga);},placeholder:"Nama bahan..."})
                 ),
                 RC("td",{style:{padding:"3px 4px",width:"58px"}},
                   RC("input",{type:"number",style:{width:"52px",border:"1px solid #e2e8f0",borderRadius:"5px",padding:"4px 5px",fontSize:".72rem",textAlign:"center",fontFamily:"monospace"},value:row.qty||"",placeholder:"0",onChange:function(e){upd(row.id,"qty",e.target.value);}})
@@ -1871,7 +1919,7 @@ function App(){
 
   function renderPage(){
     if(tab==="dashboard") return RC(PageDashboard,{sppgList:safeSppg,belanjaList:belanjaList,operasionalList:operasionalList,setModal:setModal});
-    if(tab==="belanja") return RC(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaList,dbStatus:dbStatus});
+    if(tab==="belanja") return RC(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaList,setHargaList:setHargaList,dbStatus:dbStatus});
     if(tab==="operasional") return RC(PageOperasional,{sppgList:safeSppg,operasionalList:operasionalList,setOperasionalList:setOperasionalList,dbStatus:dbStatus});
     if(tab==="harga") return RC(PageHarga,{hargaList:hargaList,setHargaList:setHargaList,hargaHistory:hargaHistory,setHargaHistory:setHargaHistory,dbStatus:dbStatus});
     if(tab==="nota") return RC(PageNota,{belanjaList:belanjaList,sppgList:safeSppg});
