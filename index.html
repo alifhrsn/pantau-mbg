@@ -742,25 +742,44 @@ function PageBelanja(p){
     win.document.close();win.focus();
   }
 
-  // Simpan harga terbaru dari bahan ke hargaList (autocomplete DB)
+  // Simpan harga terbaru dari bahan ke hargaList + hargaHistory + Supabase
   function updateHargaDB(rows, tanggal){
-    if(!p.setHargaList) return;
     rows.forEach(function(row){
       if(!row.nama || !(row.hargaFinal>0)) return;
-      p.setHargaList(function(prev){
-        var list=Array.isArray(prev)?prev:[];
-        var ex=list.find(function(h){return h.nama===row.nama;});
-        // Selalu update ke harga yang paling baru diinput
-        var updated={
-          id:ex?ex.id:uid(),
-          nama:row.nama,
-          satuan:row.satuan||(ex?ex.satuan:"")||"",
-          harga:row.hargaFinal,
-          tanggal:tanggal
-        };
-        if(!ex) return list.concat([updated]);
-        return list.map(function(h){return h.nama===row.nama?updated:h;});
-      });
+      var ex=(p.hargaDB||[]).find(function(h){return h.nama===row.nama;});
+      var updatedItem={
+        id:ex?ex.id:uid(),
+        nama:row.nama,
+        satuan:row.satuan||(ex?ex.satuan:"")||"",
+        harga:row.hargaFinal,
+        tanggal:tanggal
+      };
+      // 1. Update hargaList (harga saat ini)
+      if(p.setHargaList){
+        p.setHargaList(function(prev){
+          var list=Array.isArray(prev)?prev:[];
+          if(!list.find(function(h){return h.nama===row.nama;})) return list.concat([updatedItem]);
+          return list.map(function(h){return h.nama===row.nama?updatedItem:h;});
+        });
+      }
+      // 2. Update hargaHistory (untuk grafik tren) — satu record per nama+tanggal
+      if(p.setHargaHistory){
+        p.setHargaHistory(function(prev){
+          var list=Array.isArray(prev)?prev:[];
+          var sameDay=list.find(function(h){return h.nama===row.nama&&(h.tanggal||"").slice(0,10)===tanggal;});
+          if(sameDay){
+            return list.map(function(h){
+              return (h.nama===row.nama&&(h.tanggal||"").slice(0,10)===tanggal)
+                ? Object.assign({},h,{harga:row.hargaFinal,satuan:updatedItem.satuan}) : h;
+            });
+          }
+          return list.concat([{id:uid(),nama:row.nama,satuan:updatedItem.satuan,harga:row.hargaFinal,tanggal:tanggal}]);
+        });
+      }
+      // 3. Push ke Supabase supaya tidak tertimpa saat auto-refresh
+      if(dbOK(p.dbStatus)){
+        sbUpsert("harga_survei",[hargaToSB(updatedItem)]).catch(function(e){console.warn("updateHargaDB upsert:",e);});
+      }
     });
   }
 
@@ -1832,16 +1851,25 @@ function App(){
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"harga_survei"},function(payload){
         var row=payload.new; if(!row||!row.id) return;
         var hItem=sbToHarga(row);
+        // Tambah ke history
         setHargaHistory(function(prev){
           var list=Array.isArray(prev)?prev:[];
           if(list.some(function(h){return h.id===row.id;})) return list;
           return list.concat([hItem]);
         });
+        // Update hargaList: JAGA ID asli — hanya update harga/satuan/tanggal
         setHargaList(function(prev){
           var list=Array.isArray(prev)?prev:[];
           var ex=list.find(function(h){return h.nama===hItem.nama;});
           if(!ex) return list.concat([hItem]);
-          if(hItem.tanggal>=ex.tanggal) return list.map(function(h){return h.nama===hItem.nama?hItem:h;});
+          // Hanya update nilai, bukan ganti seluruh object (pertahankan ID asli)
+          if(hItem.tanggal>=(ex.tanggal||"")){
+            return list.map(function(h){
+              return h.nama===hItem.nama
+                ? Object.assign({},h,{harga:hItem.harga,satuan:hItem.satuan,tanggal:hItem.tanggal})
+                : h;
+            });
+          }
           return list;
         });
       })
@@ -1919,7 +1947,7 @@ function App(){
 
   function renderPage(){
     if(tab==="dashboard") return RC(PageDashboard,{sppgList:safeSppg,belanjaList:belanjaList,operasionalList:operasionalList,setModal:setModal});
-    if(tab==="belanja") return RC(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaList,setHargaList:setHargaList,dbStatus:dbStatus});
+    if(tab==="belanja") return RC(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaList,setHargaList:setHargaList,setHargaHistory:setHargaHistory,dbStatus:dbStatus});
     if(tab==="operasional") return RC(PageOperasional,{sppgList:safeSppg,operasionalList:operasionalList,setOperasionalList:setOperasionalList,dbStatus:dbStatus});
     if(tab==="harga") return RC(PageHarga,{hargaList:hargaList,setHargaList:setHargaList,hargaHistory:hargaHistory,setHargaHistory:setHargaHistory,dbStatus:dbStatus});
     if(tab==="nota") return RC(PageNota,{belanjaList:belanjaList,sppgList:safeSppg});
