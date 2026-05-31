@@ -318,7 +318,14 @@ function getSBClient(){
 
 // ─── ATOM COMPONENTS ─────────────────────────────────────────────────────────
 function Card(p){
-  return RC("div",{style:Object.assign({background:"white",border:"1px solid #f1f5f9",borderRadius:".75rem",padding:".875rem"},p.style||{})},p.children);
+  var style=Object.assign({background:"white",border:"1px solid #f1f5f9",borderRadius:".75rem",padding:".875rem"},p.style||{});
+  // Teruskan semua props tambahan (onClick, onMouseEnter, dll) ke div
+  var extras={};
+  if(p.onClick) extras.onClick=p.onClick;
+  if(p.onMouseEnter) extras.onMouseEnter=p.onMouseEnter;
+  if(p.onMouseLeave) extras.onMouseLeave=p.onMouseLeave;
+  if(p.id) extras.id=p.id;
+  return RC("div",Object.assign({style:style},extras),p.children);
 }
 function Btn(p){
   var colors={blue:"#2563eb",green:"#059669",red:"#dc2626",gray:"#64748b",orange:"#ea580c"};
