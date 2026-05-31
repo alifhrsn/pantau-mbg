@@ -1,0 +1,40 @@
+{
+  "name": "PantauBelanjaMBG",
+  "short_name": "PantauMBG",
+  "description": "Aplikasi pemantauan belanja MBG — SPPG Citeureup",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Input Belanja",
+      "short_name": "Belanja",
+      "url": "./index.html#belanja",
+      "description": "Langsung ke form input belanja"
+    },
+    {
+      "name": "Track Pesanan",
+      "short_name": "Pesanan",
+      "url": "./index.html#pesanan",
+      "description": "Pantau status bahan"
+    }
+  ]
+}
