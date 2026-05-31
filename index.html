@@ -4,6 +4,13 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <meta name="theme-color" content="#2563eb"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="PantauMBG"/>
+<meta name="description" content="Aplikasi pemantauan belanja MBG — SPPG Citeureup"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
 <title>PantauBelanjaMBG</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -66,6 +73,27 @@ input:focus,select:focus,textarea:focus{outline:none}
 <body>
 <div id="root"></div>
 <div id="mbg-toasts" class="toast-wrap"></div>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./sw.js').then(function(reg){
+      // Cek update di background
+      reg.addEventListener('updatefound',function(){
+        var newWorker=reg.installing;
+        newWorker.addEventListener('statechange',function(){
+          if(newWorker.state==='installed'&&navigator.serviceWorker.controller){
+            // Ada versi baru — tampilkan toast
+            var c=document.getElementById('mbg-toasts');
+            if(c){var el=document.createElement('div');el.className='toast t-info';
+              el.innerHTML='🔄 Versi baru tersedia — <b style="cursor:pointer;text-decoration:underline" onclick="location.reload()">Muat Ulang</b>';
+              c.appendChild(el);}
+          }
+        });
+      });
+    }).catch(function(err){console.warn('SW gagal registrasi:',err);});
+  });
+}
+</script>
 <script type="text/babel">
 var RC = React.createElement;
 var useState = React.useState;
@@ -1735,6 +1763,30 @@ function PageHarga(p){
   var safeH=Array.isArray(p.hargaList)?p.hargaList:[];
   var safeHist=Array.isArray(p.hargaHistory)?p.hargaHistory:[];
 
+  // ── Deteksi anomali harga: bandingkan vs ~30 hari lalu, threshold 15% ──
+  var ANOMALI_THRESHOLD=15;
+  var anomali=useMemo(function(){
+    var result={};
+    safeH.forEach(function(h){
+      var hist=safeHist.filter(function(r){return r.nama===h.nama;})
+        .sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
+      if(hist.length<2) return;
+      var latest=hist[0];
+      // Cari harga 30 hari lalu (atau terjauh yang ada)
+      var cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);
+      var cutoffStr=cutoff.toISOString().slice(0,10);
+      var older=hist.find(function(r){return (r.tanggal||"")<=cutoffStr;})||hist[hist.length-1];
+      if(older.id===latest.id||!(older.harga>0)) return;
+      var pct=Math.round(((latest.harga-older.harga)/older.harga)*100);
+      if(Math.abs(pct)>=ANOMALI_THRESHOLD){
+        result[h.nama]={pct:pct,dari:older.harga,ke:latest.harga,tglDari:older.tanggal};
+      }
+    });
+    return result;
+  },[safeH,safeHist]);
+
+  var anomaliCount=Object.keys(anomali).length;
+
   // group history by name for chart
   var chartData=useMemo(function(){
     if(!chartItem) return [];
@@ -1789,6 +1841,38 @@ function PageHarga(p){
   return RC("div",{style:{display:"flex",flexDirection:"column",gap:".875rem"}},
     RC(PageHeader,{title:"Harga Bahan",sub:"Referensi & Riwayat Harga",
       action:RC(Btn,{onClick:function(){setShowAdd(true);},sm:true},"+ Tambah")}),
+
+    // ── Banner anomali harga ──
+    anomaliCount>0&&RC("div",{style:{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:".75rem",padding:".75rem 1rem"}},
+      RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:".5rem"}},
+        RC("div",null,
+          RC("p",{style:{fontWeight:700,fontSize:".82rem",color:"#dc2626",margin:0}},
+            "⚠️ "+anomaliCount+" komoditas mengalami perubahan harga signifikan (≥"+ANOMALI_THRESHOLD+"%)"
+          ),
+          RC("p",{style:{fontSize:".65rem",color:"#94a3b8",margin:"2px 0 0"}},"Dibandingkan harga 30 hari lalu")
+        )
+      ),
+      RC("div",{style:{display:"flex",flexWrap:"wrap",gap:".375rem"}},
+        Object.keys(anomali).map(function(nama){
+          var a=anomali[nama];
+          var naik=a.pct>0;
+          return RC("div",{key:nama,style:{background:naik?"#fef2f2":"#f0fdf4",
+            border:"1px solid "+(naik?"#fecaca":"#bbf7d0"),borderRadius:".5rem",
+            padding:".375rem .625rem",display:"flex",flexDirection:"column",gap:"1px"}},
+            RC("span",{style:{fontWeight:700,fontSize:".72rem",color:"#1e293b"}},nama),
+            RC("div",{style:{display:"flex",gap:".375rem",alignItems:"center"}},
+              RC("span",{style:{fontFamily:"monospace",fontSize:".65rem",color:"#94a3b8",textDecoration:"line-through"}},fmt(a.dari)),
+              RC("span",{style:{fontSize:".65rem",color:naik?"#dc2626":"#059669"}},"→"),
+              RC("span",{style:{fontFamily:"monospace",fontSize:".65rem",fontWeight:700,color:naik?"#dc2626":"#059669"}},fmt(a.ke)),
+              RC("span",{style:{background:naik?"#dc2626":"#059669",color:"white",borderRadius:"999px",
+                padding:"1px 6px",fontSize:".6rem",fontWeight:700}},
+                (naik?"▲ +":"▼ ")+a.pct+"%"
+              )
+            )
+          );
+        })
+      )
+    ),
 
     // search + chart selector
     RC(Card,null,
@@ -1862,7 +1946,16 @@ function PageHarga(p){
                   RC(TD,{style:{textAlign:"right",fontWeight:700,color:"#1e293b",fontFamily:"monospace"}},
                     isEdit
                       ?RC("input",{type:"number",style:{width:"100px",border:"1px solid #bfdbfe",borderRadius:"4px",padding:"3px 6px",fontSize:".72rem",fontFamily:"monospace",textAlign:"right"},value:editItem.harga,onChange:function(e){setEditItem(function(p2){return Object.assign({},p2,{harga:parseFloat(e.target.value)||0});});}})
-                      :fmt(h.harga)
+                      :RC("div",{style:{display:"flex",alignItems:"center",gap:"4px",justifyContent:"flex-end"}},
+                          fmt(h.harga),
+                          anomali[h.nama]&&RC("span",{
+                            title:"Perubahan vs 30 hari lalu: dari "+fmt(anomali[h.nama].dari),
+                            style:{background:anomali[h.nama].pct>0?"#dc2626":"#059669",
+                              color:"white",borderRadius:"999px",padding:"1px 5px",
+                              fontSize:".58rem",fontWeight:700,cursor:"help",flexShrink:0}},
+                            (anomali[h.nama].pct>0?"▲ +":"▼ ")+anomali[h.nama].pct+"%"
+                          )
+                        )
                   ),
                   RC(TD,{style:{color:"#94a3b8"}},h.tanggal||"—"),
                   RC("td",{style:{padding:"6px 8px",whiteSpace:"nowrap"}},
