@@ -280,32 +280,33 @@ function getNextNotaNo(){
 // ─── INTEGRASI HARGA: gabung harga_survei + data belanja ─────────────────────
 // Mengembalikan {history:[], current:[]} dengan data terlengkap dari kedua sumber
 function buildHargaData(belanjaArr, hargaSurveiArr){
-  // Kumpulkan semua titik harga: key = "nama__tanggal"
+  // Key selalu menyertakan satuan agar harga per-pcs dan per-kg tidak saling timpa
   var histMap = {};
 
   // 1. Dari harga_survei (sumber eksplisit — prioritas lebih tinggi)
   (hargaSurveiArr||[]).forEach(function(h){
     if(!h.nama || !(h.harga>0)) return;
     var tgl = (h.tanggal||"").slice(0,10);
-    var key = h.nama+"__"+tgl;
-    // Simpan semua record unik dari harga_survei (bisa banyak per hari)
+    var sat = (h.satuan||"").toLowerCase().trim();
+    var key = h.nama+"__"+sat+"__"+tgl;
     histMap[key+"__"+h.id] = {id:h.id, nama:h.nama, satuan:h.satuan||"", harga:h.harga, tanggal:tgl};
   });
 
-  // 2. Dari data belanja — satu record per nama+tanggal (tidak duplikat)
+  // 2. Dari data belanja — satu record per nama+satuan+tanggal (tidak duplikat)
   (belanjaArr||[]).forEach(function(b){
     var tgl = (b.tanggal||"").slice(0,10);
     if(!tgl) return;
     (b.items||[]).forEach(function(it){
       if(!it.nama || !(it.hargaFinal>0)) return;
-      var key = it.nama+"__"+tgl+"__belanja";
-      // Hanya tambah jika belum ada record harga_survei untuk nama+tanggal ini
+      var sat = (it.satuan||"").toLowerCase().trim();
+      var key = it.nama+"__"+sat+"__"+tgl+"__belanja";
+      // Hanya tambah jika belum ada record harga_survei untuk nama+satuan+tanggal ini
       var hasSurvei = Object.keys(histMap).some(function(k){
-        return k.startsWith(it.nama+"__"+tgl+"__") && !k.endsWith("__belanja");
+        return k.startsWith(it.nama+"__"+sat+"__"+tgl+"__") && !k.endsWith("__belanja");
       });
       if(!hasSurvei && !histMap[key]){
         var safeNama=(it.nama||"").toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,10);
-        histMap[key] = {id:"blj_"+tgl.replace(/-/g,"")+"_"+safeNama,
+        histMap[key] = {id:"blj_"+tgl.replace(/-/g,"")+"_"+safeNama+"_"+sat.slice(0,4),
           nama:it.nama, satuan:it.satuan||"", harga:it.hargaFinal, tanggal:tgl};
       }
     });
@@ -313,18 +314,20 @@ function buildHargaData(belanjaArr, hargaSurveiArr){
 
   var allHist = Object.values(histMap);
 
-  // current = harga terbaru per nama (dari kedua sumber)
+  // current = harga terbaru per nama+satuan (BEDA satuan = entri terpisah)
   var latestMap = {};
   allHist.forEach(function(h){
-    if(!latestMap[h.nama] || h.tanggal > latestMap[h.nama].tanggal){
-      latestMap[h.nama] = h;
+    var mapKey = h.nama+"__"+(h.satuan||"").toLowerCase().trim();
+    if(!latestMap[mapKey] || (h.tanggal||"") > (latestMap[mapKey].tanggal||"")){
+      latestMap[mapKey] = h;
     }
   });
 
   // Tambahkan item dari HARGA0 yang belum ada di data manapun
   HARGA0.forEach(function(h0){
-    if(!latestMap[h0.nama]){
-      latestMap[h0.nama] = {id:h0.id, nama:h0.nama, satuan:h0.satuan, harga:h0.harga, tanggal:""};
+    var mapKey = h0.nama+"__"+(h0.satuan||"").toLowerCase().trim();
+    if(!latestMap[mapKey]){
+      latestMap[mapKey] = {id:h0.id, nama:h0.nama, satuan:h0.satuan, harga:h0.harga, tanggal:""};
     }
   });
 
@@ -1068,7 +1071,10 @@ function PageBelanja(p){
   function updateHargaDB(rows, tanggal){
     rows.forEach(function(row){
       if(!row.nama || !(row.hargaFinal>0)) return;
-      var ex=(p.hargaDB||[]).find(function(h){return h.nama===row.nama;});
+      // Cocokkan nama + satuan agar harga per-pcs dan per-kg tetap terpisah
+      var sat=(row.satuan||"").toLowerCase().trim();
+      var ex=(p.hargaDB||[]).find(function(h){return h.nama===row.nama&&(h.satuan||"").toLowerCase().trim()===sat;})
+          ||(p.hargaDB||[]).find(function(h){return h.nama===row.nama&&!h.satuan;});
       var updatedItem={
         id:ex?ex.id:uid(),
         nama:row.nama,
@@ -1768,18 +1774,21 @@ function PageHarga(p){
   var anomali=useMemo(function(){
     var result={};
     safeH.forEach(function(h){
-      var hist=safeHist.filter(function(r){return r.nama===h.nama;})
-        .sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
+      var sat=(h.satuan||"").toLowerCase().trim();
+      // Filter history berdasarkan nama + satuan agar tidak campur satuan berbeda
+      var hist=safeHist.filter(function(r){
+        return r.nama===h.nama && (r.satuan||"").toLowerCase().trim()===sat;
+      }).sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
       if(hist.length<2) return;
       var latest=hist[0];
-      // Cari harga 30 hari lalu (atau terjauh yang ada)
       var cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);
       var cutoffStr=cutoff.toISOString().slice(0,10);
       var older=hist.find(function(r){return (r.tanggal||"")<=cutoffStr;})||hist[hist.length-1];
       if(older.id===latest.id||!(older.harga>0)) return;
       var pct=Math.round(((latest.harga-older.harga)/older.harga)*100);
       if(Math.abs(pct)>=ANOMALI_THRESHOLD){
-        result[h.nama]={pct:pct,dari:older.harga,ke:latest.harga,tglDari:older.tanggal};
+        var key=h.nama+"__"+sat;
+        result[key]={nama:h.nama,satuan:h.satuan,pct:pct,dari:older.harga,ke:latest.harga,tglDari:older.tanggal};
       }
     });
     return result;
@@ -1788,10 +1797,15 @@ function PageHarga(p){
   var anomaliCount=Object.keys(anomali).length;
 
   // group history by name for chart
+  // chartItem format: "nama__satuan" agar bisa bedakan satuan berbeda
   var chartData=useMemo(function(){
     if(!chartItem) return [];
+    var parts=chartItem.split("__");
+    var cNama=parts[0], cSat=parts[1]||"";
     return safeHist
-      .filter(function(h){return h.nama===chartItem;})
+      .filter(function(h){
+        return h.nama===cNama && (h.satuan||"").toLowerCase().trim()===(cSat||"").toLowerCase().trim();
+      })
       .sort(function(a,b){return (a.tanggal||"").localeCompare(b.tanggal||"");})
       .map(function(h){return {label:shortDate(h.tanggal),value:h.harga||0};});
   },[chartItem,safeHist]);
@@ -1819,6 +1833,10 @@ function PageHarga(p){
 
   function addHarga(){
     if(!newItem.nama||!newItem.harga){showToast("Nama dan harga wajib diisi!","error");return;}
+    var sat=(newItem.satuan||"kg").toLowerCase().trim();
+    // Cek duplikat nama+satuan yang sudah ada
+    var existing=safeH.find(function(h){return h.nama.toLowerCase()===newItem.nama.toLowerCase()&&(h.satuan||"").toLowerCase().trim()===sat;});
+    if(existing){showToast("Sudah ada harga untuk '"+newItem.nama+"' satuan '"+newItem.satuan+"'. Gunakan tombol edit ✏️","warn");return;}
     var item={id:uid(),nama:newItem.nama,satuan:newItem.satuan||"kg",harga:parseFloat(newItem.harga)||0,tanggal:today()};
     var histRec=Object.assign({},item,{id:uid()});
     p.setHargaList(function(prev){return (Array.isArray(prev)?prev:[]).concat([item]);});
@@ -1859,7 +1877,8 @@ function PageHarga(p){
           return RC("div",{key:nama,style:{background:naik?"#fef2f2":"#f0fdf4",
             border:"1px solid "+(naik?"#fecaca":"#bbf7d0"),borderRadius:".5rem",
             padding:".375rem .625rem",display:"flex",flexDirection:"column",gap:"1px"}},
-            RC("span",{style:{fontWeight:700,fontSize:".72rem",color:"#1e293b"}},nama),
+            RC("span",{style:{fontWeight:700,fontSize:".72rem",color:"#1e293b"}},
+              a.nama+(a.satuan?" / "+a.satuan:"")),
             RC("div",{style:{display:"flex",gap:".375rem",alignItems:"center"}},
               RC("span",{style:{fontFamily:"monospace",fontSize:".65rem",color:"#94a3b8",textDecoration:"line-through"}},fmt(a.dari)),
               RC("span",{style:{fontSize:".65rem",color:naik?"#dc2626":"#059669"}},"→"),
@@ -1885,7 +1904,12 @@ function PageHarga(p){
           RC("label",{style:{fontSize:".68rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"3px"}},"Grafik Tren Harga"),
           RC("select",{style:is,value:chartItem||"",onChange:function(e){setChartItem(e.target.value||null);}},
             RC("option",{value:""},"— Pilih bahan untuk grafik —"),
-            safeH.map(function(h){return RC("option",{key:h.id,value:h.nama},h.nama);})
+            safeH.slice().sort(function(a,b){return a.nama.localeCompare(b.nama);})
+              .map(function(h){
+                var val=h.nama+"__"+(h.satuan||"").toLowerCase().trim();
+                var label=h.nama+(h.satuan?" ("+h.satuan+")":"");
+                return RC("option",{key:h.id,value:val},label);
+              })
           )
         )
       )
