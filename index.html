@@ -202,8 +202,11 @@ function belanjaToTrx(b){
 function trxToBelanja(t){
   var d={};
   try{d=JSON.parse(t.kategori||"{}");}catch(e){}
+  var items=(d.items||[]).map(function(it){
+    return Object.assign({},it,{id:it.id||uid()});
+  });
   return {id:t.id,sppgId:t.sppg_id||"",judul:d.judul||t.uraian||"",
-    tanggal:t.tanggal||"",items:d.items||[],
+    tanggal:t.tanggal||"",items:items,
     totalSupplier:d.totalSupplier||0,totalFinal:t.jumlah||d.totalFinal||0,
     porsiKecil:d.porsiKecil||0,porsiBesar:d.porsiBesar||0,
     notaNo:d.notaNo||"",status:d.status||"dipesan",statusLog:d.statusLog||[],
@@ -273,7 +276,8 @@ function buildHargaData(belanjaArr, hargaSurveiArr){
         return k.startsWith(it.nama+"__"+tgl+"__") && !k.endsWith("__belanja");
       });
       if(!hasSurvei && !histMap[key]){
-        histMap[key] = {id:"blj_"+b.id+"_"+it.nama.replace(/\s/g,"_"),
+        var safeNama=(it.nama||"").toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,10);
+        histMap[key] = {id:"blj_"+tgl.replace(/-/g,"")+"_"+safeNama,
           nama:it.nama, satuan:it.satuan||"", harga:it.hargaFinal, tanggal:tgl};
       }
     });
@@ -526,13 +530,21 @@ function ModalSPPG(p){
 function PageDashboard(p){
   var bln=new Date().toISOString().slice(0,7);
   var safeB=Array.isArray(p.belanjaList)?p.belanjaList:[];
-  var safeO=Array.isArray(p.operasionalList)?p.operasionalList:[];
   var safeHist=Array.isArray(p.hargaHistory)?p.hargaHistory:[];
   var blnB=safeB.filter(function(b){return b.tanggal&&b.tanggal.startsWith(bln);});
   var totalBlnIni=blnB.reduce(function(a,b){return a+(b.totalFinal||0);},0);
-  var totalOp=safeO.filter(function(o){return o.tanggal&&o.tanggal.startsWith(bln);}).reduce(function(a,o){return a+(o.jumlah||0);},0);
   var budgetHarian=blnB.reduce(function(a,b){return a+((b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000);},0);
   var sisaBudget=budgetHarian-totalBlnIni;
+
+  // ── Hitung status bahan (item-level) untuk seluruh belanja bulan ini ──
+  var itemStatusBln={dipesan:0,dibayar:0,dikirim:0,sampai:0,dibatalkan:0};
+  blnB.forEach(function(b){
+    (b.items||[]).forEach(function(it){
+      var st=it.status||"dipesan";
+      itemStatusBln[st]=(itemStatusBln[st]||0)+1;
+    });
+  });
+  var totalItemAktif=(itemStatusBln.dipesan||0)+(itemStatusBln.dibayar||0)+(itemStatusBln.dikirim||0);
 
   // ── Belanja terakhir ditambah/diedit (1 entry) ──
   var lastBelanja=safeB.slice().sort(function(a,b){
@@ -541,16 +553,15 @@ function PageDashboard(p){
     return tb.localeCompare(ta);
   })[0]||null;
 
-  // ── Pesanan aktif terbaru (3 entry, belum sampai/dibatalkan) ──
+  // ── Pesanan aktif terbaru (3 entry, ada item yang belum sampai) — item-level ──
   var pesananAktif=safeB.filter(function(b){
-    var st=b.status||"dipesan";
-    return st!=="sampai"&&st!=="dibatalkan";
+    return (b.items||[]).some(function(it){
+      var st=it.status||"dipesan";
+      return st!=="sampai"&&st!=="dibatalkan";
+    });
   }).sort(function(a,b){
-    // Urutkan: yang paling baru di-update dulu
-    var la=(a.statusLog||[]).slice(-1)[0];
-    var lb=(b.statusLog||[]).slice(-1)[0];
-    var ta=la?la.waktu:(a.createdAt||a.tanggal||"");
-    var tb=lb?lb.waktu:(b.createdAt||b.tanggal||"");
+    var ta=a.createdAt||a.tanggal||"";
+    var tb=b.createdAt||b.tanggal||"";
     return tb.localeCompare(ta);
   }).slice(0,3);
 
@@ -580,7 +591,7 @@ function PageDashboard(p){
   var cards=[
     {l:"Belanja Bulan Ini",v:fmtS(totalBlnIni),c:"#2563eb",bg:"#eff6ff",bd:"#bfdbfe",icon:"🛒"},
     {l:"Maks. Budget",v:fmtS(budgetHarian),c:"#7c3aed",bg:"#f5f3ff",bd:"#ddd6fe",icon:"🍱",sub:"Kecil×8rb + Besar×10rb"},
-    {l:"Operasional",v:fmtS(totalOp),c:"#ea580c",bg:"#fff7ed",bd:"#fed7aa",icon:"⚙️"},
+    {l:"Bahan Aktif Dipesan",v:totalItemAktif+" bahan",c:"#ea580c",bg:"#fff7ed",bd:"#fed7aa",icon:"📦",sub:"belum sampai bulan ini"},
     {l:sisaBudget>=0?"Sisa Budget":"Melebihi Budget",
      v:(sisaBudget>=0?"+":"")+fmtS(Math.abs(sisaBudget)),
      c:budgetHarian>0?(sisaBudget>=0?"#059669":"#dc2626"):"#94a3b8",
@@ -624,9 +635,12 @@ function PageDashboard(p){
       +'@media print{.noprint{display:none}}</style></head><body>');
     win.document.write('<h2>LAPORAN BELANJA MBG</h2><p style="text-align:center;color:#64748b">'+monthLabel(bln)+'</p><hr>');
     win.document.write('<table><tr class="total"><td>Total Belanja</td><td style="text-align:right">'+fmt(totalBlnIni)+'</td></tr>'
-      +'<tr><td>Total Operasional</td><td style="text-align:right">'+fmt(totalOp)+'</td></tr>'
       +'<tr><td>Maks. Budget Porsi</td><td style="text-align:right">'+fmt(budgetHarian)+'</td></tr>'
       +'<tr class="total"><td>'+(sisaBudget>=0?"Sisa Budget":"Melebihi Budget")+'</td><td style="text-align:right;color:'+(sisaBudget>=0?"#059669":"#dc2626")+'">'+fmt(Math.abs(sisaBudget))+'</td></tr>'
+      +'<tr><td>Status Bahan — Dipesan</td><td style="text-align:right">'+itemStatusBln.dipesan+'</td></tr>'
+      +'<tr><td>Status Bahan — Dibayar</td><td style="text-align:right">'+itemStatusBln.dibayar+'</td></tr>'
+      +'<tr><td>Status Bahan — Dikirim</td><td style="text-align:right">'+itemStatusBln.dikirim+'</td></tr>'
+      +'<tr><td>Status Bahan — Sampai</td><td style="text-align:right">'+itemStatusBln.sampai+'</td></tr>'
       +'</table>');
     win.document.write('<h3 style="font-size:13px;color:#475569;margin-top:16px">DETAIL BELANJA ('+blnB.length+' transaksi)</h3>');
     win.document.write('<table><thead><tr><th>Tanggal</th><th>SPPG</th><th>Keterangan</th><th style="text-align:right">Total</th></tr></thead><tbody>'+rows+'</tbody></table>');
@@ -704,31 +718,43 @@ function PageDashboard(p){
         : RC("p",{style:{fontSize:".75rem",color:"#94a3b8",textAlign:"center",padding:".5rem 0",margin:0}},"Belum ada data belanja")
     ),
 
-    // ── Track Pesanan aktif ──
+    // ── Track Pesanan aktif (item-level) ──
     RC(Card,{style:{cursor:"pointer"},onClick:function(){p.setTab&&p.setTab("pesanan");}},
-      RC(SectionLabel,{title:"📦 Pesanan Aktif",sub:pesananAktif.length+"  pesanan"}),
+      RC(SectionLabel,{title:"📦 Pesanan Aktif",sub:"Klik untuk buka →"}),
       pesananAktif.length===0
-        ? RC("p",{style:{fontSize:".75rem",color:"#94a3b8",textAlign:"center",padding:".5rem 0",margin:0}},"Tidak ada pesanan aktif")
+        ? RC("p",{style:{fontSize:".75rem",color:"#94a3b8",textAlign:"center",padding:".5rem 0",margin:0}},"Semua bahan sudah diterima 🎉")
         : RC("div",{style:{display:"flex",flexDirection:"column",gap:".5rem"}},
           pesananAktif.map(function(b){
             var sp=(p.sppgList||[]).find(function(x){return x.id===b.sppgId;});
-            var st=b.status||"dipesan";
-            var curIdx=ST_ORDER.indexOf(st);
-            var lastLog=(b.statusLog||[]).slice(-1)[0];
-            var waktuStr="";
-            if(lastLog){try{waktuStr=new Date(lastLog.waktu).toLocaleString("id-ID",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});}catch(e){}}
+            // Hitung item per status (item-level)
+            var itemSt={dipesan:0,dibayar:0,dikirim:0,sampai:0};
+            (b.items||[]).forEach(function(it){
+              var s=it.status||"dipesan";
+              if(itemSt[s]!==undefined) itemSt[s]++;
+            });
+            var totalItem=(b.items||[]).length;
+            var sudahSampai=itemSt.sampai;
             return RC("div",{key:b.id,style:{padding:".5rem .625rem",background:"#f8fafc",borderRadius:".5rem",border:"1px solid #e2e8f0"}},
-              RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"5px"}},
-                RC("div",{style:{flex:1,minWidth:0,marginRight:".5rem"}},
+              RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"4px"}},
+                RC("div",{style:{flex:1,minWidth:0}},
                   RC("p",{style:{fontWeight:700,fontSize:".78rem",color:"#1e293b",margin:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},b.judul||"(tanpa judul)"),
-                  RC("p",{style:{fontSize:".62rem",color:"#94a3b8",margin:"1px 0 0"}},(sp?sp.nama:"—")+" · "+shortDate(b.tanggal)+(waktuStr?" · Update: "+waktuStr:""))
+                  RC("p",{style:{fontSize:".62rem",color:"#94a3b8",margin:"1px 0 0"}},(sp?sp.nama:"—")+" · "+shortDate(b.tanggal))
                 ),
-                RC(StatusBadge,{status:st})
+                RC("span",{style:{fontSize:".72rem",fontWeight:700,color:"#059669",flexShrink:0,marginLeft:".5rem"}},sudahSampai+"/"+totalItem+" sampai")
               ),
-              RC("div",{style:{display:"flex",gap:"3px"}},
-                ST_ORDER.map(function(s,i){
-                  var done=curIdx>=i;
-                  return RC("div",{key:s,style:{flex:1,height:"3px",borderRadius:"2px",background:done?ST_COLOR[s].dot:"#e2e8f0"}});
+              // Progress bar berdasarkan jumlah item yang sudah sampai
+              RC("div",{style:{background:"#e2e8f0",borderRadius:"2px",height:"4px",overflow:"hidden"}},
+                RC("div",{style:{height:"4px",borderRadius:"2px",background:"#10b981",
+                  width:(totalItem>0?Math.round((sudahSampai/totalItem)*100):0)+"%",transition:"width .3s"}})
+              ),
+              // Badge mini per status
+              RC("div",{style:{display:"flex",gap:"4px",marginTop:"4px",flexWrap:"wrap"}},
+                ST_ORDER.filter(function(s){return itemSt[s]>0;}).map(function(s){
+                  var sc=ST_COLOR[s];
+                  return RC("span",{key:s,style:{background:sc.bg,color:sc.tx,border:"1px solid "+sc.bd,
+                    borderRadius:"999px",padding:"1px 6px",fontSize:".6rem",fontWeight:700}},
+                    itemSt[s]+" "+ST_LABEL[s]
+                  );
                 })
               )
             );
@@ -861,8 +887,12 @@ function PageBelanja(p){
 
   // Mulai edit: isi form dengan data entry yang dipilih
   function startEdit(b){
+    // Simpan referensi item original (untuk preserve status/statusLog saat save)
     var editRows=(b.items||[]).map(function(it){
-      return {id:it.id||uid(),nama:it.nama||"",qty:it.qty||0,satuan:it.satuan||"",hargaSupplier:it.hargaSupplier||0,hargaFinal:it.hargaFinal||0};
+      return {id:it.id||uid(),nama:it.nama||"",qty:it.qty||0,satuan:it.satuan||"",
+        hargaSupplier:it.hargaSupplier||0,hargaFinal:it.hargaFinal||0,
+        // Bawa serta status tracking agar tidak hilang saat edit
+        status:it.status||"dipesan",statusLog:it.statusLog||[]};
     });
     while(editRows.length<4) editRows.push(emptyRow());
     setEditId(b.id);
@@ -1013,9 +1043,19 @@ function PageBelanja(p){
       // ── MODE EDIT: update entry yang sudah ada ──
       var existing=safeB.find(function(b){return b.id===editId;});
       if(existing){
+        // Merge activeRows dengan status tracking dari item original (cocokkan by id lalu by nama)
+        var mergedItems=activeRows.map(function(row){
+          var orig=(existing.items||[]).find(function(ei){return ei.id===row.id;})
+                || (existing.items||[]).find(function(ei){return ei.nama===row.nama;});
+          return Object.assign({},row,{
+            id:row.id||(orig?orig.id:uid()),
+            status:orig?(orig.status||"dipesan"):(row.status||"dipesan"),
+            statusLog:orig?(orig.statusLog||[]):(row.statusLog||[])
+          });
+        });
         var updated=Object.assign({},existing,{sppgId:selSppg,judul:judul,tanggal:tgl,
           porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,
-          items:activeRows,totalSupplier:totalSupplier,totalFinal:totalFinal,
+          items:mergedItems,totalSupplier:totalSupplier,totalFinal:totalFinal,
           status:existing.status||"dipesan",
           statusLog:existing.statusLog||[],
           notaNo:existing.notaNo||""});
@@ -1160,9 +1200,19 @@ function PageBelanja(p){
                     RC("div",{style:{fontWeight:600,fontSize:".78rem",color:"#1e293b",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},
                       (isEditing?"✏️ ":"")+(b.judul||"(tanpa judul)")
                     ),
-                    RC("div",{style:{fontSize:".65rem",color:"#94a3b8",display:"flex",gap:".375rem",alignItems:"center"}},
+                    RC("div",{style:{fontSize:".65rem",color:"#94a3b8",display:"flex",gap:".375rem",alignItems:"center",flexWrap:"wrap"}},
                       (sp?sp.nama:"—")+" · "+(b.items||[]).length+" bahan",
-                      b.notaNo&&RC("span",{style:{background:"#dbeafe",color:"#1d4ed8",borderRadius:"3px",padding:"0 4px",fontWeight:700,fontSize:".6rem"}},b.notaNo)
+                      b.notaNo&&RC("span",{style:{background:"#dbeafe",color:"#1d4ed8",borderRadius:"3px",padding:"0 4px",fontWeight:700,fontSize:".6rem"}},b.notaNo),
+                      // Ringkasan status item
+                      (function(){
+                        var its=b.items||[];
+                        if(!its.length) return null;
+                        var sampai=its.filter(function(it){return (it.status||"dipesan")==="sampai";}).length;
+                        var aktif=its.filter(function(it){var s=it.status||"dipesan";return s!=="sampai"&&s!=="dibatalkan";}).length;
+                        if(sampai===its.length) return RC("span",{style:{background:"#f0fdf4",color:"#059669",border:"1px solid #bbf7d0",borderRadius:"3px",padding:"0 4px",fontWeight:700,fontSize:".6rem"}},"✓ Semua sampai");
+                        if(aktif>0) return RC("span",{style:{background:"#fff7ed",color:"#ea580c",border:"1px solid #fed7aa",borderRadius:"3px",padding:"0 4px",fontWeight:700,fontSize:".6rem"}},sampai+"/"+its.length+" sampai");
+                        return null;
+                      })()
                     )
                   ),
                   RC("div",{style:{fontFamily:"monospace",fontWeight:700,fontSize:".78rem",color:"#2563eb",flexShrink:0}},fmt(b.totalFinal||0)),
@@ -2027,9 +2077,21 @@ function PagePesanan(p){
         )
         :RC("p",{style:{fontSize:".78rem",color:"#94a3b8",margin:0,textAlign:"center",padding:".5rem 0"}},"Belum ada data belanja"),
 
-      // Dropdown selector
-      showSelector&&RC("div",{style:{marginTop:".625rem",borderTop:"1px solid #f1f5f9",paddingTop:".625rem",maxHeight:"240px",overflowY:"auto",display:"flex",flexDirection:"column",gap:"4px"}},
-        sortedB.slice(0,30).map(function(b,i){
+      // Dropdown selector dengan search
+      showSelector&&RC("div",{style:{marginTop:".625rem",borderTop:"1px solid #f1f5f9",paddingTop:".625rem"}},
+        RC("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",
+          fontSize:".75rem",fontFamily:"inherit",marginBottom:".5rem"},
+          placeholder:"🔍 Cari belanja...",
+          value:searchItem,onChange:function(e){setSearchItem(e.target.value);}
+        }),
+        RC("div",{style:{maxHeight:"220px",overflowY:"auto",display:"flex",flexDirection:"column",gap:"4px"}},
+        sortedB.filter(function(b){
+          if(!searchItem) return true;
+          var sq=searchItem.toLowerCase();
+          return (b.judul||"").toLowerCase().indexOf(sq)>=0
+            || (b.tanggal||"").indexOf(sq)>=0
+            || (b.items||[]).some(function(it){return (it.nama||"").toLowerCase().indexOf(sq)>=0;});
+        }).map(function(b,i){
           var sp2=(p.sppgList||[]).find(function(x){return x.id===b.sppgId;});
           var isSelected=b.id===selBelanjaId;
           return RC("button",{key:b.id,
@@ -2048,23 +2110,33 @@ function PagePesanan(p){
             RC("span",{style:{fontSize:".72rem",fontFamily:"monospace",color:"#2563eb",fontWeight:700,flexShrink:0,marginLeft:".5rem"}},fmtS(b.totalFinal||0))
           );
         })
-      )
+        ) // close inner scroll div
+      ) // close outer wrapper div
     ),
 
-    // ── Ringkasan status item ──
-    selBelanja&&RC("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:".375rem"}},
-      ST_ORDER.map(function(st){
-        var c=ST_COLOR[st];
-        var n=ringkasanItem[st]||0;
-        return RC("div",{key:st,onClick:function(){setFilterItemStatus(filterItemStatus===st?"semua":st);},
-          style:{background:filterItemStatus===st?c.bg:"white",
-            border:"1px solid "+(filterItemStatus===st?c.bd:"#e2e8f0"),
-            borderRadius:".625rem",padding:".5rem",textAlign:"center",cursor:"pointer",
-            opacity:n===0?.45:1}},
-          RC("div",{style:{fontSize:"1.1rem",fontWeight:800,color:c.tx}},n),
-          RC("div",{style:{fontSize:".58rem",color:"#64748b",fontWeight:600,textTransform:"uppercase"}},ST_LABEL[st])
-        );
-      })
+    // ── Ringkasan status item + filter ──
+    selBelanja&&RC("div",{style:{display:"flex",flexDirection:"column",gap:".375rem"}},
+      RC("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:".375rem"}},
+        ST_ORDER.map(function(st){
+          var c=ST_COLOR[st];
+          var n=ringkasanItem[st]||0;
+          var isActive=filterItemStatus===st;
+          return RC("div",{key:st,onClick:function(){setFilterItemStatus(isActive?"semua":st);},
+            style:{background:isActive?c.bg:"white",
+              border:"2px solid "+(isActive?c.dot:"#e2e8f0"),
+              borderRadius:".625rem",padding:".5rem",textAlign:"center",cursor:"pointer",
+              opacity:n===0?.4:1,transition:"all .12s"}},
+            RC("div",{style:{fontSize:"1.05rem",fontWeight:800,color:isActive?c.tx:"#1e293b"}},n),
+            RC("div",{style:{fontSize:".58rem",fontWeight:600,color:isActive?c.tx:"#64748b",textTransform:"uppercase"}},ST_LABEL[st])
+          );
+        })
+      ),
+      filterItemStatus!=="semua"&&RC("div",{style:{textAlign:"right"}},
+        RC("button",{onClick:function(){setFilterItemStatus("semua");},
+          style:{background:"none",border:"none",fontSize:".68rem",color:"#94a3b8",cursor:"pointer",padding:"0 2px"}},
+          "✕ Hapus filter"
+        )
+      )
     ),
 
     // ── Bulk update + search ──
@@ -2096,8 +2168,18 @@ function PagePesanan(p){
         var c=ST_COLOR[itSt]||ST_COLOR.dipesan;
         var curIdx=ST_ORDER.indexOf(itSt);
         var nextSt=curIdx>=0&&curIdx<ST_ORDER.length-1?ST_ORDER[curIdx+1]:null;
+        var prevSt=curIdx>0?ST_ORDER[curIdx-1]:null;
         var isBatal=itSt==="dibatalkan";
         var isDone=itSt==="sampai";
+        // Untuk dibatalkan: cari status terakhir sebelum dibatalkan dari log
+        var revertToBatal=(function(){
+          if(!isBatal) return null;
+          var logs=it.statusLog||[];
+          for(var li=logs.length-1;li>=0;li--){
+            if(logs[li].status!=="dibatalkan") return logs[li].status;
+          }
+          return "dipesan";
+        })();
         var isExpanded=expandedItemId===it.id;
 
         // Cek lambat: sudah >2 hari sejak update terakhir dan belum selesai
@@ -2160,7 +2242,7 @@ function PagePesanan(p){
                 );
               })
             ),
-            // Action buttons
+            // Action buttons — maju
             !isDone&&!isBatal&&nextSt&&RC("div",{style:{display:"flex",flexDirection:"column",gap:".375rem"}},
               RC("input",{style:Object.assign({},is,{width:"100%",background:"white",fontSize:".75rem"}),
                 placeholder:"Catatan opsional (no. resi, kurir, dll.)",
@@ -2176,8 +2258,34 @@ function PagePesanan(p){
                 )
               )
             ),
-            isDone&&RC("div",{style:{textAlign:"center",padding:".25rem 0",fontSize:".78rem",fontWeight:700,color:"#059669"}},"✅ Sudah diterima"),
-            isBatal&&RC("div",{style:{textAlign:"center",padding:".25rem 0",fontSize:".78rem",fontWeight:700,color:"#dc2626"}},"✕ Dibatalkan")
+            isDone&&RC("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:".25rem 0"}},
+              RC("span",{style:{fontSize:".78rem",fontWeight:700,color:"#059669"}},"✅ Sudah diterima")
+            ),
+            isBatal&&RC("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",padding:".25rem 0"}},
+              RC("span",{style:{fontSize:".78rem",fontWeight:700,color:"#dc2626"}},"✕ Dibatalkan"),
+              RC("button",{
+                onClick:function(){
+                  if(window.confirm("Aktifkan kembali bahan ini ke status '"+ST_LABEL[revertToBatal]+"'?"))
+                    updateItemStatus(it.id,revertToBatal);
+                },
+                style:{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"4px 12px",
+                  fontSize:".68rem",color:"#64748b",cursor:"pointer",fontWeight:600}},
+                "↩ Aktifkan kembali"
+              )
+            ),
+            // Tombol kembalikan ke status sebelumnya (muncul jika bukan status pertama & bukan dibatalkan)
+            !isBatal&&prevSt&&RC("div",{style:{marginTop:".375rem",borderTop:"1px solid rgba(0,0,0,.08)",paddingTop:".375rem"}},
+              RC("button",{
+                onClick:function(){
+                  if(window.confirm("Kembalikan '"+it.nama+"' ke status '"+ST_LABEL[prevSt]+"'?"))
+                    updateItemStatus(it.id,prevSt);
+                },
+                style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:".375rem",
+                  padding:"4px 10px",fontSize:".68rem",color:"#64748b",cursor:"pointer",
+                  fontWeight:600,display:"inline-flex",alignItems:"center",gap:"4px"}},
+                "↩ Kembalikan ke "+ST_LABEL[prevSt]
+              )
+            )
           )
         );
       })
@@ -2576,7 +2684,6 @@ function App(){
   var NAV=[
     {id:"dashboard",icon:"🏠",label:"Home"},
     {id:"belanja",icon:"🛒",label:"Belanja"},
-    {id:"operasional",icon:"⚙️",label:"Ops"},
     {id:"harga",icon:"💹",label:"Harga"},
     {id:"pesanan",icon:"📦",label:"Pesanan"},
   ];
@@ -2584,7 +2691,6 @@ function App(){
   function renderPage(){
     if(tab==="dashboard") return RC(PageDashboard,{sppgList:safeSppg,belanjaList:belanjaList,operasionalList:operasionalList,hargaHistory:hargaHistory,setModal:setModal,setTab:setTab});
     if(tab==="belanja") return RC(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaList,setHargaList:setHargaList,setHargaHistory:setHargaHistory,dbStatus:dbStatus});
-    if(tab==="operasional") return RC(PageOperasional,{sppgList:safeSppg,operasionalList:operasionalList,setOperasionalList:setOperasionalList,dbStatus:dbStatus});
     if(tab==="harga") return RC(PageHarga,{hargaList:hargaList,setHargaList:setHargaList,hargaHistory:hargaHistory,setHargaHistory:setHargaHistory,dbStatus:dbStatus});
     if(tab==="pesanan") return RC(PagePesanan,{belanjaList:belanjaList,setBelanjaList:setBelanjaList,sppgList:safeSppg,dbStatus:dbStatus});
     return null;
