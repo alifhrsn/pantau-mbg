@@ -873,6 +873,9 @@ function PageBelanja(p){
 
   var activeRows=safeRows.filter(function(r){return r.nama&&r.qty>0;});
 
+  // safeB harus didefinisikan SEBELUM useMemo yang menggunakannya
+  var safeB=Array.isArray(p.belanjaList)?p.belanjaList:[];
+
   // Rekomendasi porsi: ambil 3 nilai unik terakhir dari history belanja
   var lastPorsiKecil=useMemo(function(){
     var vals=[];
@@ -904,7 +907,6 @@ function PageBelanja(p){
   var selisih=budgetTotal-totalFinal;
   var adaBudget=budgetTotal>0;
 
-  var safeB=Array.isArray(p.belanjaList)?p.belanjaList:[];
   // Belanja pada tanggal yang sedang dipilih (slice(0,10) agar aman jika ada ISO timestamp)
   var recordsForDate=safeB.filter(function(b){return (b.tanggal||"").slice(0,10)===tgl;}).sort(function(a,b){return (a.createdAt||"").localeCompare(b.createdAt||"");});
 
