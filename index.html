@@ -197,7 +197,7 @@ function belanjaToTrx(b){
     kategori:JSON.stringify({judul:b.judul||"",items:b.items||[],
       totalSupplier:b.totalSupplier||0,totalFinal:b.totalFinal||0,
       porsiKecil:b.porsiKecil||0,porsiBesar:b.porsiBesar||0,notaNo:b.notaNo||"",
-      status:b.status||"dipesan",statusLog:b.statusLog||[]})};
+      status:b.status||"belum_dipesan",statusLog:b.statusLog||[]})};
 }
 function trxToBelanja(t){
   var d={};
@@ -209,7 +209,7 @@ function trxToBelanja(t){
     tanggal:t.tanggal||"",items:items,
     totalSupplier:d.totalSupplier||0,totalFinal:t.jumlah||d.totalFinal||0,
     porsiKecil:d.porsiKecil||0,porsiBesar:d.porsiBesar||0,
-    notaNo:d.notaNo||"",status:d.status||"dipesan",statusLog:d.statusLog||[],
+    notaNo:d.notaNo||"",status:d.status||"belum_dipesan",statusLog:d.statusLog||[],
     createdAt:t.created_at||""};
 }
 function opToTrx(o){
@@ -540,7 +540,7 @@ function PageDashboard(p){
   var itemStatusBln={dipesan:0,dibayar:0,dikirim:0,sampai:0,dibatalkan:0};
   blnB.forEach(function(b){
     (b.items||[]).forEach(function(it){
-      var st=it.status||"dipesan";
+      var st=it.status||"belum_dipesan";
       itemStatusBln[st]=(itemStatusBln[st]||0)+1;
     });
   });
@@ -556,7 +556,7 @@ function PageDashboard(p){
   // ── Pesanan aktif terbaru (3 entry, ada item yang belum sampai) — item-level ──
   var pesananAktif=safeB.filter(function(b){
     return (b.items||[]).some(function(it){
-      var st=it.status||"dipesan";
+      var st=it.status||"belum_dipesan";
       return st!=="sampai"&&st!=="dibatalkan";
     });
   }).sort(function(a,b){
@@ -729,7 +729,7 @@ function PageDashboard(p){
             // Hitung item per status (item-level)
             var itemSt={dipesan:0,dibayar:0,dikirim:0,sampai:0};
             (b.items||[]).forEach(function(it){
-              var s=it.status||"dipesan";
+              var s=it.status||"belum_dipesan";
               if(itemSt[s]!==undefined) itemSt[s]++;
             });
             var totalItem=(b.items||[]).length;
@@ -892,7 +892,7 @@ function PageBelanja(p){
       return {id:it.id||uid(),nama:it.nama||"",qty:it.qty||0,satuan:it.satuan||"",
         hargaSupplier:it.hargaSupplier||0,hargaFinal:it.hargaFinal||0,
         // Bawa serta status tracking agar tidak hilang saat edit
-        status:it.status||"dipesan",statusLog:it.statusLog||[]};
+        status:it.status||"belum_dipesan",statusLog:it.statusLog||[]};
     });
     while(editRows.length<4) editRows.push(emptyRow());
     setEditId(b.id);
@@ -1049,14 +1049,14 @@ function PageBelanja(p){
                 || (existing.items||[]).find(function(ei){return ei.nama===row.nama;});
           return Object.assign({},row,{
             id:row.id||(orig?orig.id:uid()),
-            status:orig?(orig.status||"dipesan"):(row.status||"dipesan"),
+            status:orig?(orig.status||"belum_dipesan"):(row.status||"belum_dipesan"),
             statusLog:orig?(orig.statusLog||[]):(row.statusLog||[])
           });
         });
         var updated=Object.assign({},existing,{sppgId:selSppg,judul:judul,tanggal:tgl,
           porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,
           items:mergedItems,totalSupplier:totalSupplier,totalFinal:totalFinal,
-          status:existing.status||"dipesan",
+          status:existing.status||"belum_dipesan",
           statusLog:existing.statusLog||[],
           notaNo:existing.notaNo||""});
         p.setBelanjaList(function(prev){return (Array.isArray(prev)?prev:[]).map(function(b){return b.id===editId?updated:b;});});
@@ -1207,8 +1207,8 @@ function PageBelanja(p){
                       (function(){
                         var its=b.items||[];
                         if(!its.length) return null;
-                        var sampai=its.filter(function(it){return (it.status||"dipesan")==="sampai";}).length;
-                        var aktif=its.filter(function(it){var s=it.status||"dipesan";return s!=="sampai"&&s!=="dibatalkan";}).length;
+                        var sampai=its.filter(function(it){return (it.status||"belum_dipesan")==="sampai";}).length;
+                        var aktif=its.filter(function(it){var s=it.status||"belum_dipesan";return s!=="sampai"&&s!=="dibatalkan";}).length;
                         if(sampai===its.length) return RC("span",{style:{background:"#f0fdf4",color:"#059669",border:"1px solid #bbf7d0",borderRadius:"3px",padding:"0 4px",fontWeight:700,fontSize:".6rem"}},"✓ Semua sampai");
                         if(aktif>0) return RC("span",{style:{background:"#fff7ed",color:"#ea580c",border:"1px solid #fed7aa",borderRadius:"3px",padding:"0 4px",fontWeight:700,fontSize:".6rem"}},sampai+"/"+its.length+" sampai");
                         return null;
@@ -1495,7 +1495,7 @@ function PageBelanja(p){
             var rows=[["Tanggal","SPPG","Judul","Porsi Kecil","Porsi Besar","Total Belanja","Status"]];
             filtered.forEach(function(b){
               var sp=(p.sppgList||[]).find(function(x){return x.id===b.sppgId;});
-              rows.push([b.tanggal,sp?sp.nama:"",b.judul||"",b.porsiKecil||0,b.porsiBesar||0,b.totalFinal||0,b.status||"dipesan"]);
+              rows.push([b.tanggal,sp?sp.nama:"",b.judul||"",b.porsiKecil||0,b.porsiBesar||0,b.totalFinal||0,b.status||"belum_dipesan"]);
               (b.items||[]).forEach(function(it){
                 rows.push(["","","  └ "+it.nama,it.qty,it.satuan,it.hargaFinal||0,""]);
               });
@@ -1932,16 +1932,18 @@ function PageOperasional(p){
 }
 
 // ─── PAGE PESANAN (Track Pesanan) ─────────────────────────────────────────────
-var ST_ORDER=["dipesan","dibayar","dikirim","sampai"];
-var ST_LABEL={dipesan:"Dipesan",dibayar:"Dibayar",dikirim:"Dikirim",sampai:"Sampai",dibatalkan:"Dibatalkan"};
-var ST_COLOR={dipesan:{bg:"#fff7ed",bd:"#fed7aa",tx:"#ea580c",dot:"#f59e0b"},
+var ST_ORDER=["belum_dipesan","dipesan","dibayar","dikirim","sampai"];
+var ST_LABEL={belum_dipesan:"Belum Dipesan",dipesan:"Dipesan",dibayar:"Dibayar",dikirim:"Dikirim",sampai:"Sampai",dibatalkan:"Dibatalkan"};
+var ST_COLOR={
+  belum_dipesan:{bg:"#f8fafc",bd:"#e2e8f0",tx:"#64748b",dot:"#94a3b8"},
+  dipesan:{bg:"#fff7ed",bd:"#fed7aa",tx:"#ea580c",dot:"#f59e0b"},
   dibayar:{bg:"#eff6ff",bd:"#bfdbfe",tx:"#2563eb",dot:"#3b82f6"},
   dikirim:{bg:"#f5f3ff",bd:"#ddd6fe",tx:"#7c3aed",dot:"#8b5cf6"},
   sampai:{bg:"#f0fdf4",bd:"#bbf7d0",tx:"#059669",dot:"#10b981"},
   dibatalkan:{bg:"#fef2f2",bd:"#fecaca",tx:"#dc2626",dot:"#ef4444"}};
 
 function StatusBadge(p){
-  var st=p.status||"dipesan";
+  var st=p.status||"belum_dipesan";
   var c=ST_COLOR[st]||ST_COLOR.dipesan;
   return RC("span",{style:{background:c.bg,color:c.tx,border:"1px solid "+c.bd,
     borderRadius:"999px",padding:"2px 9px",fontSize:".62rem",fontWeight:700,
@@ -2011,7 +2013,7 @@ function PagePesanan(p){
     var cloudOK=dbOK(p.dbStatus);
     var logEntry={status:newStatus,waktu:new Date().toISOString(),catatan:"(bulk update)"};
     var newItems=(selBelanja.items||[]).map(function(it){
-      var curSt=it.status||"dipesan";
+      var curSt=it.status||"belum_dipesan";
       var curIdx=ST_ORDER.indexOf(curSt);
       var newIdx=ST_ORDER.indexOf(newStatus);
       if(newIdx<=curIdx) return it; // jangan mundur
@@ -2029,7 +2031,7 @@ function PagePesanan(p){
   var ringkasanItem=useMemo(function(){
     var r={dipesan:0,dibayar:0,dikirim:0,sampai:0,dibatalkan:0};
     if(!selBelanja) return r;
-    (selBelanja.items||[]).forEach(function(it){r[it.status||"dipesan"]=(r[it.status||"dipesan"]||0)+1;});
+    (selBelanja.items||[]).forEach(function(it){r[it.status||"belum_dipesan"]=(r[it.status||"belum_dipesan"]||0)+1;});
     return r;
   },[selBelanja]);
 
@@ -2037,7 +2039,7 @@ function PagePesanan(p){
   var filteredItems=useMemo(function(){
     if(!selBelanja) return [];
     return (selBelanja.items||[]).filter(function(it){
-      if(filterItemStatus!=="semua"&&(it.status||"dipesan")!==filterItemStatus) return false;
+      if(filterItemStatus!=="semua"&&(it.status||"belum_dipesan")!==filterItemStatus) return false;
       if(searchItem){var sq=searchItem.toLowerCase();if((it.nama||"").toLowerCase().indexOf(sq)<0)return false;}
       return true;
     });
@@ -2164,7 +2166,7 @@ function PagePesanan(p){
 
     selBelanja&&filteredItems.length>0&&RC("div",{style:{display:"flex",flexDirection:"column",gap:".5rem"}},
       filteredItems.map(function(it){
-        var itSt=it.status||"dipesan";
+        var itSt=it.status||"belum_dipesan";
         var c=ST_COLOR[itSt]||ST_COLOR.dipesan;
         var curIdx=ST_ORDER.indexOf(itSt);
         var nextSt=curIdx>=0&&curIdx<ST_ORDER.length-1?ST_ORDER[curIdx+1]:null;
@@ -2178,7 +2180,7 @@ function PagePesanan(p){
           for(var li=logs.length-1;li>=0;li--){
             if(logs[li].status!=="dibatalkan") return logs[li].status;
           }
-          return "dipesan";
+          return "belum_dipesan";
         })();
         var isExpanded=expandedItemId===it.id;
 
