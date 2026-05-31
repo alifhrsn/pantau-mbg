@@ -203,7 +203,7 @@ function trxToBelanja(t){
   var d={};
   try{d=JSON.parse(t.kategori||"{}");}catch(e){}
   var items=(d.items||[]).map(function(it){
-    return Object.assign({},it,{id:it.id||uid()});
+    return Object.assign({},it,{id:it.id||uid(),status:it.status||"belum_dipesan",statusLog:it.statusLog||[]});
   });
   return {id:t.id,sppgId:t.sppg_id||"",judul:d.judul||t.uraian||"",
     tanggal:t.tanggal||"",items:items,
@@ -537,14 +537,14 @@ function PageDashboard(p){
   var sisaBudget=budgetHarian-totalBlnIni;
 
   // ── Hitung status bahan (item-level) untuk seluruh belanja bulan ini ──
-  var itemStatusBln={dipesan:0,dibayar:0,dikirim:0,sampai:0,dibatalkan:0};
+  var itemStatusBln={belum_dipesan:0,dipesan:0,dibayar:0,dikirim:0,sampai:0,dibatalkan:0};
   blnB.forEach(function(b){
     (b.items||[]).forEach(function(it){
       var st=it.status||"belum_dipesan";
       itemStatusBln[st]=(itemStatusBln[st]||0)+1;
     });
   });
-  var totalItemAktif=(itemStatusBln.dipesan||0)+(itemStatusBln.dibayar||0)+(itemStatusBln.dikirim||0);
+  var totalItemAktif=(itemStatusBln.belum_dipesan||0)+(itemStatusBln.dipesan||0)+(itemStatusBln.dibayar||0)+(itemStatusBln.dikirim||0);
 
   // ── Belanja terakhir ditambah/diedit (1 entry) ──
   var lastBelanja=safeB.slice().sort(function(a,b){
@@ -637,10 +637,13 @@ function PageDashboard(p){
     win.document.write('<table><tr class="total"><td>Total Belanja</td><td style="text-align:right">'+fmt(totalBlnIni)+'</td></tr>'
       +'<tr><td>Maks. Budget Porsi</td><td style="text-align:right">'+fmt(budgetHarian)+'</td></tr>'
       +'<tr class="total"><td>'+(sisaBudget>=0?"Sisa Budget":"Melebihi Budget")+'</td><td style="text-align:right;color:'+(sisaBudget>=0?"#059669":"#dc2626")+'">'+fmt(Math.abs(sisaBudget))+'</td></tr>'
-      +'<tr><td>Status Bahan — Dipesan</td><td style="text-align:right">'+itemStatusBln.dipesan+'</td></tr>'
-      +'<tr><td>Status Bahan — Dibayar</td><td style="text-align:right">'+itemStatusBln.dibayar+'</td></tr>'
-      +'<tr><td>Status Bahan — Dikirim</td><td style="text-align:right">'+itemStatusBln.dikirim+'</td></tr>'
-      +'<tr><td>Status Bahan — Sampai</td><td style="text-align:right">'+itemStatusBln.sampai+'</td></tr>'
+      +'<tr><td>Total Porsi Kecil</td><td style="text-align:right">'+blnB.reduce(function(a,b){return a+(b.porsiKecil||0);},0)+' porsi</td></tr>'
+      +'<tr><td>Total Porsi Besar</td><td style="text-align:right">'+blnB.reduce(function(a,b){return a+(b.porsiBesar||0);},0)+' porsi</td></tr>'
+      +'<tr><td>Bahan — Belum Dipesan</td><td style="text-align:right">'+itemStatusBln.belum_dipesan+'</td></tr>'
+      +'<tr><td>Bahan — Dipesan</td><td style="text-align:right">'+itemStatusBln.dipesan+'</td></tr>'
+      +'<tr><td>Bahan — Dibayar</td><td style="text-align:right">'+itemStatusBln.dibayar+'</td></tr>'
+      +'<tr><td>Bahan — Dikirim</td><td style="text-align:right">'+itemStatusBln.dikirim+'</td></tr>'
+      +'<tr><td>Bahan — Sampai</td><td style="text-align:right">'+itemStatusBln.sampai+'</td></tr>'
       +'</table>');
     win.document.write('<h3 style="font-size:13px;color:#475569;margin-top:16px">DETAIL BELANJA ('+blnB.length+' transaksi)</h3>');
     win.document.write('<table><thead><tr><th>Tanggal</th><th>SPPG</th><th>Keterangan</th><th style="text-align:right">Total</th></tr></thead><tbody>'+rows+'</tbody></table>');
@@ -688,24 +691,50 @@ function PageDashboard(p){
       );
     })(),
 
-    // ── Belanja terakhir ──
-    RC(Card,null,
-      RC(SectionLabel,{title:"🛒 Belanja Terakhir",sub:lastBelanja?shortDate(lastBelanja.tanggal):""}),
+    // ── Belanja terakhir (klik → buka tab Belanja di tanggal yang sama) ──
+    RC(Card,{style:{cursor:lastBelanja?"pointer":"default",transition:"box-shadow .12s"},
+      onClick:function(){
+        if(!lastBelanja||!p.setTab) return;
+        // Set tanggal di localStorage agar PageBelanja langsung tampil di tanggal belanja ini
+        try{localStorage.setItem("mbg_draft_tgl",JSON.stringify(lastBelanja.tanggal));}catch(e){}
+        p.setTab("belanja");
+      },
+      onMouseEnter:function(e){if(lastBelanja)e.currentTarget.style.boxShadow="0 2px 12px rgba(37,99,235,.12)";},
+      onMouseLeave:function(e){e.currentTarget.style.boxShadow="none";}},
+      RC(SectionLabel,{title:"🛒 Belanja Terakhir",sub:lastBelanja?shortDate(lastBelanja.tanggal)+" · Klik untuk lihat →":""}),
       lastBelanja
         ? (function(){
             var sp=(p.sppgList||[]).find(function(x){return x.id===lastBelanja.sppgId;});
+            // Ringkasan status item
+            var sampaiCount=(lastBelanja.items||[]).filter(function(it){return (it.status||"belum_dipesan")==="sampai";}).length;
+            var totalCount=(lastBelanja.items||[]).length;
             return RC("div",{style:{display:"flex",flexDirection:"column",gap:".375rem"}},
               RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
-                RC("div",null,
+                RC("div",{style:{flex:1,minWidth:0,marginRight:".5rem"}},
                   RC("p",{style:{fontWeight:700,fontSize:".85rem",color:"#1e293b",margin:0}},lastBelanja.judul||"(tanpa judul)"),
-                  RC("p",{style:{fontSize:".65rem",color:"#94a3b8",margin:"2px 0 0"}},(sp?sp.nama:"—")+" · "+(lastBelanja.items||[]).length+" bahan")
+                  RC("div",{style:{display:"flex",gap:".5rem",alignItems:"center",marginTop:"2px",flexWrap:"wrap"}},
+                    RC("p",{style:{fontSize:".65rem",color:"#94a3b8",margin:0}},(sp?sp.nama:"—")+" · "+totalCount+" bahan"),
+                    totalCount>0&&RC("span",{style:{
+                      background:sampaiCount===totalCount?"#f0fdf4":"#fff7ed",
+                      color:sampaiCount===totalCount?"#059669":"#ea580c",
+                      border:"1px solid "+(sampaiCount===totalCount?"#bbf7d0":"#fed7aa"),
+                      borderRadius:"3px",padding:"0 5px",fontSize:".6rem",fontWeight:700}},
+                      sampaiCount===totalCount?"✓ Semua sampai":sampaiCount+"/"+totalCount+" sampai"
+                    )
+                  )
                 ),
-                RC("p",{style:{fontFamily:"monospace",fontWeight:800,fontSize:".9rem",color:"#2563eb",margin:0,flexShrink:0}},fmt(lastBelanja.totalFinal||0))
+                RC("div",{style:{textAlign:"right",flexShrink:0}},
+                  RC("p",{style:{fontFamily:"monospace",fontWeight:800,fontSize:".9rem",color:"#2563eb",margin:0}},fmt(lastBelanja.totalFinal||0)),
+                  RC("p",{style:{fontSize:".6rem",color:"#94a3b8",margin:"2px 0 0"}},"Lihat & Edit →")
+                )
               ),
               // Mini item list (max 4)
               RC("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px",marginTop:"2px"}},
                 (lastBelanja.items||[]).slice(0,4).map(function(it,i){
-                  return RC("span",{key:i,style:{background:"#f1f5f9",borderRadius:"999px",padding:"2px 8px",fontSize:".62rem",color:"#475569",fontWeight:600}},
+                  var itSt=it.status||"belum_dipesan";
+                  var sc=ST_COLOR[itSt]||ST_COLOR.belum_dipesan;
+                  return RC("span",{key:i,style:{background:sc.bg,border:"1px solid "+sc.bd,
+                    borderRadius:"999px",padding:"2px 8px",fontSize:".62rem",color:sc.tx,fontWeight:600}},
                     it.nama+(it.qty?" ("+it.qty+" "+it.satuan+")":"")
                   );
                 }),
@@ -801,7 +830,7 @@ function PageDashboard(p){
 
 // ─── PAGE BELANJA ─────────────────────────────────────────────────────────────
 function PageBelanja(p){
-  function emptyRow(){return {id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0};}
+  function emptyRow(){return {id:uid(),nama:"",qty:0,satuan:"",hargaSupplier:0,hargaFinal:0,status:"belum_dipesan",statusLog:[]};}
   var initRows=(function(){var r=[];for(var i=0;i<4;i++)r.push(emptyRow());return r;})();
 
   // ── State (localStorage = bertahan saat pindah menu) ──
@@ -843,6 +872,20 @@ function PageBelanja(p){
   },[tgl]);
 
   var activeRows=safeRows.filter(function(r){return r.nama&&r.qty>0;});
+
+  // Rekomendasi porsi: ambil 3 nilai unik terakhir dari history belanja
+  var lastPorsiKecil=useMemo(function(){
+    var vals=[];
+    safeB.slice().sort(function(a,b){return (b.createdAt||b.tanggal||"").localeCompare(a.createdAt||a.tanggal||"");})
+      .forEach(function(b){if((b.porsiKecil||0)>0&&vals.indexOf(b.porsiKecil)<0)vals.push(b.porsiKecil);});
+    return vals.slice(0,3);
+  },[safeB]);
+  var lastPorsiBesar=useMemo(function(){
+    var vals=[];
+    safeB.slice().sort(function(a,b){return (b.createdAt||b.tanggal||"").localeCompare(a.createdAt||a.tanggal||"");})
+      .forEach(function(b){if((b.porsiBesar||0)>0&&vals.indexOf(b.porsiBesar)<0)vals.push(b.porsiBesar);});
+    return vals.slice(0,3);
+  },[safeB]);
 
   useEffect(function(){
     function handler(e){
@@ -922,6 +965,7 @@ function PageBelanja(p){
         +'<td style="border:1px solid #e2e8f0;padding:7px 10px;font-weight:600">'+it.nama+'</td>'
         +'<td style="text-align:right;font-family:monospace;border:1px solid #e2e8f0;padding:7px 10px">'+fmt(it.hargaFinal||0)+'</td>'
         +'<td style="text-align:right;font-family:monospace;font-weight:700;color:#059669;border:1px solid #e2e8f0;padding:7px 10px">'+fmt((it.qty||0)*(it.hargaFinal||0))+'</td>'
+        +'<td style="border:1px solid #e2e8f0;padding:7px 10px;font-size:11px;text-align:center;color:#64748b">'+(ST_LABEL[it.status||'belum_dipesan']||it.status||'Belum Dipesan')+'</td>'
         +'</tr>';
     });
     var total=(b.items||[]).reduce(function(a,it){return a+(it.qty||0)*(it.hargaFinal||0);},0);
@@ -966,6 +1010,7 @@ function PageBelanja(p){
       +'<th>Nama Barang</th>'
       +'<th style="text-align:right">Harga Satuan</th>'
       +'<th style="text-align:right">Jumlah</th>'
+      +'<th style="text-align:center">Status</th>'
       +'</tr></thead><tbody>'+rowsHtml+'</tbody>'
       +'<tfoot><tr class="total-row">'
       +'<td colspan="4" style="text-align:right;font-size:14px">TOTAL BELANJA:</td>'
@@ -1068,9 +1113,13 @@ function PageBelanja(p){
       showToast("Perubahan berhasil disimpan!","success");
     } else {
       // ── MODE BARU: tambah entry baru ──
+      // Pastikan setiap item baru punya status awal
+      var entryItems=activeRows.map(function(row){
+        return Object.assign({},row,{status:row.status||"belum_dipesan",statusLog:row.statusLog||[]});
+      });
       var entry={id:uid(),sppgId:selSppg,judul:judul,tanggal:tgl,
         porsiKecil:parseInt(pk)||0,porsiBesar:parseInt(pb)||0,
-        items:activeRows,totalSupplier:totalSupplier,totalFinal:totalFinal,createdAt:new Date().toISOString()};
+        items:entryItems,totalSupplier:totalSupplier,totalFinal:totalFinal,createdAt:new Date().toISOString()};
       p.setBelanjaList(function(prev){return (Array.isArray(prev)?prev:[]).concat([entry]);});
       if(cloudOK) sbUpsert("transaksi",[belanjaToTrx(entry)]).catch(function(e){console.warn(e);});
       updateHargaDB(activeRows, tgl);
@@ -1129,7 +1178,7 @@ function PageBelanja(p){
     return true;
   }).sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
 
-  useEffect(function(){setPgNum(1);},[filterSppg,filterBulan,searchQ]);
+  useEffect(function(){setPgNum(1);},[filterSppg,filterBulan,searchQ,tglDari,tglSampai]);
   var totalPages=Math.ceil(filtered.length/PAGE_SIZE)||1;
   var pagedFiltered=filtered.slice((pgNum-1)*PAGE_SIZE,pgNum*PAGE_SIZE);
 
@@ -1318,11 +1367,33 @@ function PageBelanja(p){
         RC("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem"}},
           RC("div",null,
             RC("label",{style:{fontSize:".68rem",fontWeight:600,color:"#3b82f6",display:"block",marginBottom:"3px"}},"Porsi Kecil"),
-            RC("input",{type:"number",style:Object.assign({},is,{background:"#eff6ff",borderColor:"#bfdbfe"}),placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}})
+            RC("input",{type:"number",style:Object.assign({},is,{background:"#eff6ff",borderColor:"#bfdbfe"}),placeholder:"0",value:pk||"",onChange:function(e){setPk(parseInt(e.target.value)||0);}}),
+            lastPorsiKecil.length>0&&RC("div",{style:{display:"flex",gap:"4px",marginTop:"4px",flexWrap:"wrap",alignItems:"center"}},
+              RC("span",{style:{fontSize:".58rem",color:"#94a3b8",marginRight:"2px"}},"Terakhir:"),
+              lastPorsiKecil.map(function(v,i){
+                return RC("button",{key:i,onClick:function(){setPk(v);},
+                  style:{background:pk===v?"#dbeafe":"#eff6ff",border:"1px solid "+(pk===v?"#93c5fd":"#bfdbfe"),
+                    borderRadius:"999px",padding:"1px 8px",fontSize:".65rem",
+                    color:pk===v?"#1d4ed8":"#3b82f6",cursor:"pointer",fontWeight:700}},
+                  v
+                );
+              })
+            )
           ),
           RC("div",null,
             RC("label",{style:{fontSize:".68rem",fontWeight:600,color:"#ea580c",display:"block",marginBottom:"3px"}},"Porsi Besar"),
-            RC("input",{type:"number",style:Object.assign({},is,{background:"#fff7ed",borderColor:"#fed7aa"}),placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}})
+            RC("input",{type:"number",style:Object.assign({},is,{background:"#fff7ed",borderColor:"#fed7aa"}),placeholder:"0",value:pb||"",onChange:function(e){setPb(parseInt(e.target.value)||0);}}),
+            lastPorsiBesar.length>0&&RC("div",{style:{display:"flex",gap:"4px",marginTop:"4px",flexWrap:"wrap",alignItems:"center"}},
+              RC("span",{style:{fontSize:".58rem",color:"#94a3b8",marginRight:"2px"}},"Terakhir:"),
+              lastPorsiBesar.map(function(v,i){
+                return RC("button",{key:i,onClick:function(){setPb(v);},
+                  style:{background:pb===v?"#ffedd5":"#fff7ed",border:"1px solid "+(pb===v?"#fdba74":"#fed7aa"),
+                    borderRadius:"999px",padding:"1px 8px",fontSize:".65rem",
+                    color:pb===v?"#c2410c":"#ea580c",cursor:"pointer",fontWeight:700}},
+                  v
+                );
+              })
+            )
           )
         )
       ),
@@ -1805,132 +1876,6 @@ function PageHarga(p){
   );
 }
 
-// ─── PAGE OPERASIONAL ─────────────────────────────────────────────────────────
-function PageOperasional(p){
-  var KAT=["Operasional Dapur","Gas/Bahan Bakar","Transportasi","Kebersihan","ATK","Lainnya"];
-  var s1=useState(""),uraian=s1[0],setUraian=s1[1];
-  var s2=useState(""),jumlahStr=s2[0],setJumlahStr=s2[1];
-  var s3=useState(today()),tgl=s3[0],setTgl=s3[1];
-  var s4=useState(p.sppgList[0]?p.sppgList[0].id:""),selSppg=s4[0],setSelSppg=s4[1];
-  var s5=useState(KAT[0]),kat=s5[0],setKat=s5[1];
-  var s6=useState(null),editOp=s6[0],setEditOp=s6[1];
-  var s7=useState(""),filterBulan=s7[0],setFilterBulan=s7[1];
-  var safeO=Array.isArray(p.operasionalList)?p.operasionalList:[];
-
-  function simpan(){
-    if(!selSppg){showToast("Pilih SPPG!","error");return;}
-    if(!uraian){showToast("Isi keterangan!","error");return;}
-    var jml=parseFloat(jumlahStr.replace(/\./g,""))||0;
-    if(!jml){showToast("Isi jumlah!","error");return;}
-    var entry={id:uid(),sppgId:selSppg,tanggal:tgl,uraian:uraian,jumlah:jml,kategori:kat,createdAt:new Date().toISOString()};
-    p.setOperasionalList(function(prev){return (Array.isArray(prev)?prev:[]).concat([entry]);});
-    if(dbOK(p.dbStatus)) sbUpsert("transaksi",[opToTrx(entry)]).catch(function(){});
-    setUraian("");setJumlahStr("");
-  }
-  function hapus(id){
-    if(!window.confirm("Hapus data ini?")) return;
-    p.setOperasionalList(function(prev){return (Array.isArray(prev)?prev:[]).filter(function(o){return o.id!==id;});});
-    if(dbOK(p.dbStatus)) sbDelete("transaksi",id).catch(function(){});
-  }
-  function saveEdit(item){
-    p.setOperasionalList(function(prev){return (Array.isArray(prev)?prev:[]).map(function(o){return o.id===item.id?item:o;});});
-    if(dbOK(p.dbStatus)) sbUpsert("transaksi",[opToTrx(item)]).catch(function(){});
-    setEditOp(null);
-  }
-
-  var filtered=safeO.filter(function(o){
-    if(filterBulan&&(!o.tanggal||!o.tanggal.startsWith(filterBulan))) return false;
-    return true;
-  }).sort(function(a,b){return (b.tanggal||"").localeCompare(a.tanggal||"");});
-  var totalFiltered=filtered.reduce(function(a,o){return a+(o.jumlah||0);},0);
-
-  var is={width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:".5rem .75rem",fontSize:".8rem",fontFamily:"inherit"};
-  return RC("div",{style:{display:"flex",flexDirection:"column",gap:".875rem"}},
-    RC(PageHeader,{title:"Operasional",sub:"Biaya operasional dapur"}),
-    RC(Card,null,
-      RC("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:"0 0 .625rem"}},"Input Biaya Operasional"),
-      RC("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginBottom:".5rem"}},
-        RC("div",null,
-          RC("label",{style:{fontSize:".68rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"3px"}},"SPPG"),
-          RC("select",{style:is,value:selSppg,onChange:function(e){setSelSppg(e.target.value);}},
-            RC("option",{value:""},"— Pilih SPPG —"),
-            (p.sppgList||[]).map(function(s){return RC("option",{key:s.id,value:s.id},s.nama);})
-          )
-        ),
-        RC("div",null,
-          RC("label",{style:{fontSize:".68rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"3px"}},"Tanggal"),
-          RC("input",{type:"date",style:is,value:tgl,onChange:function(e){setTgl(e.target.value);}})
-        )
-      ),
-      RC("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginBottom:".5rem"}},
-        RC("div",null,
-          RC("label",{style:{fontSize:".68rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"3px"}},"Kategori"),
-          RC("select",{style:is,value:kat,onChange:function(e){setKat(e.target.value);}},
-            KAT.map(function(k){return RC("option",{key:k,value:k},k);})
-          )
-        ),
-        RC("div",null,
-          RC("label",{style:{fontSize:".68rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"3px"}},"Jumlah (Rp)"),
-          RC("input",{type:"number",style:is,placeholder:"0",value:jumlahStr,onChange:function(e){setJumlahStr(e.target.value);}})
-        )
-      ),
-      RC("div",{style:{marginBottom:".5rem"}},
-        RC("label",{style:{fontSize:".68rem",fontWeight:600,color:"#64748b",display:"block",marginBottom:"3px"}},"Keterangan"),
-        RC("input",{style:is,placeholder:"mis. Isi ulang gas 12kg",value:uraian,onChange:function(e){setUraian(e.target.value);}})
-      ),
-      RC(Btn,{onClick:simpan},"💾 Simpan")
-    ),
-
-    RC(Card,null,
-      RC("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".5rem"}},
-        RC("p",{style:{fontSize:".75rem",fontWeight:700,color:"#475569",margin:0}},"Riwayat Operasional"),
-        RC("input",{type:"month",style:{border:"1px solid #e2e8f0",borderRadius:".375rem",padding:"4px 8px",fontSize:".75rem"},value:filterBulan,onChange:function(e){setFilterBulan(e.target.value);}})
-      ),
-      filtered.length===0
-        ?RC(EmptyState,{icon:"⚙️",title:"Belum ada data operasional"})
-        :RC("div",null,
-          RC("div",{style:{overflowX:"auto"}},
-            RC("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:".72rem"}},
-              RC("thead",null,RC("tr",null,
-                ["Tanggal","SPPG","Kategori","Keterangan","Jumlah","Aksi"].map(function(h,i){
-                  return RC(TH,{key:h,right:i===4},h);
-                })
-              )),
-              RC("tbody",null,filtered.map(function(o){
-                var sp=p.sppgList.find(function(x){return x.id===o.sppgId;});
-                var isEd=editOp&&editOp.id===o.id;
-                return RC("tr",{key:o.id,style:{borderTop:"1px solid #f8fafc",background:isEd?"#eff6ff":"white"}},
-                  RC(TD,{style:{color:"#94a3b8",whiteSpace:"nowrap"}},shortDate(o.tanggal)),
-                  RC(TD,{style:{color:"#64748b"}},sp?sp.nama:"—"),
-                  RC(TD,{style:{color:"#7c3aed"}},isEd?RC("select",{style:{border:"1px solid #bfdbfe",borderRadius:"4px",padding:"3px 5px",fontSize:".72rem"},value:editOp.kategori,onChange:function(e){setEditOp(function(p2){return Object.assign({},p2,{kategori:e.target.value});});}},KAT.map(function(k){return RC("option",{key:k,value:k},k);})):o.kategori),
-                  RC(TD,{},isEd?RC("input",{style:{width:"120px",border:"1px solid #bfdbfe",borderRadius:"4px",padding:"3px 6px",fontSize:".72rem"},value:editOp.uraian,onChange:function(e){setEditOp(function(p2){return Object.assign({},p2,{uraian:e.target.value});});}}):o.uraian),
-                  RC(TD,{style:{textAlign:"right",fontWeight:700,color:"#dc2626",fontFamily:"monospace",whiteSpace:"nowrap"}},
-                    isEd?RC("input",{type:"number",style:{width:"90px",border:"1px solid #bfdbfe",borderRadius:"4px",padding:"3px 6px",fontSize:".72rem",textAlign:"right"},value:editOp.jumlah,onChange:function(e){setEditOp(function(p2){return Object.assign({},p2,{jumlah:parseFloat(e.target.value)||0});})}}) :fmt(o.jumlah)
-                  ),
-                  RC("td",{style:{padding:"6px 8px",whiteSpace:"nowrap"}},
-                    isEd
-                      ?RC("div",{style:{display:"flex",gap:"3px"}},
-                          RC("button",{onClick:function(){saveEdit(editOp);},style:{background:"#059669",color:"white",border:"none",borderRadius:"4px",padding:"3px 8px",fontSize:".68rem",cursor:"pointer"}},"✓"),
-                          RC("button",{onClick:function(){setEditOp(null);},style:{background:"#f1f5f9",color:"#64748b",border:"none",borderRadius:"4px",padding:"3px 8px",fontSize:".68rem",cursor:"pointer"}},"✕")
-                        )
-                      :RC("div",{style:{display:"flex",gap:"3px"}},
-                          RC("button",{onClick:function(){setEditOp(Object.assign({},o));},style:{background:"none",border:"none",cursor:"pointer",fontSize:".8rem",color:"#2563eb"}},"✏️"),
-                          RC("button",{onClick:function(){hapus(o.id);},style:{background:"none",border:"none",cursor:"pointer",fontSize:".8rem",color:"#ef4444"}},"🗑")
-                        )
-                  )
-                );
-              }))
-            )
-          ),
-          RC("div",{style:{textAlign:"right",padding:".5rem .25rem 0",borderTop:"1px solid #f1f5f9",marginTop:".25rem"}},
-            RC("span",{style:{fontSize:".75rem",color:"#64748b"}},"Total: "),
-            RC("span",{style:{fontSize:".85rem",fontWeight:800,color:"#dc2626"}},fmt(totalFiltered))
-          )
-        )
-    )
-  );
-}
-
 // ─── PAGE PESANAN (Track Pesanan) ─────────────────────────────────────────────
 var ST_ORDER=["belum_dipesan","dipesan","dibayar","dikirim","sampai"];
 var ST_LABEL={belum_dipesan:"Belum Dipesan",dipesan:"Dipesan",dibayar:"Dibayar",dikirim:"Dikirim",sampai:"Sampai",dibatalkan:"Dibatalkan"};
@@ -1968,7 +1913,8 @@ function PagePesanan(p){
   var s3=useState(""),catatan=s3[0],setCatatan=s3[1];
   var s4=useState("semua"),filterItemStatus=s4[0],setFilterItemStatus=s4[1];
   var s5=useState(false),showSelector=s5[0],setShowSelector=s5[1];
-  var s6=useState(""),searchItem=s6[0],setSearchItem=s6[1];
+  var s6=useState(""),searchItem=s6[0],setSearchItem=s6[1];   // filter bahan
+  var s7=useState(""),selectorSearch=s7[0],setSelectorSearch=s7[1]; // cari belanja di dropdown
 
   // Auto-select belanja terakhir saat pertama buka
   useEffect(function(){
@@ -2057,7 +2003,7 @@ function PagePesanan(p){
           RC("p",{style:{fontSize:".62rem",fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em",margin:0}},"Belanja yang dipantau"),
           RC("p",{style:{fontSize:".62rem",color:"#94a3b8",margin:"1px 0 0"}},"Otomatis: terakhir diinput")
         ),
-        RC("button",{onClick:function(){setShowSelector(function(v){return !v;});},
+        RC("button",{onClick:function(){setShowSelector(function(v){if(v)setSelectorSearch("");return !v;});},
           style:{background:showSelector?"#eff6ff":"#f1f5f9",border:"1px solid "+(showSelector?"#bfdbfe":"#e2e8f0"),
             borderRadius:".5rem",padding:"4px 12px",fontSize:".72rem",fontWeight:600,
             color:showSelector?"#2563eb":"#64748b",cursor:"pointer"}},
@@ -2084,20 +2030,21 @@ function PagePesanan(p){
         RC("input",{style:{width:"100%",border:"1px solid #e2e8f0",borderRadius:".5rem",padding:"6px 10px",
           fontSize:".75rem",fontFamily:"inherit",marginBottom:".5rem"},
           placeholder:"🔍 Cari belanja...",
-          value:searchItem,onChange:function(e){setSearchItem(e.target.value);}
+          value:selectorSearch,onChange:function(e){setSelectorSearch(e.target.value);}
         }),
         RC("div",{style:{maxHeight:"220px",overflowY:"auto",display:"flex",flexDirection:"column",gap:"4px"}},
         sortedB.filter(function(b){
-          if(!searchItem) return true;
-          var sq=searchItem.toLowerCase();
+          if(!selectorSearch) return true;
+          var sq=selectorSearch.toLowerCase();
           return (b.judul||"").toLowerCase().indexOf(sq)>=0
             || (b.tanggal||"").indexOf(sq)>=0
             || (b.items||[]).some(function(it){return (it.nama||"").toLowerCase().indexOf(sq)>=0;});
+
         }).map(function(b,i){
           var sp2=(p.sppgList||[]).find(function(x){return x.id===b.sppgId;});
           var isSelected=b.id===selBelanjaId;
           return RC("button",{key:b.id,
-            onClick:function(){setSelBelanjaId(b.id);setShowSelector(false);setExpandedItemId(null);setFilterItemStatus("semua");},
+            onClick:function(){setSelBelanjaId(b.id);setShowSelector(false);setSelectorSearch("");setExpandedItemId(null);setFilterItemStatus("semua");setSearchItem("");},
             style:{display:"flex",justifyContent:"space-between",alignItems:"center",
               background:isSelected?"#eff6ff":"white",border:"1px solid "+(isSelected?"#bfdbfe":"#f1f5f9"),
               borderRadius:".5rem",padding:".5rem .75rem",cursor:"pointer",textAlign:"left",width:"100%",
@@ -2466,18 +2413,15 @@ function App(){
         return Promise.all([
           sbGet("sppg"),
           sbGet("transaksi","komponen=eq.bahan_baku"),
-          sbGet("transaksi","komponen=eq.operasional"),
           sbGet("harga_survei")
         ]);
       })
       .then(function(res){
         clearTimeout(timer);
         var bList=Array.isArray(res[1])&&res[1].length>0 ? res[1].map(trxToBelanja) : null;
-        var hSurvei=Array.isArray(res[3]) ? res[3].map(sbToHarga) : [];
+        var hSurvei=Array.isArray(res[2]) ? res[2].map(sbToHarga) : [];
         if(Array.isArray(res[0])&&res[0].length>0) setSppgList(res[0].map(sbToSppg));
         if(bList) setBelanjaList(bList);
-        if(Array.isArray(res[2])&&res[2].length>0) setOperasionalList(res[2].map(trxToOp));
-        // Gabung harga_survei + data belanja untuk history terlengkap
         var hd=buildHargaData(bList||[],hSurvei);
         setHargaList(hd.current);
         setHargaHistory(hd.history);
@@ -2495,24 +2439,16 @@ function App(){
       Promise.all([
         sbGet("sppg"),
         sbGet("transaksi","komponen=eq.bahan_baku"),
-        sbGet("transaksi","komponen=eq.operasional"),
         sbGet("harga_survei")
       ]).then(function(res){
         var bList=Array.isArray(res[1])&&res[1].length>0 ? res[1].map(trxToBelanja) : null;
-        var hSurvei=Array.isArray(res[3]) ? res[3].map(sbToHarga) : [];
+        var hSurvei=Array.isArray(res[2]) ? res[2].map(sbToHarga) : [];
         if(Array.isArray(res[0])&&res[0].length>0) setSppgList(res[0].map(sbToSppg));
         if(bList) setBelanjaList(bList);
-        if(Array.isArray(res[2])&&res[2].length>0) setOperasionalList(res[2].map(trxToOp));
-        setBelanjaList(function(prevBelanja){
-          if(bList && bList.length !== (Array.isArray(prevBelanja)?prevBelanja:[]).length){
-            var hd=buildHargaData(bList,hSurvei);
-            setHargaList(hd.current);setHargaHistory(hd.history);
-          } else if(hSurvei.length>0){
-            var hd2=buildHargaData(bList||[],(Array.isArray(prevBelanja)?prevBelanja:[]));
-            setHargaList(hd2.current);setHargaHistory(hd2.history);
-          }
-          return prevBelanja;
-        });
+        // Rebuild harga dari data terbaru — satu kali, bersih
+        var hd=buildHargaData(bList||[],hSurvei);
+        setHargaList(hd.current);
+        setHargaHistory(hd.history);
       }).catch(function(){});
     },30000);
     return function(){ clearInterval(iv); };
@@ -2615,13 +2551,12 @@ function App(){
 
   function syncFromSB(){
     setSyncMsg("Mengambil data dari Supabase...");
-    Promise.all([sbGet("sppg"),sbGet("transaksi","komponen=eq.bahan_baku"),sbGet("transaksi","komponen=eq.operasional"),sbGet("harga_survei")])
+    Promise.all([sbGet("sppg"),sbGet("transaksi","komponen=eq.bahan_baku"),sbGet("harga_survei")])
       .then(function(res){
         var bList=Array.isArray(res[1])&&res[1].length>0 ? res[1].map(trxToBelanja) : null;
-        var hSurvei=Array.isArray(res[3]) ? res[3].map(sbToHarga) : [];
+        var hSurvei=Array.isArray(res[2]) ? res[2].map(sbToHarga) : [];
         if(Array.isArray(res[0])&&res[0].length>0) setSppgList(res[0].map(sbToSppg));
         if(bList) setBelanjaList(bList);
-        if(Array.isArray(res[2])&&res[2].length>0) setOperasionalList(res[2].map(trxToOp));
         var hd=buildHargaData(bList||[],hSurvei);
         setHargaList(hd.current);
         setHargaHistory(hd.history);
@@ -2691,7 +2626,7 @@ function App(){
   ];
 
   function renderPage(){
-    if(tab==="dashboard") return RC(PageDashboard,{sppgList:safeSppg,belanjaList:belanjaList,operasionalList:operasionalList,hargaHistory:hargaHistory,setModal:setModal,setTab:setTab});
+    if(tab==="dashboard") return RC(PageDashboard,{sppgList:safeSppg,belanjaList:belanjaList,hargaHistory:hargaHistory,setModal:setModal,setTab:setTab});
     if(tab==="belanja") return RC(PageBelanja,{sppgList:safeSppg,belanjaList:belanjaList,setBelanjaList:setBelanjaList,hargaDB:hargaList,setHargaList:setHargaList,setHargaHistory:setHargaHistory,dbStatus:dbStatus});
     if(tab==="harga") return RC(PageHarga,{hargaList:hargaList,setHargaList:setHargaList,hargaHistory:hargaHistory,setHargaHistory:setHargaHistory,dbStatus:dbStatus});
     if(tab==="pesanan") return RC(PagePesanan,{belanjaList:belanjaList,setBelanjaList:setBelanjaList,sppgList:safeSppg,dbStatus:dbStatus});
