@@ -1,7 +1,7 @@
 // PantauBelanjaMBG — Service Worker
 // Strategy: Cache-first untuk assets statis, network-first untuk data
 
-const CACHE_NAME = 'pantau-mbg-v2';
+const CACHE_NAME = 'pantau-mbg-v6';
 const STATIC_ASSETS = [
   './index.html',
   './manifest.json',
