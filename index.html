@@ -597,9 +597,8 @@ function getCurrentPeriodNum(){
   var diffDays=Math.floor((nowMs-epochMs)/86400000);
   if(diffDays<0) return 1;
   var cycle=Math.floor(diffDays/MBG_CYCLE_DAYS);
-  var dayInCycle=diffDays%MBG_CYCLE_DAYS;
-  // Hari Minggu (dayInCycle===13) = jeda antar periode → tampilkan periode sebelumnya
-  return dayInCycle>=MBG_PERIOD_DAYS ? cycle+1 : cycle+1;
+  // Hari Minggu (dayInCycle===13) = jeda → tetap pada periode berjalan (cycle+1)
+  return cycle+1;
 }
 function isMingguJeda(){
   var epochMs=new Date(MBG_EPOCH).getTime();
@@ -701,17 +700,28 @@ function PageDashboard(p){
     return result.sort(function(a,b){return Math.abs(b.pct)-Math.abs(a.pct);}).slice(0,5);
   },[safeHist]);
 
-  // Bahan aktif (belum sampai) dalam periode terpilih
-  var totalItemAktifPeriode=(itemStatusPeriode.belum_dipesan||0)+(itemStatusPeriode.dipesan||0)+(itemStatusPeriode.dibayar||0)+(itemStatusPeriode.dikirim||0);
+  // ── Ringkasan periode SELALU memakai periode berjalan (tidak ikut navigasi ‹ › di kartu atas) ──
+  var curPeriodInfo=getPeriodInfo(curPeriodNum);
+  var curPeriodeB=safeB.filter(function(b){
+    return b.tanggal&&b.tanggal>=curPeriodInfo.start&&b.tanggal<=curPeriodInfo.end;
+  });
+  var totalCurPeriode=curPeriodeB.reduce(function(a,b){return a+(b.totalFinal||0);},0);
+  var budgetCurPeriode=curPeriodeB.reduce(function(a,b){return a+((b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000);},0);
+  var sisaCurPeriode=budgetCurPeriode-totalCurPeriode;
+  var itemStatusCur={belum_dipesan:0,dipesan:0,dibayar:0,dikirim:0,sampai:0,dibatalkan:0};
+  curPeriodeB.forEach(function(b){(b.items||[]).forEach(function(it){
+    var st=it.status||"belum_dipesan";itemStatusCur[st]=(itemStatusCur[st]||0)+1;
+  });});
+  var totalItemAktifCur=(itemStatusCur.belum_dipesan||0)+(itemStatusCur.dipesan||0)+(itemStatusCur.dibayar||0)+(itemStatusCur.dikirim||0);
 
   // Pilih sumber data ringkasan sesuai toggle
   var isPeriodeMode=dashMode==="periode";
-  var sumTotal   = isPeriodeMode?totalPeriode:totalBlnIni;
-  var sumBudget  = isPeriodeMode?budgetPeriode:budgetHarian;
-  var sumSisa    = isPeriodeMode?sisaPeriode:sisaBudget;
-  var sumAktif   = isPeriodeMode?totalItemAktifPeriode:totalItemAktif;
-  var sumScopeL  = isPeriodeMode?periodInfo.label:monthLabel(bln);
-  var sumScopeSub= isPeriodeMode?"periode ini":"bulan ini";
+  var sumTotal   = isPeriodeMode?totalCurPeriode:totalBlnIni;
+  var sumBudget  = isPeriodeMode?budgetCurPeriode:budgetHarian;
+  var sumSisa    = isPeriodeMode?sisaCurPeriode:sisaBudget;
+  var sumAktif   = isPeriodeMode?totalItemAktifCur:totalItemAktif;
+  var sumScopeL  = isPeriodeMode?curPeriodInfo.label:monthLabel(bln);
+  var sumScopeSub= isPeriodeMode?"periode berjalan":"bulan ini";
 
   var cards=[
     {l:"Belanja ("+sumScopeL+")",v:fmtS(sumTotal),c:"#2563eb",bg:"#eff6ff",bd:"#bfdbfe",icon:"🛒"},
@@ -787,7 +797,11 @@ function PageDashboard(p){
     win.document.write('</body></html>');win.document.close();win.focus();
   }
 
-  function cetakLaporanBulan(){ buildLaporan(blnB,monthLabel(bln)); }
+  function cetakLaporanBulan(){
+    if(blnB.length===0){showToast("Tidak ada belanja pada bulan ini","warn");return;}
+    buildLaporan(blnB,monthLabel(bln));
+    setShowLapMenu(false);
+  }
   function cetakLaporanHarian(){
     if(!lapTgl){showToast("Pilih tanggal dulu","warn");return;}
     var dataB=safeB.filter(function(b){return b.tanggal===lapTgl;});
@@ -844,9 +858,11 @@ function PageDashboard(p){
               style:{flex:1,padding:".5rem .625rem",borderRadius:".5rem",border:"1px solid #cbd5e1",fontSize:".82rem"}},
               (function(){
                 var opts=[];
-                for(var i=curPeriodNum;i>=1;i--){
+                // 2 periode mendatang (mempermudah pratinjau) + periode berjalan + semua periode lampau
+                for(var i=curPeriodNum+2;i>=1;i--){
                   var pi=getPeriodInfo(i);
-                  opts.push(RC("option",{key:i,value:i},pi.label+" — "+pi.rangeLabel));
+                  var tag=i>curPeriodNum?" • mendatang":(i===curPeriodNum?" • berjalan":"");
+                  opts.push(RC("option",{key:i,value:i},pi.label+tag+" — "+pi.rangeLabel));
                 }
                 return opts;
               })()
@@ -862,7 +878,7 @@ function PageDashboard(p){
               RC("p",{style:{fontSize:".72rem",fontWeight:800,color:"#059669",margin:0,textTransform:"uppercase",letterSpacing:".04em"}},"🗂 Bulanan"),
               RC("p",{style:{fontSize:".7rem",color:"#94a3b8",margin:"2px 0 0"}},monthLabel(bln))
             ),
-            RC(Btn,{onClick:function(){cetakLaporanBulan();setShowLapMenu(false);},sm:true},"Cetak")
+            RC(Btn,{onClick:cetakLaporanBulan,sm:true},"Cetak")
           )
         )
       )
@@ -1004,7 +1020,7 @@ function PageDashboard(p){
 
     // ── Rekap porsi banner ──
     (function(){
-      var srcB=isPeriodeMode?periodeB:blnB;
+      var srcB=isPeriodeMode?curPeriodeB:blnB;
       var totalPorsiKecil=srcB.reduce(function(a,b){return a+(b.porsiKecil||0);},0);
       var totalPorsiBesar=srcB.reduce(function(a,b){return a+(b.porsiBesar||0);},0);
       var totalPorsi=totalPorsiKecil+totalPorsiBesar;
