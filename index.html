@@ -2382,17 +2382,29 @@ function PagePesanan(p){
     showToast("Status "+ST_LABEL[newStatus]+" ✓","success");
   }
 
-  // Update semua item sekaligus ke status tertentu
+  // Update semua item sekaligus ke status tertentu (boleh maju ATAU mundur)
   function updateAllItems(newStatus){
     if(!selBelanja) return;
-    if(!window.confirm("Update SEMUA bahan ke '"+ST_LABEL[newStatus]+"'?")) return;
+    var newIdx=ST_ORDER.indexOf(newStatus);
+    var items=selBelanja.items||[];
+    // Hitung bahan yang akan berubah: lewati yang sudah di status itu & yang dibatalkan
+    var willChange=items.filter(function(it){
+      var curSt=it.status||"belum_dipesan";
+      return curSt!=="dibatalkan" && curSt!==newStatus;
+    });
+    if(willChange.length===0){ showToast("Tidak ada bahan yang perlu diubah","info"); return; }
+    // Deteksi arah: ada yang mundur?
+    var adaMundur=willChange.some(function(it){
+      return ST_ORDER.indexOf(it.status||"belum_dipesan")>newIdx;
+    });
+    var pesan=(adaMundur?"Kembalikan ":"Update ")+willChange.length+" bahan ke '"+ST_LABEL[newStatus]+"'?"
+      +(adaMundur?"\n(beberapa bahan akan dimundurkan statusnya)":"");
+    if(!window.confirm(pesan)) return;
     var cloudOK=dbOK(p.dbStatus);
     var logEntry={status:newStatus,waktu:new Date().toISOString(),catatan:"(bulk update)"};
-    var newItems=(selBelanja.items||[]).map(function(it){
+    var newItems=items.map(function(it){
       var curSt=it.status||"belum_dipesan";
-      var curIdx=ST_ORDER.indexOf(curSt);
-      var newIdx=ST_ORDER.indexOf(newStatus);
-      if(newIdx<=curIdx) return it; // jangan mundur
+      if(curSt==="dibatalkan"||curSt===newStatus) return it; // lewati dibatalkan & yang sudah sama
       return Object.assign({},it,{status:newStatus,statusLog:((it.statusLog||[]).concat([logEntry]))});
     });
     var updated=Object.assign({},selBelanja,{items:newItems});
@@ -2400,7 +2412,7 @@ function PagePesanan(p){
       return (Array.isArray(prev)?prev:[]).map(function(b){return b.id===selBelanja.id?updated:b;});
     });
     if(cloudOK) sbUpsert("transaksi",[belanjaToTrx(updated)]).catch(function(e){console.warn(e);});
-    showToast("Semua bahan ditandai "+ST_LABEL[newStatus],"success");
+    showToast(willChange.length+" bahan ditandai "+ST_LABEL[newStatus],"success");
   }
 
   // Hitung ringkasan status per item di belanja yang dipilih
