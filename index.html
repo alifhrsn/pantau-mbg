@@ -621,6 +621,11 @@ function PageDashboard(p){
   var periodInfo=getPeriodInfo(selPeriod);
   var isCurrentPeriod=selPeriod===curPeriodNum;
 
+  // ── State pemilih laporan (harian / periode / bulanan) ──
+  var slm=useState(false),showLapMenu=slm[0],setShowLapMenu=slm[1];
+  var slt=useState(today()),lapTgl=slt[0],setLapTgl=slt[1];
+  var slp=useState(curPeriodNum),lapPeriode=slp[0],setLapPeriode=slp[1];
+
   // Belanja dalam periode yang dipilih
   var periodeB=safeB.filter(function(b){
     return b.tanggal&&b.tanggal>=periodInfo.start&&b.tanggal<=periodInfo.end;
@@ -712,14 +717,22 @@ function PageDashboard(p){
     );
   }
 
-  function cetakLaporan(){
+  // Fungsi generik: cetak laporan untuk kumpulan belanja (dataB) dgn judul & subjudul tertentu
+  function buildLaporan(dataB,subtitle){
+    var totalData=dataB.reduce(function(a,b){return a+(b.totalFinal||0);},0);
+    var budgetData=dataB.reduce(function(a,b){return a+((b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000);},0);
+    var sisaData=budgetData-totalData;
+    var statusData={belum_dipesan:0,dipesan:0,dibayar:0,dikirim:0,sampai:0,dibatalkan:0};
+    dataB.forEach(function(b){(b.items||[]).forEach(function(it){
+      var st=it.status||"belum_dipesan";statusData[st]=(statusData[st]||0)+1;
+    });});
     var rows="";
-    blnB.slice().sort(function(a,b){return a.tanggal.localeCompare(b.tanggal);}).forEach(function(b){
+    dataB.slice().sort(function(a,b){return (a.tanggal||"").localeCompare(b.tanggal||"");}).forEach(function(b){
       var sp=(p.sppgList||[]).find(function(x){return x.id===b.sppgId;});
       rows+='<tr><td>'+shortDate(b.tanggal)+'</td><td>'+(sp?sp.nama:"")+'</td><td>'+b.judul+'</td><td style="text-align:right">'+fmt(b.totalFinal)+'</td></tr>';
     });
     var bahanAgg={};
-    blnB.forEach(function(b){(b.items||[]).forEach(function(it){
+    dataB.forEach(function(b){(b.items||[]).forEach(function(it){
       if(!it.nama)return;
       if(!bahanAgg[it.nama])bahanAgg[it.nama]={qty:0,total:0,satuan:it.satuan||""};
       bahanAgg[it.nama].qty+=it.qty||0;
@@ -732,25 +745,25 @@ function PageDashboard(p){
     });
     var win=window.open("","_blank","width=800,height=1000");
     if(!win){showToast("Pop-up diblokir","warn");return;}
-    win.document.write('<!DOCTYPE html><html><head><title>Laporan '+monthLabel(bln)+'</title>'
+    win.document.write('<!DOCTYPE html><html><head><title>Laporan '+subtitle+'</title>'
       +'<style>body{font-family:sans-serif;padding:24px;max-width:700px;margin:0 auto;font-size:13px}'
       +'h2{text-align:center;letter-spacing:2px}table{width:100%;border-collapse:collapse;margin:12px 0}'
       +'th{background:#f8fafc;border:1px solid #e2e8f0;padding:6px 10px;text-align:left;font-size:11px}'
       +'td{border:1px solid #e2e8f0;padding:6px 10px}.total{font-weight:800;background:#eff6ff}'
       +'@media print{.noprint{display:none}}</style></head><body>');
-    win.document.write('<h2>LAPORAN BELANJA MBG</h2><p style="text-align:center;color:#64748b">'+monthLabel(bln)+'</p><hr>');
-    win.document.write('<table><tr class="total"><td>Total Belanja</td><td style="text-align:right">'+fmt(totalBlnIni)+'</td></tr>'
-      +'<tr><td>Maks. Budget Porsi</td><td style="text-align:right">'+fmt(budgetHarian)+'</td></tr>'
-      +'<tr class="total"><td>'+(sisaBudget>=0?"Sisa Budget":"Melebihi Budget")+'</td><td style="text-align:right;color:'+(sisaBudget>=0?"#059669":"#dc2626")+'">'+fmt(Math.abs(sisaBudget))+'</td></tr>'
-      +'<tr><td>Total Porsi Kecil</td><td style="text-align:right">'+blnB.reduce(function(a,b){return a+(b.porsiKecil||0);},0)+' porsi</td></tr>'
-      +'<tr><td>Total Porsi Besar</td><td style="text-align:right">'+blnB.reduce(function(a,b){return a+(b.porsiBesar||0);},0)+' porsi</td></tr>'
-      +'<tr><td>Bahan — Belum Dipesan</td><td style="text-align:right">'+itemStatusBln.belum_dipesan+'</td></tr>'
-      +'<tr><td>Bahan — Dipesan</td><td style="text-align:right">'+itemStatusBln.dipesan+'</td></tr>'
-      +'<tr><td>Bahan — Dibayar</td><td style="text-align:right">'+itemStatusBln.dibayar+'</td></tr>'
-      +'<tr><td>Bahan — Dikirim</td><td style="text-align:right">'+itemStatusBln.dikirim+'</td></tr>'
-      +'<tr><td>Bahan — Sampai</td><td style="text-align:right">'+itemStatusBln.sampai+'</td></tr>'
+    win.document.write('<h2>LAPORAN BELANJA MBG</h2><p style="text-align:center;color:#64748b">'+subtitle+'</p><hr>');
+    win.document.write('<table><tr class="total"><td>Total Belanja</td><td style="text-align:right">'+fmt(totalData)+'</td></tr>'
+      +'<tr><td>Maks. Budget Porsi</td><td style="text-align:right">'+fmt(budgetData)+'</td></tr>'
+      +'<tr class="total"><td>'+(sisaData>=0?"Sisa Budget":"Melebihi Budget")+'</td><td style="text-align:right;color:'+(sisaData>=0?"#059669":"#dc2626")+'">'+fmt(Math.abs(sisaData))+'</td></tr>'
+      +'<tr><td>Total Porsi Kecil</td><td style="text-align:right">'+dataB.reduce(function(a,b){return a+(b.porsiKecil||0);},0)+' porsi</td></tr>'
+      +'<tr><td>Total Porsi Besar</td><td style="text-align:right">'+dataB.reduce(function(a,b){return a+(b.porsiBesar||0);},0)+' porsi</td></tr>'
+      +'<tr><td>Bahan — Belum Dipesan</td><td style="text-align:right">'+statusData.belum_dipesan+'</td></tr>'
+      +'<tr><td>Bahan — Dipesan</td><td style="text-align:right">'+statusData.dipesan+'</td></tr>'
+      +'<tr><td>Bahan — Dibayar</td><td style="text-align:right">'+statusData.dibayar+'</td></tr>'
+      +'<tr><td>Bahan — Dikirim</td><td style="text-align:right">'+statusData.dikirim+'</td></tr>'
+      +'<tr><td>Bahan — Sampai</td><td style="text-align:right">'+statusData.sampai+'</td></tr>'
       +'</table>');
-    win.document.write('<h3 style="font-size:13px;color:#475569;margin-top:16px">DETAIL BELANJA ('+blnB.length+' transaksi)</h3>');
+    win.document.write('<h3 style="font-size:13px;color:#475569;margin-top:16px">DETAIL BELANJA ('+dataB.length+' transaksi)</h3>');
     win.document.write('<table><thead><tr><th>Tanggal</th><th>SPPG</th><th>Keterangan</th><th style="text-align:right">Total</th></tr></thead><tbody>'+rows+'</tbody></table>');
     win.document.write('<h3 style="font-size:13px;color:#475569;margin-top:16px">REKAP PER BAHAN</h3>');
     win.document.write('<table><thead><tr><th>Bahan</th><th style="text-align:center">Total Qty</th><th style="text-align:right">Nilai</th></tr></thead><tbody>'+bahanRows+'</tbody></table>');
@@ -759,12 +772,86 @@ function PageDashboard(p){
     win.document.write('</body></html>');win.document.close();win.focus();
   }
 
+  function cetakLaporanBulan(){ buildLaporan(blnB,monthLabel(bln)); }
+  function cetakLaporanHarian(){
+    if(!lapTgl){showToast("Pilih tanggal dulu","warn");return;}
+    var dataB=safeB.filter(function(b){return b.tanggal===lapTgl;});
+    if(dataB.length===0){showToast("Tidak ada belanja pada tanggal ini","warn");return;}
+    buildLaporan(dataB,"Harian — "+shortDate(lapTgl));
+    setShowLapMenu(false);
+  }
+  function cetakLaporanPeriode(){
+    var pi=getPeriodInfo(lapPeriode);
+    var dataB=safeB.filter(function(b){return b.tanggal&&b.tanggal>=pi.start&&b.tanggal<=pi.end;});
+    if(dataB.length===0){showToast("Tidak ada belanja pada periode ini","warn");return;}
+    buildLaporan(dataB,pi.label+" ("+pi.rangeLabel+")");
+    setShowLapMenu(false);
+  }
+
   return RC("div",{style:{display:"flex",flexDirection:"column",gap:".875rem"}},
     RC(PageHeader,{title:"Dashboard",sub:"Rekap "+monthLabel(bln),
       action:RC("div",{style:{display:"flex",gap:".375rem"}},
-        RC(Btn,{onClick:cetakLaporan,sm:true,color:"gray"},"📊 Laporan"),
+        RC(Btn,{onClick:function(){setShowLapMenu(true);},sm:true,color:"gray"},"📊 Laporan"),
         RC(Btn,{onClick:function(){p.setModal("sppg");},sm:true},"+ SPPG")
       )}),
+
+    // ── Modal pemilih laporan (harian / periode / bulanan) ──
+    showLapMenu&&RC("div",{
+      onClick:function(){setShowLapMenu(false);},
+      style:{position:"fixed",inset:0,background:"rgba(15,23,42,.5)",zIndex:1000,
+        display:"flex",alignItems:"flex-end",justifyContent:"center"}},
+      RC("div",{onClick:function(e){e.stopPropagation();},
+        style:{background:"white",borderRadius:"1rem 1rem 0 0",padding:"1.25rem",width:"100%",
+          maxWidth:"480px",boxShadow:"0 -4px 24px rgba(0,0,0,.18)"}},
+        RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1rem"}},
+          RC("p",{style:{fontSize:".95rem",fontWeight:800,color:"#1e293b",margin:0}},"📊 Cetak Laporan"),
+          RC("button",{onClick:function(){setShowLapMenu(false);},
+            style:{background:"none",border:"none",fontSize:"1.2rem",cursor:"pointer",color:"#94a3b8"}},"✕")
+        ),
+
+        // Laporan Harian
+        RC("div",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:".75rem",padding:".875rem",marginBottom:".75rem"}},
+          RC("p",{style:{fontSize:".72rem",fontWeight:800,color:"#2563eb",margin:"0 0 .5rem",textTransform:"uppercase",letterSpacing:".04em"}},"🗓 Harian"),
+          RC("div",{style:{display:"flex",gap:".5rem",alignItems:"center"}},
+            RC("input",{type:"date",value:lapTgl,
+              onChange:function(e){setLapTgl(e.target.value);},
+              style:{flex:1,padding:".5rem .625rem",borderRadius:".5rem",border:"1px solid #cbd5e1",fontSize:".82rem"}}),
+            RC(Btn,{onClick:cetakLaporanHarian,sm:true},"Cetak")
+          )
+        ),
+
+        // Laporan Periode (2 mingguan)
+        RC("div",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:".75rem",padding:".875rem",marginBottom:".75rem"}},
+          RC("p",{style:{fontSize:".72rem",fontWeight:800,color:"#7c3aed",margin:"0 0 .5rem",textTransform:"uppercase",letterSpacing:".04em"}},"📆 Per Periode (2 Mingguan)"),
+          RC("div",{style:{display:"flex",gap:".5rem",alignItems:"center"}},
+            RC("select",{value:lapPeriode,
+              onChange:function(e){setLapPeriode(parseInt(e.target.value,10));},
+              style:{flex:1,padding:".5rem .625rem",borderRadius:".5rem",border:"1px solid #cbd5e1",fontSize:".82rem"}},
+              (function(){
+                var opts=[];
+                for(var i=curPeriodNum;i>=1;i--){
+                  var pi=getPeriodInfo(i);
+                  opts.push(RC("option",{key:i,value:i},pi.label+" — "+pi.rangeLabel));
+                }
+                return opts;
+              })()
+            ),
+            RC(Btn,{onClick:cetakLaporanPeriode,sm:true},"Cetak")
+          )
+        ),
+
+        // Laporan Bulanan
+        RC("div",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:".75rem",padding:".875rem"}},
+          RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+            RC("div",null,
+              RC("p",{style:{fontSize:".72rem",fontWeight:800,color:"#059669",margin:0,textTransform:"uppercase",letterSpacing:".04em"}},"🗂 Bulanan"),
+              RC("p",{style:{fontSize:".7rem",color:"#94a3b8",margin:"2px 0 0"}},monthLabel(bln))
+            ),
+            RC(Btn,{onClick:function(){cetakLaporanBulan();setShowLapMenu(false);},sm:true},"Cetak")
+          )
+        )
+      )
+    ),
 
     // ── Rekap Periode (2 mingguan) ──
     RC(Card,{style:{
