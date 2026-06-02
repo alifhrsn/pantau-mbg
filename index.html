@@ -564,11 +564,78 @@ function ModalSPPG(p){
   );
 }
 
+// ─── HELPER PERIODE MBG ──────────────────────────────────────────────────────
+// Periode: Senin s/d Sabtu pekan depannya (13 hari aktif)
+// Siklus : 14 hari (13 hari periode + 1 hari Minggu jeda antar periode)
+// Contoh  : Periode 1 = 25 Mei (Sen) – 6 Jun (Sab) 2026
+var MBG_EPOCH="2026-05-25";   // Senin pertama
+var MBG_PERIOD_DAYS=13;       // Durasi periode: Sen–Sab pekan depannya
+var MBG_CYCLE_DAYS=14;        // Siklus total: 13 hari + 1 Minggu jeda
+
+function getPeriodInfo(periodNum){
+  var epochMs=new Date(MBG_EPOCH).getTime();
+  var startMs=epochMs+(periodNum-1)*MBG_CYCLE_DAYS*86400000;
+  var endMs=startMs+(MBG_PERIOD_DAYS-1)*86400000;
+  var fmt2=function(d){return d.toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"});};
+  var toISO=function(ms){return new Date(ms).toISOString().slice(0,10);};
+  var startDate=new Date(startMs);
+  var endDate=new Date(endMs);
+  // Verifikasi: harus Senin s/d Sabtu
+  var hariMulai=["Min","Sen","Sel","Rab","Kam","Jum","Sab"][startDate.getDay()];
+  var hariAkhir=["Min","Sen","Sel","Rab","Kam","Jum","Sab"][endDate.getDay()];
+  return {
+    num:periodNum,
+    start:toISO(startMs),
+    end:toISO(endMs),
+    label:"Periode "+periodNum,
+    rangeLabel:hariMulai+", "+fmt2(startDate)+" – "+hariAkhir+", "+fmt2(endDate)
+  };
+}
+function getCurrentPeriodNum(){
+  var epochMs=new Date(MBG_EPOCH).getTime();
+  var nowMs=new Date(today()).getTime();
+  var diffDays=Math.floor((nowMs-epochMs)/86400000);
+  if(diffDays<0) return 1;
+  var cycle=Math.floor(diffDays/MBG_CYCLE_DAYS);
+  var dayInCycle=diffDays%MBG_CYCLE_DAYS;
+  // Hari Minggu (dayInCycle===13) = jeda antar periode → tampilkan periode sebelumnya
+  return dayInCycle>=MBG_PERIOD_DAYS ? cycle+1 : cycle+1;
+}
+function isMingguJeda(){
+  var epochMs=new Date(MBG_EPOCH).getTime();
+  var nowMs=new Date(today()).getTime();
+  var diffDays=Math.floor((nowMs-epochMs)/86400000);
+  return diffDays>=0 && diffDays%MBG_CYCLE_DAYS===MBG_PERIOD_DAYS;
+}
+
 // ─── PAGE DASHBOARD ───────────────────────────────────────────────────────────
 function PageDashboard(p){
   var bln=new Date().toISOString().slice(0,7);
   var safeB=Array.isArray(p.belanjaList)?p.belanjaList:[];
   var safeHist=Array.isArray(p.hargaHistory)?p.hargaHistory:[];
+
+  // ── Navigasi periode ──
+  var curPeriodNum=getCurrentPeriodNum();
+  var isJeda=isMingguJeda(); // Hari Minggu antara dua periode
+  var sp=useState(curPeriodNum),selPeriod=sp[0],setSelPeriod=sp[1];
+  var periodInfo=getPeriodInfo(selPeriod);
+  var isCurrentPeriod=selPeriod===curPeriodNum;
+
+  // Belanja dalam periode yang dipilih
+  var periodeB=safeB.filter(function(b){
+    return b.tanggal&&b.tanggal>=periodInfo.start&&b.tanggal<=periodInfo.end;
+  });
+  var totalPeriode=periodeB.reduce(function(a,b){return a+(b.totalFinal||0);},0);
+  var budgetPeriode=periodeB.reduce(function(a,b){return a+((b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000);},0);
+  var sisaPeriode=budgetPeriode-totalPeriode;
+  var porsiKecilPeriode=periodeB.reduce(function(a,b){return a+(b.porsiKecil||0);},0);
+  var porsiBesarPeriode=periodeB.reduce(function(a,b){return a+(b.porsiBesar||0);},0);
+  var itemStatusPeriode={belum_dipesan:0,dipesan:0,dibayar:0,dikirim:0,sampai:0,dibatalkan:0};
+  periodeB.forEach(function(b){(b.items||[]).forEach(function(it){
+    var st=it.status||"belum_dipesan";itemStatusPeriode[st]=(itemStatusPeriode[st]||0)+1;
+  });});
+
+  // Bulan ini (untuk summary cards)
   var blnB=safeB.filter(function(b){return b.tanggal&&b.tanggal.startsWith(bln);});
   var totalBlnIni=blnB.reduce(function(a,b){return a+(b.totalFinal||0);},0);
   var budgetHarian=blnB.reduce(function(a,b){return a+((b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000);},0);
@@ -698,6 +765,108 @@ function PageDashboard(p){
         RC(Btn,{onClick:cetakLaporan,sm:true,color:"gray"},"📊 Laporan"),
         RC(Btn,{onClick:function(){p.setModal("sppg");},sm:true},"+ SPPG")
       )}),
+
+    // ── Rekap Periode (2 mingguan) ──
+    RC(Card,{style:{
+      background:isCurrentPeriod?"linear-gradient(135deg,#1e40af,#2563eb)":"#f8fafc",
+      border:isCurrentPeriod?"none":"1px solid #e2e8f0",
+      color:isCurrentPeriod?"white":"inherit"
+    }},
+      // Header periode + navigasi
+      RC("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".75rem"}},
+        RC("button",{onClick:function(){if(selPeriod>1)setSelPeriod(selPeriod-1);},
+          disabled:selPeriod<=1,
+          style:{background:"rgba(255,255,255,.15)",border:"none",borderRadius:".375rem",
+            padding:"4px 10px",cursor:selPeriod<=1?"not-allowed":"pointer",
+            color:isCurrentPeriod?"white":"#64748b",fontWeight:700,fontSize:".9rem",
+            opacity:selPeriod<=1?.4:1}},
+          "‹"
+        ),
+        RC("div",{style:{textAlign:"center",flex:1}},
+          RC("div",{style:{fontWeight:800,fontSize:".88rem",
+            color:isCurrentPeriod?"white":"#1e293b",display:"flex",alignItems:"center",gap:".375rem",justifyContent:"center"}},
+            periodInfo.label,
+            isCurrentPeriod&&!isJeda&&RC("span",{style:{background:"rgba(255,255,255,.2)",fontSize:".6rem",borderRadius:"999px",padding:"1px 7px",fontWeight:700}},"Berjalan"),
+            isCurrentPeriod&&isJeda&&RC("span",{style:{background:"rgba(255,255,255,.2)",fontSize:".6rem",borderRadius:"999px",padding:"1px 7px",fontWeight:700}},"☕ Minggu — Jeda")
+          ),
+          RC("div",{style:{fontSize:".65rem",marginTop:"1px",
+            color:isCurrentPeriod?"rgba(255,255,255,.8)":"#94a3b8"}},
+            periodInfo.rangeLabel
+          )
+        ),
+        RC("button",{onClick:function(){setSelPeriod(selPeriod+1);},
+          disabled:selPeriod>curPeriodNum,
+          style:{background:"rgba(255,255,255,.15)",border:"none",borderRadius:".375rem",
+            padding:"4px 10px",cursor:selPeriod>curPeriodNum?"not-allowed":"pointer",
+            color:isCurrentPeriod?"white":"#64748b",fontWeight:700,fontSize:".9rem",
+            opacity:selPeriod>curPeriodNum?.4:1}},
+          "›"
+        )
+      ),
+      // Stats periode — grid 2 kolom
+      RC("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".5rem",marginBottom:".5rem"}},
+        RC("div",{style:{background:"rgba(255,255,255,.12)",borderRadius:".5rem",padding:".5rem .75rem"}},
+          RC("div",{style:{fontSize:".6rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".04em",
+            color:isCurrentPeriod?"rgba(255,255,255,.7)":"#94a3b8",marginBottom:"2px"}},"Total Belanja"),
+          RC("div",{style:{fontSize:".95rem",fontWeight:800,fontFamily:"monospace",
+            color:isCurrentPeriod?"white":"#2563eb"}},
+            fmtS(totalPeriode)
+          )
+        ),
+        RC("div",{style:{background:"rgba(255,255,255,.12)",borderRadius:".5rem",padding:".5rem .75rem"}},
+          RC("div",{style:{fontSize:".6rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".04em",
+            color:isCurrentPeriod?"rgba(255,255,255,.7)":"#94a3b8",marginBottom:"2px"}},"Maks. Budget"),
+          RC("div",{style:{fontSize:".95rem",fontWeight:800,fontFamily:"monospace",
+            color:isCurrentPeriod?"white":"#7c3aed"}},
+            fmtS(budgetPeriode)||"—"
+          )
+        ),
+        RC("div",{style:{background:sisaPeriode>=0?"rgba(16,185,129,.2)":"rgba(239,68,68,.2)",
+          borderRadius:".5rem",padding:".5rem .75rem"}},
+          RC("div",{style:{fontSize:".6rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".04em",
+            color:isCurrentPeriod?"rgba(255,255,255,.7)":"#94a3b8",marginBottom:"2px"}},
+            sisaPeriode>=0?"Sisa Budget":"Melebihi"
+          ),
+          RC("div",{style:{fontSize:".95rem",fontWeight:800,fontFamily:"monospace",
+            color:isCurrentPeriod?(sisaPeriode>=0?"#6ee7b7":"#fca5a5"):(sisaPeriode>=0?"#059669":"#dc2626")}},
+            (sisaPeriode>=0?"+":"")+fmtS(Math.abs(sisaPeriode))
+          )
+        ),
+        RC("div",{style:{background:"rgba(255,255,255,.12)",borderRadius:".5rem",padding:".5rem .75rem"}},
+          RC("div",{style:{fontSize:".6rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".04em",
+            color:isCurrentPeriod?"rgba(255,255,255,.7)":"#94a3b8",marginBottom:"2px"}},"Transaksi"),
+          RC("div",{style:{fontSize:".95rem",fontWeight:800,
+            color:isCurrentPeriod?"white":"#1e293b"}},
+            periodeB.length+" belanja"
+          )
+        )
+      ),
+      // Porsi periode
+      RC("div",{style:{display:"flex",gap:"1rem",justifyContent:"center",
+        background:"rgba(255,255,255,.08)",borderRadius:".5rem",padding:".5rem",
+        fontSize:".72rem",fontWeight:600,flexWrap:"wrap",
+        color:isCurrentPeriod?"rgba(255,255,255,.9)":"#64748b"}},
+        RC("span",null,"🍱 Porsi Kecil: "+porsiKecilPeriode),
+        RC("span",{style:{opacity:.4}},"|"),
+        RC("span",null,"Porsi Besar: "+porsiBesarPeriode),
+        RC("span",{style:{opacity:.4}},"|"),
+        RC("span",{style:{fontWeight:800,color:isCurrentPeriod?"white":"#1e293b"}},
+          "Total: "+(porsiKecilPeriode+porsiBesarPeriode)+" porsi"
+        )
+      ),
+      // Status bahan periode (mini bar)
+      (Object.values(itemStatusPeriode).some(function(v){return v>0;}))&&RC("div",{style:{display:"flex",gap:"3px",marginTop:".5rem"}},
+        ST_ORDER.filter(function(s){return (itemStatusPeriode[s]||0)>0;}).map(function(s){
+          var sc=ST_COLOR[s];
+          var total=Object.values(itemStatusPeriode).reduce(function(a,v){return a+v;},0)||1;
+          return RC("div",{key:s,
+            title:ST_LABEL[s]+": "+(itemStatusPeriode[s]||0)+" bahan",
+            style:{flex:itemStatusPeriode[s]||0,height:"6px",borderRadius:"3px",
+              background:isCurrentPeriod?"rgba(255,255,255,.4)":sc.dot,
+              minWidth:"4px",cursor:"help"}});
+        })
+      )
+    ),
 
     // ── Summary cards ──
     RC("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:".5rem"}},
