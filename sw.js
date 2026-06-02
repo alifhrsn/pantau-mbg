@@ -1,7 +1,7 @@
 // PantauBelanjaMBG — Service Worker
 // Strategy: Cache-first untuk assets statis, network-first untuk data
 
-const CACHE_NAME = 'pantau-mbg-v1';
+const CACHE_NAME = 'pantau-mbg-v2';
 const STATIC_ASSETS = [
   './index.html',
   './manifest.json',
@@ -58,7 +58,24 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Static assets — cache-first
+  // HTML / navigasi — network-first agar update selalu terbaca
+  var accept = event.request.headers.get('accept') || '';
+  if (event.request.mode === 'navigate' || accept.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request).then(function(response) {
+        if (response && response.status === 200) {
+          var toCache = response.clone();
+          caches.open(CACHE_NAME).then(function(cache) { cache.put(event.request, toCache); });
+        }
+        return response;
+      }).catch(function() {
+        return caches.match(event.request).then(function(c) { return c || caches.match('./index.html'); });
+      })
+    );
+    return;
+  }
+
+  // Static assets lain — cache-first
   event.respondWith(
     caches.match(event.request).then(function(cached) {
       if (cached) return cached;
