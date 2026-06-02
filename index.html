@@ -607,6 +607,26 @@ function isMingguJeda(){
   return diffDays>=0 && diffDays%MBG_CYCLE_DAYS===MBG_PERIOD_DAYS;
 }
 
+// ─── HELPER KEUNTUNGAN MARGIN ─────────────────────────────────────────────────
+// Margin = Σ qty×(hargaFinal − hargaSupplier). Hanya bahan dgn hargaSupplier>0
+// (margin diketahui) & bukan dibatalkan yang dihitung.
+function hitungMargin(dataB){
+  var supplier=0, final=0, nItem=0;
+  (dataB||[]).forEach(function(b){
+    (b.items||[]).forEach(function(it){
+      var st=it.status||"belum_dipesan";
+      if(st==="dibatalkan") return;
+      if(!(it.hargaSupplier>0)) return;
+      var q=it.qty||0;
+      supplier+=q*it.hargaSupplier;
+      final+=q*(it.hargaFinal||0);
+      nItem++;
+    });
+  });
+  return {supplier:supplier, final:final, margin:final-supplier,
+    pct: supplier>0?Math.round(((final-supplier)/supplier)*100):0, nItem:nItem};
+}
+
 // ─── PAGE DASHBOARD ───────────────────────────────────────────────────────────
 function PageDashboard(p){
   var bln=new Date().toISOString().slice(0,7);
@@ -742,56 +762,55 @@ function PageDashboard(p){
     );
   }
 
-  // Fungsi generik: cetak laporan untuk kumpulan belanja (dataB) dgn judul & subjudul tertentu
+  // Fungsi generik: cetak laporan RINGKAS (hanya angka penting, tanpa daftar bahan/transaksi)
   function buildLaporan(dataB,subtitle){
     var totalData=dataB.reduce(function(a,b){return a+(b.totalFinal||0);},0);
     var budgetData=dataB.reduce(function(a,b){return a+((b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000);},0);
     var sisaData=budgetData-totalData;
+    var mg=hitungMargin(dataB);
+    var porsiKecil=dataB.reduce(function(a,b){return a+(b.porsiKecil||0);},0);
+    var porsiBesar=dataB.reduce(function(a,b){return a+(b.porsiBesar||0);},0);
     var statusData={belum_dipesan:0,dipesan:0,dibayar:0,dikirim:0,sampai:0,dibatalkan:0};
+    var totalBahan=0;
     dataB.forEach(function(b){(b.items||[]).forEach(function(it){
-      var st=it.status||"belum_dipesan";statusData[st]=(statusData[st]||0)+1;
+      var st=it.status||"belum_dipesan";statusData[st]=(statusData[st]||0)+1;totalBahan++;
     });});
-    var rows="";
-    dataB.slice().sort(function(a,b){return (a.tanggal||"").localeCompare(b.tanggal||"");}).forEach(function(b){
-      var sp=(p.sppgList||[]).find(function(x){return x.id===b.sppgId;});
-      rows+='<tr><td>'+shortDate(b.tanggal)+'</td><td>'+(sp?sp.nama:"")+'</td><td>'+b.judul+'</td><td style="text-align:right">'+fmt(b.totalFinal)+'</td></tr>';
-    });
-    var bahanAgg={};
-    dataB.forEach(function(b){(b.items||[]).forEach(function(it){
-      if(!it.nama)return;
-      if(!bahanAgg[it.nama])bahanAgg[it.nama]={qty:0,total:0,satuan:it.satuan||""};
-      bahanAgg[it.nama].qty+=it.qty||0;
-      bahanAgg[it.nama].total+=(it.qty||0)*(it.hargaFinal||0);
-    });});
-    var bahanRows="";
-    Object.keys(bahanAgg).sort().forEach(function(nama){
-      var x=bahanAgg[nama];
-      bahanRows+='<tr><td>'+nama+'</td><td style="text-align:center">'+x.qty+' '+x.satuan+'</td><td style="text-align:right">'+fmt(x.total)+'</td></tr>';
-    });
     var win=window.open("","_blank","width=800,height=1000");
     if(!win){showToast("Pop-up diblokir","warn");return;}
     win.document.write('<!DOCTYPE html><html><head><title>Laporan '+subtitle+'</title>'
-      +'<style>body{font-family:sans-serif;padding:24px;max-width:700px;margin:0 auto;font-size:13px}'
-      +'h2{text-align:center;letter-spacing:2px}table{width:100%;border-collapse:collapse;margin:12px 0}'
-      +'th{background:#f8fafc;border:1px solid #e2e8f0;padding:6px 10px;text-align:left;font-size:11px}'
-      +'td{border:1px solid #e2e8f0;padding:6px 10px}.total{font-weight:800;background:#eff6ff}'
+      +'<style>body{font-family:sans-serif;padding:24px;max-width:560px;margin:0 auto;font-size:14px}'
+      +'h2{text-align:center;letter-spacing:2px;margin-bottom:2px}table{width:100%;border-collapse:collapse;margin:12px 0}'
+      +'td{border:1px solid #e2e8f0;padding:8px 12px}.total{font-weight:800;background:#eff6ff}'
+      +'.sec{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 4px;font-weight:700}'
       +'@media print{.noprint{display:none}}</style></head><body>');
-    win.document.write('<h2>LAPORAN BELANJA MBG</h2><p style="text-align:center;color:#64748b">'+subtitle+'</p><hr>');
+    win.document.write('<h2>LAPORAN BELANJA MBG</h2><p style="text-align:center;color:#64748b;margin-top:0">'+subtitle+'</p><hr>');
+    // Ringkasan keuangan inti
+    win.document.write('<p class="sec">Ringkasan Keuangan</p>');
     win.document.write('<table><tr class="total"><td>Total Belanja</td><td style="text-align:right">'+fmt(totalData)+'</td></tr>'
       +'<tr><td>Maks. Budget Porsi</td><td style="text-align:right">'+fmt(budgetData)+'</td></tr>'
-      +'<tr class="total"><td>'+(sisaData>=0?"Sisa Budget":"Melebihi Budget")+'</td><td style="text-align:right;color:'+(sisaData>=0?"#059669":"#dc2626")+'">'+fmt(Math.abs(sisaData))+'</td></tr>'
-      +'<tr><td>Total Porsi Kecil</td><td style="text-align:right">'+dataB.reduce(function(a,b){return a+(b.porsiKecil||0);},0)+' porsi</td></tr>'
-      +'<tr><td>Total Porsi Besar</td><td style="text-align:right">'+dataB.reduce(function(a,b){return a+(b.porsiBesar||0);},0)+' porsi</td></tr>'
-      +'<tr><td>Bahan — Belum Dipesan</td><td style="text-align:right">'+statusData.belum_dipesan+'</td></tr>'
-      +'<tr><td>Bahan — Dipesan</td><td style="text-align:right">'+statusData.dipesan+'</td></tr>'
-      +'<tr><td>Bahan — Dibayar</td><td style="text-align:right">'+statusData.dibayar+'</td></tr>'
-      +'<tr><td>Bahan — Dikirim</td><td style="text-align:right">'+statusData.dikirim+'</td></tr>'
-      +'<tr><td>Bahan — Sampai</td><td style="text-align:right">'+statusData.sampai+'</td></tr>'
+      +'<tr class="total"><td>'+(sisaData>=0?"Sisa Budget":"Minus / Melebihi Budget")+'</td><td style="text-align:right;color:'+(sisaData>=0?"#059669":"#dc2626")+'">'+(sisaData>=0?"+":"-")+fmt(Math.abs(sisaData))+'</td></tr>'
+      +'<tr class="total"><td>Keuntungan Margin'+(mg.supplier>0?" ("+mg.pct+"%)":"")+'</td><td style="text-align:right;color:'+(mg.margin>=0?"#059669":"#dc2626")+'">'+(mg.margin>=0?"+":"-")+fmt(Math.abs(mg.margin))+'</td></tr>'
+      +(mg.supplier>0?'<tr><td style="color:#64748b;font-size:12px">— Modal (harga supplier)</td><td style="text-align:right;color:#64748b">'+fmt(mg.supplier)+'</td></tr>':'')
       +'</table>');
-    win.document.write('<h3 style="font-size:13px;color:#475569;margin-top:16px">DETAIL BELANJA ('+dataB.length+' transaksi)</h3>');
-    win.document.write('<table><thead><tr><th>Tanggal</th><th>SPPG</th><th>Keterangan</th><th style="text-align:right">Total</th></tr></thead><tbody>'+rows+'</tbody></table>');
-    win.document.write('<h3 style="font-size:13px;color:#475569;margin-top:16px">REKAP PER BAHAN</h3>');
-    win.document.write('<table><thead><tr><th>Bahan</th><th style="text-align:center">Total Qty</th><th style="text-align:right">Nilai</th></tr></thead><tbody>'+bahanRows+'</tbody></table>');
+    // Ringkasan jumlah (porsi, transaksi, bahan) — hanya angka
+    win.document.write('<p class="sec">Jumlah</p>');
+    win.document.write('<table>'
+      +'<tr><td>Jumlah Transaksi</td><td style="text-align:right">'+dataB.length+'</td></tr>'
+      +'<tr><td>Total Bahan</td><td style="text-align:right">'+totalBahan+' item</td></tr>'
+      +'<tr><td>Porsi Kecil</td><td style="text-align:right">'+porsiKecil+' porsi</td></tr>'
+      +'<tr><td>Porsi Besar</td><td style="text-align:right">'+porsiBesar+' porsi</td></tr>'
+      +'<tr class="total"><td>Total Porsi</td><td style="text-align:right">'+(porsiKecil+porsiBesar)+' porsi</td></tr>'
+      +'</table>');
+    // Status bahan — hanya jumlah per status
+    win.document.write('<p class="sec">Status Bahan (jumlah)</p>');
+    win.document.write('<table>'
+      +'<tr><td>Belum Dipesan</td><td style="text-align:right">'+statusData.belum_dipesan+'</td></tr>'
+      +'<tr><td>Dipesan</td><td style="text-align:right">'+statusData.dipesan+'</td></tr>'
+      +'<tr><td>Dibayar</td><td style="text-align:right">'+statusData.dibayar+'</td></tr>'
+      +'<tr><td>Dikirim</td><td style="text-align:right">'+statusData.dikirim+'</td></tr>'
+      +'<tr><td>Sampai</td><td style="text-align:right">'+statusData.sampai+'</td></tr>'
+      +(statusData.dibatalkan>0?'<tr><td>Dibatalkan</td><td style="text-align:right">'+statusData.dibatalkan+'</td></tr>':'')
+      +'</table>');
     win.document.write('<p style="text-align:right;font-size:11px;color:#94a3b8;margin-top:16px">Dicetak: '+new Date().toLocaleString("id-ID")+'</p>');
     win.document.write('<div class="noprint" style="text-align:center;margin-top:12px"><button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:600">🖨 Cetak</button></div>');
     win.document.write('</body></html>');win.document.close();win.focus();
@@ -1030,6 +1049,33 @@ function PageDashboard(p){
         RC("span",{style:{fontSize:".78rem",fontWeight:700,color:"#ea580c"}},"Porsi Besar: "+totalPorsiBesar),
         RC("span",{style:{fontSize:".78rem",color:"#94a3b8"}},"|"),
         RC("span",{style:{fontSize:".78rem",fontWeight:800,color:"#1e293b"}},"Total: "+totalPorsi)
+      );
+    })(),
+
+    // ── Banner keuntungan margin (harga supplier → harga final) ──
+    (function(){
+      var mg=hitungMargin(isPeriodeMode?curPeriodeB:blnB);
+      var positif=mg.margin>=0;
+      return RC("div",{style:{
+        background:positif?"linear-gradient(135deg,#065f46,#059669)":"#fef2f2",
+        border:positif?"none":"1px solid #fecaca",
+        borderRadius:".75rem",padding:".75rem 1rem",color:positif?"white":"#dc2626"}},
+        RC("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:".5rem"}},
+          RC("div",null,
+            RC("p",{style:{fontSize:".62rem",fontWeight:700,margin:0,textTransform:"uppercase",letterSpacing:".04em",
+              color:positif?"rgba(255,255,255,.8)":"#dc2626"}},"💰 Keuntungan Margin"),
+            RC("p",{style:{fontSize:".58rem",margin:"2px 0 0",
+              color:positif?"rgba(255,255,255,.7)":"#94a3b8"}},
+              mg.nItem>0?(mg.nItem+" bahan dihitung • "+(isPeriodeMode?"periode berjalan":"bulan ini")):"belum ada data harga supplier")
+          ),
+          RC("div",{style:{textAlign:"right"}},
+            RC("p",{style:{fontSize:"1.05rem",fontWeight:800,margin:0,fontFamily:"monospace"}},
+              (positif?"+":"")+fmtS(mg.margin)),
+            mg.supplier>0&&RC("p",{style:{fontSize:".6rem",margin:"1px 0 0",
+              color:positif?"rgba(255,255,255,.75)":"#94a3b8"}},
+              "Margin "+mg.pct+"% • Modal "+fmtS(mg.supplier))
+          )
+        )
       );
     })(),
 
