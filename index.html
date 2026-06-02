@@ -3128,6 +3128,109 @@ function App(){
     reader.readAsText(file);
   }
 
+  // ── IMPORT EXCEL (format RB SPPG: 1 sheet = 1 tanggal) ───────────────────────
+  function parseBulanFromFilename(fname){
+    var bulanIdx={jan:1,feb:2,mar:3,apr:4,mei:5,jun:6,jul:7,agu:8,agt:8,ags:8,sep:9,okt:10,nov:11,des:12};
+    var m=(fname||"").match(/(\d{1,2})\s+([A-Za-z]+)\s*[-–]\s*(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+    if(!m) return null;
+    var b1=bulanIdx[m[2].slice(0,3).toLowerCase()], b2=bulanIdx[m[4].slice(0,3).toLowerCase()];
+    if(!b1||!b2) return null;
+    return {startDay:parseInt(m[1],10),b1:b1,b2:b2,year:parseInt(m[5],10)};
+  }
+  function importExcel(file){
+    if(typeof XLSX==="undefined"){showToast("Library Excel belum siap","error");return;}
+    var info=parseBulanFromFilename(file.name);
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        var wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}); // raw → angka rupiah, bukan tanggal
+        var spId=(sppgList&&sppgList[0])?sppgList[0].id:"";
+        var newBelanja=[];
+        wb.SheetNames.forEach(function(sname){
+          var dayMatch=sname.match(/^(\d{1,2})/); // ambil angka tanggal dari nama sheet
+          if(!dayMatch) return; // lewati sheet non-tanggal (Casback, dll)
+          var day=parseInt(dayMatch[1],10);
+          // Tentukan bulan/tahun dari nama file
+          var bulan, tahun;
+          if(info){
+            if(day>=info.startDay){bulan=info.b1;tahun=info.year;}
+            else{bulan=info.b2;tahun=(info.b2<info.b1?info.year+1:info.year);}
+          }else{
+            var n=new Date(); bulan=n.getMonth()+1; tahun=n.getFullYear();
+          }
+          var iso=tahun+"-"+("0"+bulan).slice(-2)+"-"+("0"+day).slice(-2);
+          var ws=wb.Sheets[sname];
+          var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+          var items=[];
+          rows.forEach(function(r){
+            if(!r) return;
+            var no=r[0], nama=r[1], qty=r[2], sat=r[3], asli=r[4], up=r[5];
+            // Baris bahan valid: No numerik, nama string, qty numerik
+            if(typeof no!=="number"&&!(typeof no==="string"&&/^\d+$/.test(no))) return;
+            if(!nama||typeof nama!=="string") return;
+            if(/total|maksimum|sisa/i.test(nama)) return;
+            if(typeof qty!=="number") qty=parseFloat(qty)||0;
+            if(qty<=0) return;
+            items.push({id:uid(),nama:String(nama).trim(),qty:qty,satuan:sat?String(sat).trim():"",
+              hargaSupplier:typeof asli==="number"?asli:(parseFloat(asli)||0),
+              hargaFinal:typeof up==="number"?up:(parseFloat(up)||0),
+              status:"sampai",statusLog:[{status:"sampai",waktu:new Date().toISOString(),catatan:"(import Excel)"}]});
+          });
+          if(items.length===0) return;
+          var totalSupplier=items.reduce(function(a,it){return a+it.qty*(it.hargaSupplier||0);},0);
+          var totalFinal=items.reduce(function(a,it){return a+it.qty*(it.hargaFinal||0);},0);
+          newBelanja.push({id:uid(),sppgId:spId,judul:"Belanja "+iso,tanggal:iso,items:items,
+            totalSupplier:totalSupplier,totalFinal:totalFinal,porsiKecil:0,porsiBesar:0,
+            notaNo:"",status:"sampai",statusLog:[],createdAt:new Date().toISOString()});
+        });
+        if(newBelanja.length===0){showToast("Tidak ada data bahan yang terbaca","warn");return;}
+        var totItem=newBelanja.reduce(function(a,b){return a+b.items.length;},0);
+        if(!window.confirm("Ditemukan "+newBelanja.length+" tanggal, "+totItem+" bahan.\nTambahkan ke data belanja?")) return;
+        setBelanjaList(function(prev){return (Array.isArray(prev)?prev:[]).concat(newBelanja);});
+        if(dbOK(dbStatus)) sbUpsert("transaksi",newBelanja.map(belanjaToTrx)).catch(function(e){console.warn(e);});
+        showToast("Import berhasil: "+newBelanja.length+" tanggal, "+totItem+" bahan","success");
+      }catch(ex){showToast("Gagal baca Excel: "+ex.message,"error");}
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ── EXPORT EXCEL (layout mirip template: 1 sheet = 1 tanggal) ────────────────
+  function exportExcel(){
+    if(typeof XLSX==="undefined"){showToast("Library Excel belum siap","error");return;}
+    var list=Array.isArray(belanjaList)?belanjaList:[];
+    if(list.length===0){showToast("Belum ada data untuk diexport","warn");return;}
+    var byTgl={};
+    list.forEach(function(b){var t=b.tanggal||"-";if(!byTgl[t])byTgl[t]=[];byTgl[t].push(b);});
+    var wb=XLSX.utils.book_new();
+    var usedNames={};
+    Object.keys(byTgl).sort().forEach(function(t){
+      var aoa=[];
+      aoa.push(["Pembelanjaan Harian — "+t]);
+      aoa.push([]);
+      aoa.push(["No.","Uraian Jenis Bahan Makanan","Qty","Satuan","Harga Asli","Harga UP","Jumlah Asli","Jumlah UP","Cashback"]);
+      var no=1, tSupAll=0, tUpAll=0;
+      byTgl[t].forEach(function(b){
+        (b.items||[]).forEach(function(it){
+          var q=it.qty||0, asli=it.hargaSupplier||0, up=it.hargaFinal||0;
+          var ja=q*asli, ju=q*up;
+          tSupAll+=ja; tUpAll+=ju;
+          aoa.push([no++,it.nama||"",q,it.satuan||"",asli,up,ja,ju,Math.max(0,ja-ju)]);
+        });
+      });
+      aoa.push(["Total","","","","","",tSupAll,tUpAll,""]);
+      aoa.push(["Keuntungan (UP − Asli)","","","","","",tUpAll-tSupAll,"",""]);
+      var ws=XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"]=[{wch:5},{wch:28},{wch:6},{wch:8},{wch:12},{wch:12},{wch:13},{wch:13},{wch:11}];
+      // Nama sheet = tanggal (hari); hindari duplikat
+      var day=t.slice(8,10)||t;
+      var nm=day; var k=2; while(usedNames[nm]){nm=day+" ("+(k++)+")";}
+      usedNames[nm]=1;
+      XLSX.utils.book_append_sheet(wb,ws,nm);
+    });
+    XLSX.writeFile(wb,"RB_SPPG_CITEUREUP_export_"+new Date().toISOString().slice(0,10)+".xlsx");
+    showToast("Export Excel berhasil","success");
+  }
+
   function addSppg(s){
     setSppgList(function(prev){return (Array.isArray(prev)?prev:[]).concat([s]);});
     if(dbOK(dbStatus)) sbUpsert("sppg",[sppgToSB(s)]).catch(function(){});
@@ -3248,7 +3351,17 @@ function App(){
             "⬆ Restore JSON",
             RC("input",{type:"file",accept:".json",style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files[0])restoreJSON(e.target.files[0]);}})
           )
-        )
+        ),
+        RC("hr",{style:{border:"none",borderTop:"1px solid #f1f5f9",margin:".75rem 0"}}),
+        RC("p",{style:{fontSize:".72rem",fontWeight:700,color:"#475569",margin:"0 0 .5rem"}},"📊 Import / Export Excel (format RB SPPG)"),
+        RC("div",{style:{display:"flex",gap:".5rem",flexWrap:"wrap"}},
+          RC("label",{style:{flex:1,background:"#059669",color:"white",borderRadius:".5rem",padding:".5rem",fontSize:".78rem",fontWeight:600,cursor:"pointer",textAlign:"center"}},
+            "⬆ Import Excel",
+            RC("input",{type:"file",accept:".xlsx,.xls",style:{display:"none"},onChange:function(e){if(e.target.files&&e.target.files[0]){importExcel(e.target.files[0]);e.target.value="";}}})
+          ),
+          RC("button",{onClick:exportExcel,style:{flex:1,background:"#0d9488",color:"white",border:"none",borderRadius:".5rem",padding:".5rem",fontSize:".78rem",fontWeight:600,cursor:"pointer"}},"⬇ Export Excel")
+        ),
+        RC("p",{style:{fontSize:".65rem",color:"#94a3b8",marginTop:".5rem"}},"Import membaca tiap sheet sebagai 1 tanggal (kolom Harga Asli = supplier, Harga UP = final). Bahan ditandai 'Sampai'. Porsi & seksi operasional belum ikut.")
       )
     )
   );
