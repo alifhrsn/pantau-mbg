@@ -778,9 +778,10 @@ function PageDashboard(p){
     var win=window.open("","_blank","width=800,height=1000");
     if(!win){showToast("Pop-up diblokir","warn");return;}
     win.document.write('<!DOCTYPE html><html><head><title>Laporan '+subtitle+'</title>'
-      +'<style>body{font-family:sans-serif;padding:24px;max-width:560px;margin:0 auto;font-size:14px}'
-      +'h2{text-align:center;letter-spacing:2px;margin-bottom:2px}table{width:100%;border-collapse:collapse;margin:12px 0}'
-      +'td{border:1px solid #e2e8f0;padding:8px 12px}.total{font-weight:800;background:#eff6ff}'
+      +'<style>body{font-family:sans-serif;padding:24px;max-width:640px;margin:0 auto;font-size:13px}'
+      +'h2{text-align:center;letter-spacing:2px;margin-bottom:2px}table{width:100%;border-collapse:collapse;margin:10px 0}'
+      +'th{background:#f8fafc;border:1px solid #e2e8f0;padding:7px 10px;font-size:11px;color:#475569}'
+      +'td{border:1px solid #e2e8f0;padding:7px 10px}.total{font-weight:800;background:#eff6ff}'
       +'.sec{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:18px 0 4px;font-weight:700}'
       +'@media print{.noprint{display:none}}</style></head><body>');
     win.document.write('<h2>LAPORAN BELANJA MBG</h2><p style="text-align:center;color:#64748b;margin-top:0">'+subtitle+'</p><hr>');
@@ -792,25 +793,51 @@ function PageDashboard(p){
       +'<tr class="total"><td>Keuntungan Margin'+(mg.supplier>0?" ("+mg.pct+"%)":"")+'</td><td style="text-align:right;color:'+(mg.margin>=0?"#059669":"#dc2626")+'">'+(mg.margin>=0?"+":"-")+fmt(Math.abs(mg.margin))+'</td></tr>'
       +(mg.supplier>0?'<tr><td style="color:#64748b;font-size:12px">— Modal (harga supplier)</td><td style="text-align:right;color:#64748b">'+fmt(mg.supplier)+'</td></tr>':'')
       +'</table>');
-    // Ringkasan jumlah (porsi, transaksi, bahan) — hanya angka
-    win.document.write('<p class="sec">Jumlah</p>');
+    // Rincian harian per tanggal (dalam periode/rentang yang dipilih)
+    var byTgl={};
+    dataB.forEach(function(b){
+      var t=b.tanggal||"-";
+      if(!byTgl[t]) byTgl[t]={belanja:0,budget:0,pk:0,pb:0,bahan:0,belanjas:[]};
+      byTgl[t].belanja+=b.totalFinal||0;
+      byTgl[t].budget+=(b.porsiKecil||0)*8000+(b.porsiBesar||0)*10000;
+      byTgl[t].pk+=b.porsiKecil||0;
+      byTgl[t].pb+=b.porsiBesar||0;
+      byTgl[t].bahan+=(b.items||[]).length;
+      byTgl[t].belanjas.push(b);
+    });
+    var tglKeys=Object.keys(byTgl).sort();
+    var hariRows="";
+    tglKeys.forEach(function(t){
+      var d=byTgl[t];
+      var sisa=d.budget-d.belanja;
+      var m=hitungMargin(d.belanjas);
+      hariRows+='<tr>'
+        +'<td>'+shortDate(t)+'</td>'
+        +'<td style="text-align:right">'+fmt(d.belanja)+'</td>'
+        +'<td style="text-align:right;color:'+(m.margin>=0?"#059669":"#dc2626")+'">'+(m.margin>=0?"+":"-")+fmt(Math.abs(m.margin))+'</td>'
+        +'<td style="text-align:right;color:'+(sisa>=0?"#059669":"#dc2626")+'">'+(sisa>=0?"+":"-")+fmt(Math.abs(sisa))+'</td>'
+        +'<td style="text-align:center">'+d.pk+'/'+d.pb+'</td>'
+        +'<td style="text-align:center">'+d.bahan+'</td>'
+        +'</tr>';
+    });
+    var mAll=mg;
+    var sisaAll=sisaData;
+    var totRow='<tr class="total"><td>TOTAL ('+tglKeys.length+' hari)</td>'
+      +'<td style="text-align:right">'+fmt(totalData)+'</td>'
+      +'<td style="text-align:right;color:'+(mAll.margin>=0?"#059669":"#dc2626")+'">'+(mAll.margin>=0?"+":"-")+fmt(Math.abs(mAll.margin))+'</td>'
+      +'<td style="text-align:right;color:'+(sisaAll>=0?"#059669":"#dc2626")+'">'+(sisaAll>=0?"+":"-")+fmt(Math.abs(sisaAll))+'</td>'
+      +'<td style="text-align:center">'+porsiKecil+'/'+porsiBesar+'</td>'
+      +'<td style="text-align:center">'+totalBahan+'</td></tr>';
+    win.document.write('<p class="sec">Rincian Harian per Tanggal</p>');
     win.document.write('<table>'
-      +'<tr><td>Jumlah Transaksi</td><td style="text-align:right">'+dataB.length+'</td></tr>'
-      +'<tr><td>Total Bahan</td><td style="text-align:right">'+totalBahan+' item</td></tr>'
-      +'<tr><td>Porsi Kecil</td><td style="text-align:right">'+porsiKecil+' porsi</td></tr>'
-      +'<tr><td>Porsi Besar</td><td style="text-align:right">'+porsiBesar+' porsi</td></tr>'
-      +'<tr class="total"><td>Total Porsi</td><td style="text-align:right">'+(porsiKecil+porsiBesar)+' porsi</td></tr>'
-      +'</table>');
-    // Status bahan — hanya jumlah per status
-    win.document.write('<p class="sec">Status Bahan (jumlah)</p>');
-    win.document.write('<table>'
-      +'<tr><td>Belum Dipesan</td><td style="text-align:right">'+statusData.belum_dipesan+'</td></tr>'
-      +'<tr><td>Dipesan</td><td style="text-align:right">'+statusData.dipesan+'</td></tr>'
-      +'<tr><td>Dibayar</td><td style="text-align:right">'+statusData.dibayar+'</td></tr>'
-      +'<tr><td>Dikirim</td><td style="text-align:right">'+statusData.dikirim+'</td></tr>'
-      +'<tr><td>Sampai</td><td style="text-align:right">'+statusData.sampai+'</td></tr>'
-      +(statusData.dibatalkan>0?'<tr><td>Dibatalkan</td><td style="text-align:right">'+statusData.dibatalkan+'</td></tr>':'')
-      +'</table>');
+      +'<thead><tr>'
+        +'<th style="text-align:left">Tanggal</th>'
+        +'<th style="text-align:right">Belanja</th>'
+        +'<th style="text-align:right">Untung</th>'
+        +'<th style="text-align:right">Sisa</th>'
+        +'<th style="text-align:center">Porsi K/B</th>'
+        +'<th style="text-align:center">Bahan</th>'
+      +'</tr></thead><tbody>'+(hariRows||'<tr><td colspan="6" style="text-align:center;color:#94a3b8">Tidak ada data</td></tr>')+totRow+'</tbody></table>');
     win.document.write('<p style="text-align:right;font-size:11px;color:#94a3b8;margin-top:16px">Dicetak: '+new Date().toLocaleString("id-ID")+'</p>');
     win.document.write('<div class="noprint" style="text-align:center;margin-top:12px"><button onclick="window.print()" style="background:#2563eb;color:white;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:600">🖨 Cetak</button></div>');
     win.document.write('</body></html>');win.document.close();win.focus();
