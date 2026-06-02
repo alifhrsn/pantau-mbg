@@ -626,6 +626,9 @@ function PageDashboard(p){
   var slt=useState(today()),lapTgl=slt[0],setLapTgl=slt[1];
   var slp=useState(curPeriodNum),lapPeriode=slp[0],setLapPeriode=slp[1];
 
+  // ── Toggle ringkasan dashboard: "periode" (2 mingguan) atau "bulan" ──
+  var sdm=useState("periode"),dashMode=sdm[0],setDashMode=sdm[1];
+
   // Belanja dalam periode yang dipilih
   var periodeB=safeB.filter(function(b){
     return b.tanggal&&b.tanggal>=periodInfo.start&&b.tanggal<=periodInfo.end;
@@ -698,16 +701,28 @@ function PageDashboard(p){
     return result.sort(function(a,b){return Math.abs(b.pct)-Math.abs(a.pct);}).slice(0,5);
   },[safeHist]);
 
+  // Bahan aktif (belum sampai) dalam periode terpilih
+  var totalItemAktifPeriode=(itemStatusPeriode.belum_dipesan||0)+(itemStatusPeriode.dipesan||0)+(itemStatusPeriode.dibayar||0)+(itemStatusPeriode.dikirim||0);
+
+  // Pilih sumber data ringkasan sesuai toggle
+  var isPeriodeMode=dashMode==="periode";
+  var sumTotal   = isPeriodeMode?totalPeriode:totalBlnIni;
+  var sumBudget  = isPeriodeMode?budgetPeriode:budgetHarian;
+  var sumSisa    = isPeriodeMode?sisaPeriode:sisaBudget;
+  var sumAktif   = isPeriodeMode?totalItemAktifPeriode:totalItemAktif;
+  var sumScopeL  = isPeriodeMode?periodInfo.label:monthLabel(bln);
+  var sumScopeSub= isPeriodeMode?"periode ini":"bulan ini";
+
   var cards=[
-    {l:"Belanja Bulan Ini",v:fmtS(totalBlnIni),c:"#2563eb",bg:"#eff6ff",bd:"#bfdbfe",icon:"🛒"},
-    {l:"Maks. Budget",v:fmtS(budgetHarian),c:"#7c3aed",bg:"#f5f3ff",bd:"#ddd6fe",icon:"🍱",sub:"Kecil×8rb + Besar×10rb"},
-    {l:"Bahan Aktif Dipesan",v:totalItemAktif+" bahan",c:"#ea580c",bg:"#fff7ed",bd:"#fed7aa",icon:"📦",sub:"belum sampai bulan ini"},
-    {l:sisaBudget>=0?"Sisa Budget":"Melebihi Budget",
-     v:(sisaBudget>=0?"+":"")+fmtS(Math.abs(sisaBudget)),
-     c:budgetHarian>0?(sisaBudget>=0?"#059669":"#dc2626"):"#94a3b8",
-     bg:budgetHarian>0?(sisaBudget>=0?"#f0fdf4":"#fef2f2"):"#f8fafc",
-     bd:budgetHarian>0?(sisaBudget>=0?"#bbf7d0":"#fecaca"):"#e2e8f0",
-     icon:budgetHarian>0?(sisaBudget>=0?"✅":"⚠️"):"—"},
+    {l:"Belanja ("+sumScopeL+")",v:fmtS(sumTotal),c:"#2563eb",bg:"#eff6ff",bd:"#bfdbfe",icon:"🛒"},
+    {l:"Maks. Budget",v:fmtS(sumBudget),c:"#7c3aed",bg:"#f5f3ff",bd:"#ddd6fe",icon:"🍱",sub:"Kecil×8rb + Besar×10rb"},
+    {l:"Bahan Aktif Dipesan",v:sumAktif+" bahan",c:"#ea580c",bg:"#fff7ed",bd:"#fed7aa",icon:"📦",sub:"belum sampai "+sumScopeSub},
+    {l:sumSisa>=0?"Sisa Budget":"Melebihi Budget",
+     v:(sumSisa>=0?"+":"")+fmtS(Math.abs(sumSisa)),
+     c:sumBudget>0?(sumSisa>=0?"#059669":"#dc2626"):"#94a3b8",
+     bg:sumBudget>0?(sumSisa>=0?"#f0fdf4":"#fef2f2"):"#f8fafc",
+     bd:sumBudget>0?(sumSisa>=0?"#bbf7d0":"#fecaca"):"#e2e8f0",
+     icon:sumBudget>0?(sumSisa>=0?"✅":"⚠️"):"—"},
   ];
 
   function SectionLabel(props){
@@ -955,6 +970,22 @@ function PageDashboard(p){
       )
     ),
 
+    // ── Toggle Periode / Bulanan ──
+    RC("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:".5rem"}},
+      RC("p",{style:{fontSize:".75rem",fontWeight:800,color:"#1e293b",margin:0}},"Ringkasan"),
+      RC("div",{style:{display:"inline-flex",background:"#f1f5f9",borderRadius:"999px",padding:"3px",gap:"2px"}},
+        [{k:"periode",t:"Periode"},{k:"bulan",t:"Bulanan"}].map(function(o){
+          var active=dashMode===o.k;
+          return RC("button",{key:o.k,onClick:function(){setDashMode(o.k);},
+            style:{border:"none",cursor:"pointer",borderRadius:"999px",padding:"4px 14px",
+              fontSize:".72rem",fontWeight:700,
+              background:active?"#2563eb":"transparent",
+              color:active?"white":"#64748b",
+              boxShadow:active?"0 1px 3px rgba(37,99,235,.3)":"none"}},o.t);
+        })
+      )
+    ),
+
     // ── Summary cards ──
     RC("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:".5rem"}},
       cards.map(function(x){
@@ -973,8 +1004,9 @@ function PageDashboard(p){
 
     // ── Rekap porsi banner ──
     (function(){
-      var totalPorsiKecil=blnB.reduce(function(a,b){return a+(b.porsiKecil||0);},0);
-      var totalPorsiBesar=blnB.reduce(function(a,b){return a+(b.porsiBesar||0);},0);
+      var srcB=isPeriodeMode?periodeB:blnB;
+      var totalPorsiKecil=srcB.reduce(function(a,b){return a+(b.porsiKecil||0);},0);
+      var totalPorsiBesar=srcB.reduce(function(a,b){return a+(b.porsiBesar||0);},0);
       var totalPorsi=totalPorsiKecil+totalPorsiBesar;
       return RC("div",{style:{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:".75rem",padding:".625rem 1rem",display:"flex",justifyContent:"center",gap:"1.5rem",flexWrap:"wrap"}},
         RC("span",{style:{fontSize:".78rem",fontWeight:700,color:"#059669"}},"🍱 Porsi Kecil: "+totalPorsiKecil),
